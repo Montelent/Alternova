@@ -9,6 +9,16 @@
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
+    # Serve static assets that live under /public when docroot is project root
+    RewriteCond %{REQUEST_URI} ^/(css|js|build|fonts|vendor|images|storage)/(.*)$ [NC]
+    RewriteCond %{DOCUMENT_ROOT}/public/%1/%2 -f
+    RewriteRule ^(css|js|build|fonts|vendor|images|storage)/(.*)$ public/$1/$2 [L]
+
+    # Also allow direct /public/... requests
+    RewriteCond %{REQUEST_URI} ^/public/ [NC]
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
     # Redirect Trailing Slashes If Not A Folder...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} (.+)/$
@@ -19,15 +29,3 @@
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
-
-# Deny access to sensitive paths
-<IfModule mod_authz_core.c>
-    Require all granted
-</IfModule>
-
-# Block access to hidden / sensitive files
-<FilesMatch "^\.">
-    <IfModule mod_authz_core.c>
-        Require all denied
-    </IfModule>
-</FilesMatch>
