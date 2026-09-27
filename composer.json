@@ -1,12 +1,12 @@
 {
     "name": "montelent/alternova",
     "type": "project",
-    "description": "Alternova – Open-source alternative finder and domain name idea combinator",
+    "description": "Alternova - Open-source alternative finder and domain name idea combinator",
     "keywords": ["laravel", "open-source", "alternatives", "domains"],
     "license": "MIT",
     "require": {
         "php": "^8.2",
-        "laravel/framework": "^11.31",
+        "laravel/framework": "^11.0|^12.0",
         "laravel/tinker": "^2.9",
         "laravel/scout": "^10.0",
         "livewire/livewire": "^3.5",
@@ -49,9 +49,7 @@
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
         ],
         "post-create-project-cmd": [
-            "@php artisan key:generate --ansi",
-            "@php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\"",
-            "@php artisan migrate --graceful --ansi"
+            "@php artisan key:generate --ansi"
         ]
     },
     "extra": {
@@ -66,6 +64,9 @@
         "allow-plugins": {
             "pestphp/pest-plugin": true,
             "php-http/discovery": true
+        },
+        "audit": {
+            "block-insecure": false
         }
     },
     "minimum-stability": "stable",
