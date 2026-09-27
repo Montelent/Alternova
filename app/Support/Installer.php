@@ -4,7 +4,6 @@ namespace App\Support;
 
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Str;
 
 class Installer
 {
@@ -51,65 +50,81 @@ class Installer
         ];
     }
 
+    /**
+     * Try to create required storage directories.
+     */
+    public static function ensureStorageDirectories(): void
+    {
+        $dirs = [
+            storage_path('app'),
+            storage_path('app/public'),
+            storage_path('framework'),
+            storage_path('framework/cache'),
+            storage_path('framework/cache/data'),
+            storage_path('framework/sessions'),
+            storage_path('framework/views'),
+            storage_path('logs'),
+            base_path('bootstrap/cache'),
+        ];
+
+        foreach ($dirs as $dir) {
+            if (! is_dir($dir)) {
+                @mkdir($dir, 0775, true);
+            }
+        }
+    }
+
     public static function requirements(): array
     {
+        self::ensureStorageDirectories();
+
         return [
             'php_version' => [
-                'label' => 'PHP >= 8.3',
-                'ok' => version_compare(PHP_VERSION, '8.3.0', '>='),
+                'label' => 'PHP >= 8.2',
+                'ok' => version_compare(PHP_VERSION, '8.2.0', '>='),
                 'value' => PHP_VERSION,
             ],
-            'pdo_pgsql' => [
-                'label' => 'PDO PostgreSQL (or PDO MySQL)',
-                'ok' => extension_loaded('pdo_pgsql') || extension_loaded('pdo_mysql'),
-                'value' => extension_loaded('pdo_pgsql')
-                    ? 'pdo_pgsql'
-                    : (extension_loaded('pdo_mysql') ? 'pdo_mysql' : 'missing'),
+            'pdo' => [
+                'label' => 'PDO MySQL or PostgreSQL',
+                'ok' => extension_loaded('pdo_mysql') || extension_loaded('pdo_pgsql'),
+                'value' => extension_loaded('pdo_mysql')
+                    ? 'pdo_mysql'
+                    : (extension_loaded('pdo_pgsql') ? 'pdo_pgsql' : 'missing'),
             ],
             'openssl' => [
-                'label' => 'OpenSSL extension',
+                'label' => 'OpenSSL',
                 'ok' => extension_loaded('openssl'),
-                'value' => extension_loaded('openssl') ? 'loaded' : 'missing',
+                'value' => extension_loaded('openssl') ? 'ok' : 'missing',
             ],
             'mbstring' => [
-                'label' => 'Mbstring extension',
+                'label' => 'Mbstring',
                 'ok' => extension_loaded('mbstring'),
-                'value' => extension_loaded('mbstring') ? 'loaded' : 'missing',
+                'value' => extension_loaded('mbstring') ? 'ok' : 'missing',
             ],
             'tokenizer' => [
-                'label' => 'Tokenizer extension',
+                'label' => 'Tokenizer',
                 'ok' => extension_loaded('tokenizer'),
-                'value' => extension_loaded('tokenizer') ? 'loaded' : 'missing',
-            ],
-            'xml' => [
-                'label' => 'XML extension',
-                'ok' => extension_loaded('xml'),
-                'value' => extension_loaded('xml') ? 'loaded' : 'missing',
-            ],
-            'ctype' => [
-                'label' => 'Ctype extension',
-                'ok' => extension_loaded('ctype'),
-                'value' => extension_loaded('ctype') ? 'loaded' : 'missing',
+                'value' => extension_loaded('tokenizer') ? 'ok' : 'missing',
             ],
             'json' => [
-                'label' => 'JSON extension',
+                'label' => 'JSON',
                 'ok' => extension_loaded('json'),
-                'value' => extension_loaded('json') ? 'loaded' : 'missing',
+                'value' => extension_loaded('json') ? 'ok' : 'missing',
             ],
             'storage_writable' => [
                 'label' => 'storage/ writable',
                 'ok' => is_writable(storage_path()),
-                'value' => is_writable(storage_path()) ? 'yes' : 'no',
+                'value' => is_writable(storage_path()) ? 'yes' : 'no — run: chmod -R 775 storage',
             ],
             'bootstrap_cache_writable' => [
                 'label' => 'bootstrap/cache writable',
                 'ok' => is_writable(base_path('bootstrap/cache')),
-                'value' => is_writable(base_path('bootstrap/cache')) ? 'yes' : 'no',
+                'value' => is_writable(base_path('bootstrap/cache')) ? 'yes' : 'no — run: chmod -R 775 bootstrap/cache',
             ],
             'env_example' => [
                 'label' => '.env.example present',
                 'ok' => File::exists(base_path('.env.example')),
-                'value' => File::exists(base_path('.env.example')) ? 'yes' : 'no',
+                'value' => File::exists(base_path('.env.example')) ? 'yes' : 'missing',
             ],
         ];
     }
@@ -125,9 +140,18 @@ class Installer
         return true;
     }
 
-    /**
-     * Ensure .env exists (copy from .env.example if needed).
-     */
+    public static function failedRequirementLabels(): array
+    {
+        $failed = [];
+        foreach (self::requirements() as $check) {
+            if (! $check['ok']) {
+                $failed[] = $check['label'] . ' (' . $check['value'] . ')';
+            }
+        }
+
+        return $failed;
+    }
+
     public static function ensureEnvFile(): bool
     {
         $envPath = base_path('.env');
@@ -147,8 +171,6 @@ class Installer
     }
 
     /**
-     * Write key=value pairs into .env (create file from example if missing).
-     *
      * @param  array<string, string>  $values
      */
     public static function writeEnv(array $values): void
@@ -161,9 +183,8 @@ class Installer
         foreach ($values as $key => $value) {
             $value = (string) $value;
 
-            // Quote values that contain spaces or special chars
-            if ($value !== '' && ! preg_match('/^[A-Za-z0-9_.\-]+$/', $value)) {
-                $value = '"' . str_replace('"', '\\"', $value) . '"';
+            if ($value !== '' && ! preg_match('/^[A-Za-z0-9_.\-\/:]+$/', $value)) {
+                $value = '"' . str_replace(['\\', '"'], ['\\\\', '\\"'], $value) . '"';
             }
 
             if (preg_match("/^{$key}=.*/m", $content)) {
@@ -180,9 +201,6 @@ class Installer
         File::put($envPath, $content);
     }
 
-    /**
-     * Generate APP_KEY if missing and write it to .env.
-     */
     public static function ensureAppKey(): string
     {
         self::ensureEnvFile();
@@ -200,9 +218,6 @@ class Installer
         return $key;
     }
 
-    /**
-     * Test database connection with the given credentials (without relying on current config).
-     */
     public static function testDatabaseConnection(
         string $connection,
         string $host,

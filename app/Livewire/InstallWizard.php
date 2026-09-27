@@ -20,17 +20,18 @@ class InstallWizard extends Component
 
     public bool $requirementsMet = false;
 
+    // Hostinger / most shared hosts use MySQL
     public string $app_name = 'Alternova';
 
     public string $app_url = '';
 
-    public string $db_connection = 'pgsql';
+    public string $db_connection = 'mysql';
 
     public string $db_host = '127.0.0.1';
 
-    public string $db_port = '5432';
+    public string $db_port = '3306';
 
-    public string $db_database = 'alternova';
+    public string $db_database = '';
 
     public string $db_username = '';
 
@@ -61,14 +62,15 @@ class InstallWizard extends Component
         }
 
         $this->app_url = rtrim(request()->getSchemeAndHttpHost(), '/');
-        $this->refreshRequirements();
-
+        Installer::ensureStorageDirectories();
         Installer::ensureEnvFile();
         Installer::ensureAppKey();
+        $this->refreshRequirements();
     }
 
     public function refreshRequirements(): void
     {
+        Installer::ensureStorageDirectories();
         $this->requirements = Installer::requirements();
         $this->requirementsMet = Installer::allRequirementsMet();
     }
@@ -108,8 +110,10 @@ class InstallWizard extends Component
 
         if ($this->step === 1) {
             $this->refreshRequirements();
+
             if (! $this->requirementsMet) {
-                $this->errorMessage = 'Please fix the failed requirements before continuing.';
+                $failed = Installer::failedRequirementLabels();
+                $this->errorMessage = 'Fix these before continuing: ' . implode('; ', $failed);
 
                 return;
             }
@@ -119,8 +123,8 @@ class InstallWizard extends Component
 
                 return;
             }
-            Installer::ensureAppKey();
 
+            Installer::ensureAppKey();
             $this->step = 2;
 
             return;
@@ -177,7 +181,7 @@ class InstallWizard extends Component
         if (! $test['success']) {
             $this->dbTestSuccess = false;
             $this->dbTestMessage = $test['message'];
-            $this->errorMessage = 'Database connection failed. Fix the credentials and try again.';
+            $this->errorMessage = 'Database connection failed: ' . $test['message'];
 
             return;
         }
@@ -197,6 +201,10 @@ class InstallWizard extends Component
                 'DB_DATABASE' => $this->db_database,
                 'DB_USERNAME' => $this->db_username,
                 'DB_PASSWORD' => $this->db_password,
+                'CACHE_DRIVER' => 'file',
+                'SESSION_DRIVER' => 'file',
+                'QUEUE_CONNECTION' => 'sync',
+                'SCOUT_DRIVER' => 'collection',
             ]);
 
             Artisan::call('config:clear');
@@ -237,7 +245,7 @@ class InstallWizard extends Component
             $this->migrateSuccess = $result['success'];
 
             if (! $result['success']) {
-                $this->errorMessage = 'Migration failed. Check the output below and fix any issues.';
+                $this->errorMessage = 'Migration failed. Check the output below.';
 
                 return;
             }
@@ -291,7 +299,6 @@ class InstallWizard extends Component
             }
 
             Installer::lock();
-
             $this->step = 5;
         } catch (\Throwable $e) {
             $this->errorMessage = 'Failed to create admin user: ' . $e->getMessage();

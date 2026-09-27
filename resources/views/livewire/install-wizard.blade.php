@@ -1,5 +1,4 @@
-<div class="bg-white shadow-xl rounded-2xl overflow-hidden">
-    {{-- Progress --}}
+<div class="bg-white text-gray-900 shadow-xl rounded-2xl overflow-hidden">
     <div class="bg-gray-50 border-b border-gray-200 px-6 py-4">
         <div class="flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm font-medium text-gray-500">
             <span class="{{ $step >= 1 ? 'text-indigo-600' : '' }}">1. Requirements</span>
@@ -15,135 +14,111 @@
 
     <div class="px-6 py-8">
         @if($errorMessage)
-            <div class="mb-6 rounded-xl bg-red-50 border border-red-200 text-red-800 px-4 py-3 text-sm">
+            <div class="mb-6 rounded-xl bg-red-50 border border-red-200 text-red-800 px-4 py-3 text-sm" wire:key="error-{{ md5($errorMessage) }}">
                 {{ $errorMessage }}
             </div>
         @endif
 
-        {{-- Step 1: Requirements --}}
         @if($step === 1)
             <h2 class="text-xl font-semibold text-gray-900 mb-4">Server Requirements</h2>
-            <p class="text-sm text-gray-600 mb-4">
-                The installer will automatically create <code class="bg-gray-100 px-1 rounded">.env</code> from
-                <code class="bg-gray-100 px-1 rounded">.env.example</code> and generate an <code class="bg-gray-100 px-1 rounded">APP_KEY</code>.
-            </p>
             <ul class="space-y-3">
                 @foreach($requirements as $check)
-                    <li class="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                    <li class="flex items-center justify-between py-2 border-b border-gray-100 last:border-0 gap-4">
                         <span class="text-sm text-gray-700">{{ $check['label'] }}</span>
-                        <span class="inline-flex items-center gap-2 text-sm font-medium {{ $check['ok'] ? 'text-green-600' : 'text-red-600' }}">
-                            @if($check['ok'])
-                                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                            @else
-                                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
-                            @endif
-                            {{ $check['value'] }}
+                        <span class="text-sm font-medium whitespace-nowrap {{ $check['ok'] ? 'text-green-600' : 'text-red-600' }}">
+                            {{ $check['ok'] ? '✓' : '✗' }} {{ $check['value'] }}
                         </span>
                     </li>
                 @endforeach
             </ul>
 
-            <div class="mt-8 flex justify-between">
+            <div class="mt-8 flex justify-between gap-3">
                 <button type="button" wire:click="refreshRequirements"
                     class="px-4 py-2 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50">
                     Re-check
                 </button>
-                <button type="button" wire:click="nextStep" @disabled(!$requirementsMet)
-                    class="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                    Continue
+                <button type="button" wire:click="nextStep" wire:loading.attr="disabled"
+                    class="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
+                    <span wire:loading.remove wire:target="nextStep">Continue</span>
+                    <span wire:loading wire:target="nextStep">Checking...</span>
                 </button>
             </div>
+
+            @if(!$requirementsMet)
+                <p class="mt-4 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                    One or more checks failed. On Hostinger SSH run:
+                    <code class="block mt-2 text-xs bg-amber-100 p-2 rounded">chmod -R 775 storage bootstrap/cache</code>
+                </p>
+            @endif
         @endif
 
-        {{-- Step 2: Environment + Database --}}
         @if($step === 2)
             <h2 class="text-xl font-semibold text-gray-900 mb-2">Environment & Database</h2>
-            <p class="text-sm text-gray-600 mb-6">
-                These values are written into <code class="bg-gray-100 px-1 rounded">.env</code> automatically.
-                Migrations will use them in the next step.
-            </p>
+            <p class="text-sm text-gray-600 mb-6">Hostinger usually uses <strong>MySQL</strong>. Use the DB name/user from hPanel → MySQL Databases.</p>
 
             <div class="space-y-4">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">App Name</label>
-                        <input type="text" wire:model="app_name"
-                            class="w-full rounded-xl border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                        <input type="text" wire:model="app_name" class="w-full rounded-xl border-gray-300 text-sm px-3 py-2 border">
                         @error('app_name') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">App URL</label>
-                        <input type="url" wire:model="app_url"
-                            class="w-full rounded-xl border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                        <input type="url" wire:model="app_url" class="w-full rounded-xl border-gray-300 text-sm px-3 py-2 border">
                         @error('app_url') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                     </div>
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Database Driver</label>
-                    <select wire:model.live="db_connection"
-                        class="w-full rounded-xl border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
-                        <option value="pgsql">PostgreSQL</option>
+                    <select wire:model.live="db_connection" class="w-full rounded-xl border-gray-300 text-sm px-3 py-2 border">
                         <option value="mysql">MySQL / MariaDB</option>
+                        <option value="pgsql">PostgreSQL</option>
                     </select>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">DB Host</label>
-                        <input type="text" wire:model="db_host"
-                            class="w-full rounded-xl border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
-                        @error('db_host') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        <input type="text" wire:model="db_host" class="w-full rounded-xl border-gray-300 text-sm px-3 py-2 border" placeholder="127.0.0.1 or localhost">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">DB Port</label>
-                        <input type="text" wire:model="db_port"
-                            class="w-full rounded-xl border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
-                        @error('db_port') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        <input type="text" wire:model="db_port" class="w-full rounded-xl border-gray-300 text-sm px-3 py-2 border">
                     </div>
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Database Name</label>
-                    <input type="text" wire:model="db_database"
-                        class="w-full rounded-xl border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                    <input type="text" wire:model="db_database" class="w-full rounded-xl border-gray-300 text-sm px-3 py-2 border">
                     @error('db_database') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">DB Username</label>
-                        <input type="text" wire:model="db_username"
-                            class="w-full rounded-xl border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
-                        @error('db_username') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        <input type="text" wire:model="db_username" class="w-full rounded-xl border-gray-300 text-sm px-3 py-2 border">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">DB Password</label>
-                        <input type="password" wire:model="db_password"
-                            class="w-full rounded-xl border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
-                        @error('db_password') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        <input type="password" wire:model="db_password" class="w-full rounded-xl border-gray-300 text-sm px-3 py-2 border">
                     </div>
                 </div>
 
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-3 flex-wrap">
                     <button type="button" wire:click="testDatabase" wire:loading.attr="disabled"
                         class="px-4 py-2 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50">
-                        <span wire:loading.remove wire:target="testDatabase">Test Connection</span>
-                        <span wire:loading wire:target="testDatabase">Testing...</span>
+                        Test Connection
                     </button>
                     @if($dbTestMessage)
-                        <span class="text-sm {{ $dbTestSuccess ? 'text-green-600' : 'text-red-600' }}">
-                            {{ $dbTestMessage }}
-                        </span>
+                        <span class="text-sm {{ $dbTestSuccess ? 'text-green-600' : 'text-red-600' }}">{{ $dbTestMessage }}</span>
                     @endif
                 </div>
             </div>
 
             <div class="mt-8 flex justify-between">
-                <button type="button" wire:click="previousStep"
-                    class="px-4 py-2 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50">
-                    Back
-                </button>
+                <button type="button" wire:click="previousStep" class="px-4 py-2 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50">Back</button>
                 <button type="button" wire:click="nextStep" wire:loading.attr="disabled"
                     class="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
                     <span wire:loading.remove wire:target="nextStep">Save & Continue</span>
@@ -152,22 +127,14 @@
             </div>
         @endif
 
-        {{-- Step 3: Migrations --}}
         @if($step === 3)
             <h2 class="text-xl font-semibold text-gray-900 mb-2">Run Database Migrations</h2>
-            <p class="text-sm text-gray-600 mb-6">
-                Click below to create all tables using the database credentials you just saved.
-            </p>
-
+            <p class="text-sm text-gray-600 mb-6">Creates all tables using the credentials you saved.</p>
             @if($migrateOutput)
                 <pre class="mb-4 bg-gray-900 text-gray-100 text-xs rounded-xl p-4 overflow-x-auto max-h-56 whitespace-pre-wrap">{{ $migrateOutput }}</pre>
             @endif
-
             <div class="mt-8 flex justify-between">
-                <button type="button" wire:click="previousStep"
-                    class="px-4 py-2 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50">
-                    Back
-                </button>
+                <button type="button" wire:click="previousStep" class="px-4 py-2 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50">Back</button>
                 <button type="button" wire:click="nextStep" wire:loading.attr="disabled"
                     class="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
                     <span wire:loading.remove wire:target="nextStep">Run Migrations & Continue</span>
@@ -176,51 +143,39 @@
             </div>
         @endif
 
-        {{-- Step 4: Admin account --}}
         @if($step === 4)
             <h2 class="text-xl font-semibold text-gray-900 mb-2">Create Admin Account</h2>
-            <p class="text-sm text-gray-600 mb-6">This account is used to log into the Filament admin panel.</p>
-
             <div class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                    <input type="text" wire:model="admin_name"
-                        class="w-full rounded-xl border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                    <input type="text" wire:model="admin_name" class="w-full rounded-xl border-gray-300 text-sm px-3 py-2 border">
                     @error('admin_name') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                    <input type="email" wire:model="admin_email"
-                        class="w-full rounded-xl border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                    <input type="email" wire:model="admin_email" class="w-full rounded-xl border-gray-300 text-sm px-3 py-2 border">
                     @error('admin_email') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                    <input type="password" wire:model="admin_password"
-                        class="w-full rounded-xl border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                    <input type="password" wire:model="admin_password" class="w-full rounded-xl border-gray-300 text-sm px-3 py-2 border">
                     @error('admin_password') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
-                    <input type="password" wire:model="admin_password_confirmation"
-                        class="w-full rounded-xl border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                    <input type="password" wire:model="admin_password_confirmation" class="w-full rounded-xl border-gray-300 text-sm px-3 py-2 border">
                 </div>
             </div>
-
             <div class="mt-8 flex justify-between">
-                <button type="button" wire:click="previousStep"
-                    class="px-4 py-2 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50">
-                    Back
-                </button>
+                <button type="button" wire:click="previousStep" class="px-4 py-2 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50">Back</button>
                 <button type="button" wire:click="nextStep" wire:loading.attr="disabled"
                     class="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
                     <span wire:loading.remove wire:target="nextStep">Finish Installation</span>
-                    <span wire:loading wire:target="nextStep">Creating account...</span>
+                    <span wire:loading wire:target="nextStep">Creating...</span>
                 </button>
             </div>
         @endif
 
-        {{-- Step 5: Success --}}
         @if($step === 5)
             <div class="text-center py-6">
                 <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
@@ -229,21 +184,10 @@
                     </svg>
                 </div>
                 <h2 class="text-2xl font-bold text-gray-900 mb-2">Installation Complete</h2>
-                <p class="text-gray-600 mb-2">
-                    <code class="bg-gray-100 px-1 rounded">.env</code> was created, the database was migrated, and the installer is now locked.
-                </p>
-                <p class="text-sm text-gray-500 mb-6">
-                    <code class="bg-gray-100 px-1 rounded">/install</code> is no longer accessible.
-                </p>
+                <p class="text-gray-600 mb-6">Installer is locked. Log in to the admin panel.</p>
                 <div class="flex flex-col sm:flex-row gap-3 justify-center">
-                    <a href="{{ url('/admin') }}"
-                        class="inline-flex justify-center px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700">
-                        Go to Admin Panel
-                    </a>
-                    <a href="{{ url('/') }}"
-                        class="inline-flex justify-center px-6 py-2.5 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50">
-                        Visit Homepage
-                    </a>
+                    <a href="{{ url('/admin') }}" class="inline-flex justify-center px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700">Go to Admin</a>
+                    <a href="{{ url('/') }}" class="inline-flex justify-center px-6 py-2.5 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50">Homepage</a>
                 </div>
             </div>
         @endif
