@@ -11,29 +11,61 @@
     @endif
     <meta property="og:title" content="{{ $title ?? config('app.name', 'Alternova') }}">
     <meta property="og:type" content="website">
-    {{-- Prefer Vite when built; fall back to CDN on shared hosting --}}
-    @if (file_exists(public_path('build/manifest.json')))
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
-    @else
-        <script src="https://cdn.tailwindcss.com"></script>
-    @endif
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { 50:'#eef2ff',100:'#e0e7ff',500:'#6366f1',600:'#4f46e5',700:'#4338ca' }
+                    },
+                    fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     @livewireStyles
+    <style>[x-cloak]{display:none!important}</style>
 </head>
-<body class="font-sans antialiased bg-gray-50 text-gray-900">
-    <nav class="bg-white border-b border-gray-200">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-14 items-center">
-                <a href="{{ route('home') }}" class="text-lg font-bold text-indigo-600">Alternova</a>
-                <div class="flex gap-6 text-sm font-medium text-gray-600">
-                    <a href="{{ route('finder') }}" class="hover:text-indigo-600">Alternatives</a>
-                    <a href="{{ route('domains') }}" class="hover:text-indigo-600">Domains</a>
-                    <a href="{{ url('/admin') }}" class="hover:text-indigo-600">Admin</a>
-                </div>
+<body class="font-sans antialiased bg-slate-50 text-slate-900 min-h-screen flex flex-col">
+    <header class="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-lg">
+        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div class="flex h-14 items-center justify-between">
+                <a href="{{ route('home') }}" class="flex items-center gap-2 font-bold text-slate-900">
+                    <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-600 text-white text-xs">A</span>
+                    Alternova
+                </a>
+                <nav class="flex items-center gap-1 sm:gap-2 text-sm font-medium">
+                    <a href="{{ route('finder') }}"
+                        class="px-3 py-1.5 rounded-lg {{ request()->routeIs('finder','alternatives.*') ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-100' }}">
+                        Alternatives
+                    </a>
+                    <a href="{{ route('domains') }}"
+                        class="px-3 py-1.5 rounded-lg {{ request()->routeIs('domains') ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-100' }}">
+                        Domains
+                    </a>
+                    <a href="{{ url('/admin') }}" class="ml-1 px-3 py-1.5 rounded-lg text-slate-500 hover:bg-slate-100 text-xs sm:text-sm">
+                        Admin
+                    </a>
+                </nav>
             </div>
         </div>
-    </nav>
+    </header>
 
-    {{ $slot }}
+    <main class="flex-1">
+        {{ $slot }}
+    </main>
+
+    <footer class="border-t border-slate-200 bg-white py-8 mt-auto">
+        <div class="mx-auto max-w-7xl px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-slate-500">
+            <span>© {{ date('Y') }} Alternova</span>
+            <div class="flex gap-5">
+                <a href="{{ route('finder') }}" class="hover:text-slate-800">Alternatives</a>
+                <a href="{{ route('domains') }}" class="hover:text-slate-800">Domains</a>
+            </div>
+        </div>
+    </footer>
 
     @livewireScripts
 </body>

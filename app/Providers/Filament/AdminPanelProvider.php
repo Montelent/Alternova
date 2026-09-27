@@ -27,8 +27,21 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
+            ->brandName('Alternova')
+            ->brandLogo(null)
+            ->favicon(null)
             ->colors([
                 'primary' => Color::Indigo,
+                'danger' => Color::Rose,
+                'success' => Color::Emerald,
+                'warning' => Color::Amber,
+                'info' => Color::Sky,
+            ])
+            ->font('Inter')
+            ->sidebarCollapsibleOnDesktop()
+            ->navigationGroups([
+                'Open Source Finder',
+                'System',
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
@@ -37,6 +50,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
+                \App\Filament\Widgets\StatsOverview::class,
                 Widgets\AccountWidget::class,
             ])
             ->middleware([
@@ -53,6 +67,6 @@ class AdminPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
             ])
-            ->brandName('Alternova');
+            ->viteTheme(null);
     }
 }
