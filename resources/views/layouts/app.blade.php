@@ -4,13 +4,35 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+
     <title>{{ $title ?? config('app.name', 'Alternova') }}</title>
-    @if(!empty($description))
-        <meta name="description" content="{{ $description }}">
-        <meta property="og:description" content="{{ $description }}">
+    <meta name="description" content="{{ $description ?? 'Discover open-source alternatives and generate brandable domain names with Alternova.' }}">
+    <meta name="robots" content="{{ $robots ?? 'index,follow,max-image-preview:large,max-snippet:-1' }}">
+    @if(!empty($canonical))
+        <link rel="canonical" href="{{ $canonical }}">
+    @else
+        <link rel="canonical" href="{{ url()->current() }}">
     @endif
+
+    {{-- Open Graph --}}
+    <meta property="og:site_name" content="{{ config('app.name', 'Alternova') }}">
+    <meta property="og:type" content="{{ $ogType ?? 'website' }}">
     <meta property="og:title" content="{{ $title ?? config('app.name', 'Alternova') }}">
-    <meta property="og:type" content="website">
+    <meta property="og:description" content="{{ $description ?? 'Discover open-source alternatives and generate brandable domain names with Alternova.' }}">
+    <meta property="og:url" content="{{ $canonical ?? url()->current() }}">
+    @if(!empty($ogImage))
+        <meta property="og:image" content="{{ $ogImage }}">
+    @endif
+    <meta property="og:locale" content="en_US">
+
+    {{-- Twitter --}}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ $title ?? config('app.name', 'Alternova') }}">
+    <meta name="twitter:description" content="{{ $description ?? 'Discover open-source alternatives and generate brandable domain names with Alternova.' }}">
+    @if(!empty($ogImage))
+        <meta name="twitter:image" content="{{ $ogImage }}">
+    @endif
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -24,7 +46,7 @@
             }
         }
     </script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     @livewireStyles
     <style>[x-cloak]{display:none!important}</style>
 </head>
