@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| Installer (form-based, no Livewire — works on shared hosting)
+| Installer
 |--------------------------------------------------------------------------
 */
 Route::middleware(['web', 'not.installed'])->prefix('install')->group(function () {
@@ -26,12 +26,3 @@ Route::get('/', function () {
 Route::get('/alternatives', OpenSourceFinder::class)->name('finder');
 Route::get('/alternatives/{alternative:slug}', AlternativeDetail::class)->name('alternatives.show');
 Route::get('/domains', DomainCombinator::class)->name('domains');
-
-if (app()->environment('local')) {
-    Route::get('/install/unlock-dev', function () {
-        Installer::unlock();
-        session()->forget('install_step');
-
-        return redirect()->route('install.index');
-    })->name('install.unlock-dev');
-}
