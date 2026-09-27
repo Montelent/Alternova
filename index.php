@@ -8,8 +8,6 @@ define('LARAVEL_START', microtime(true));
 |--------------------------------------------------------------------------
 | Auto-bootstrap .env + APP_KEY (before Laravel boots)
 |--------------------------------------------------------------------------
-| Laravel requires APP_KEY to start. On first visit we create .env from
-| .env.example and generate a key so /install can load without SSH.
 */
 
 $basePath = __DIR__;
@@ -22,40 +20,61 @@ if (! is_file($envPath) && is_file($examplePath)) {
 
 if (is_file($envPath)) {
     $envContents = file_get_contents($envPath);
+    $changed = false;
+
+    // APP_KEY
     $needsKey = ! preg_match('/^APP_KEY=.+$/m', $envContents)
-        || preg_match('/^APP_KEY=\s*$/m', $envContents)
-        || preg_match('/^APP_KEY=$/m', $envContents);
+        || preg_match('/^APP_KEY=\s*$/m', $envContents);
 
     if ($needsKey) {
         $key = 'base64:' . base64_encode(random_bytes(32));
-
         if (preg_match('/^APP_KEY=.*$/m', $envContents)) {
             $envContents = preg_replace('/^APP_KEY=.*$/m', 'APP_KEY=' . $key, $envContents);
         } else {
             $envContents = rtrim($envContents) . "\nAPP_KEY=" . $key . "\n";
         }
+        $changed = true;
+    }
 
-        // Best-effort APP_URL from current host
-        $scheme = (! empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-        $appUrl = $scheme . '://' . $host;
+    // APP_URL from current host
+    $scheme = (! empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $appUrl = $scheme . '://' . $host;
+    if (preg_match('/^APP_URL=.*$/m', $envContents)) {
+        $envContents = preg_replace('/^APP_URL=.*$/m', 'APP_URL=' . $appUrl, $envContents);
+        $changed = true;
+    }
 
-        if (preg_match('/^APP_URL=.*$/m', $envContents)) {
-            $envContents = preg_replace('/^APP_URL=.*$/m', 'APP_URL=' . $appUrl, $envContents);
+    // Shared hosting defaults: never require Redis/Meilisearch to boot
+    $safeDefaults = [
+        'CACHE_DRIVER' => 'file',
+        'SESSION_DRIVER' => 'file',
+        'QUEUE_CONNECTION' => 'sync',
+        'SCOUT_DRIVER' => 'collection',
+        'MAIL_MAILER' => 'log',
+    ];
+
+    foreach ($safeDefaults as $k => $v) {
+        // Force file/sync if currently set to redis (connection would fail)
+        if (preg_match('/^' . $k . '=(redis|phpredis)\s*$/mi', $envContents)) {
+            $envContents = preg_replace('/^' . $k . '=.*$/mi', $k . '=' . $v, $envContents);
+            $changed = true;
+        } elseif (! preg_match('/^' . $k . '=/m', $envContents)) {
+            $envContents = rtrim($envContents) . "\n{$k}={$v}\n";
+            $changed = true;
         }
+    }
 
+    if ($changed) {
         file_put_contents($envPath, $envContents);
     }
 }
 
-// Determine if the application is in maintenance mode...
 if (file_exists($maintenance = __DIR__.'/storage/framework/maintenance.php')) {
     require $maintenance;
 }
 
-// Register the Composer autoloader...
 require __DIR__.'/vendor/autoload.php';
 
-// Bootstrap Laravel and handle the request...
 (require_once __DIR__.'/bootstrap/app.php')
     ->handleRequest(Request::capture());
