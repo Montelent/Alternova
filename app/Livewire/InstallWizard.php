@@ -20,8 +20,7 @@ class InstallWizard extends Component
 
     public bool $requirementsMet = false;
 
-    // Step 2 – environment / database
-    public string $app_name = 'Open Alt Finder';
+    public string $app_name = 'Alternova';
 
     public string $app_url = '';
 
@@ -31,7 +30,7 @@ class InstallWizard extends Component
 
     public string $db_port = '5432';
 
-    public string $db_database = '';
+    public string $db_database = 'alternova';
 
     public string $db_username = '';
 
@@ -41,12 +40,10 @@ class InstallWizard extends Component
 
     public bool $dbTestSuccess = false;
 
-    // Step 3 – migrations feedback
     public ?string $migrateOutput = null;
 
     public bool $migrateSuccess = false;
 
-    // Step 4 – admin account
     public string $admin_name = '';
 
     public string $admin_email = '';
@@ -66,7 +63,6 @@ class InstallWizard extends Component
         $this->app_url = rtrim(request()->getSchemeAndHttpHost(), '/');
         $this->refreshRequirements();
 
-        // Pre-create .env from example so later steps can write into it
         Installer::ensureEnvFile();
         Installer::ensureAppKey();
     }
@@ -118,7 +114,6 @@ class InstallWizard extends Component
                 return;
             }
 
-            // Ensure .env + APP_KEY exist before environment step
             if (! Installer::ensureEnvFile()) {
                 $this->errorMessage = '.env.example is missing. Cannot create .env automatically.';
 
@@ -170,7 +165,6 @@ class InstallWizard extends Component
             'db_password' => ['nullable', 'string'],
         ]);
 
-        // Test connection first
         $test = Installer::testDatabaseConnection(
             $this->db_connection,
             $this->db_host,
@@ -205,10 +199,8 @@ class InstallWizard extends Component
                 'DB_PASSWORD' => $this->db_password,
             ]);
 
-            // Reload config so migrate uses the new credentials
             Artisan::call('config:clear');
 
-            // Force runtime config for the current request
             config([
                 'app.name' => $this->app_name,
                 'app.url' => $this->app_url,
@@ -231,7 +223,6 @@ class InstallWizard extends Component
     protected function runMigrationsAndContinue(): void
     {
         try {
-            // Ensure runtime DB config is still applied
             config([
                 'database.default' => $this->db_connection,
                 "database.connections.{$this->db_connection}.host" => $this->db_host,
