@@ -18,7 +18,6 @@ return Application::configure(basePath: dirname(__DIR__))
             'installed' => RedirectIfNotInstalled::class,
         ]);
 
-        // Redirect visitors to installer when the app is not yet installed
         $middleware->web(append: [
             RedirectIfNotInstalled::class,
         ]);
