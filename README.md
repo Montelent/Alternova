@@ -38,13 +38,25 @@ Production-ready Laravel 11 application housing two powerful tools:
 - Full CRUD resources for Proprietary Tools and Open Source Alternatives
 - Manual “Sync GitHub” action on alternatives
 - Docker Compose blueprint editor
+- **System Tools** page – run migrations, migration status, clear caches, and optimize from the admin panel
 
 ### Task 5 – Performance & SEO
 - Dynamic OpenGraph-ready layout support
 - `SitemapService` for XML sitemap generation
 - SEO-rich explanatory sections + FAQs on every alternative page
 
+### First-time Installer (locked after setup)
+- Visit `/install` on a fresh install
+- Step 1: Server requirements check
+- Step 2: Run database migrations from the browser
+- Step 3: Create the admin account
+- Step 4: Installer locks itself (`storage/app/installed`) — `/install` becomes inaccessible (403)
+- All other routes redirect to the installer until installation is complete
+- Local-only unlock route: `/install/unlock-dev` (only in `APP_ENV=local`)
+
 ## Getting Started
+
+### Recommended: Web Installer
 
 ```bash
 git clone https://github.com/Montelent/open-alt-finder.git
@@ -54,13 +66,31 @@ cp .env.example .env
 php artisan key:generate
 
 # Configure PostgreSQL, Redis, Meilisearch, and GitHub token in .env
-php artisan migrate --seed
-php artisan scout:import "App\Models\OpenSourceAlternative"
-php artisan scout:import "App\Models\ProprietaryTool"
-
 npm install && npm run build
 php artisan serve
 ```
+
+Then open **http://localhost:8000/install** and complete the wizard.
+After finishing, the installer is locked. Log in at `/admin` with the account you created.
+
+### Alternative: CLI
+
+```bash
+php artisan migrate --seed
+php artisan scout:import "App\Models\OpenSourceAlternative"
+php artisan scout:import "App\Models\ProprietaryTool"
+# Create admin user manually, then:
+# touch storage/app/installed   # or visit the installer once
+```
+
+### System Tools (Admin)
+
+In Filament → **System → System Tools** you can:
+
+- **Run Migrations** — `php artisan migrate --force` (confirmation required)
+- **Migration Status** — list which migrations have run
+- **Clear Caches** — config, route, view, application cache
+- **Optimize** — production cache warm-up
 
 ### Required Environment Variables
 
@@ -87,19 +117,21 @@ The `app:sync-metrics` command is registered to run daily at 03:00.
 ```
 app/
 ├── Console/Commands/SyncMetricsCommand.php
-├── Filament/Resources/...
+├── Filament/
+│   ├── Pages/SystemTools.php          # Run migrations from admin
+│   └── Resources/...
+├── Http/Middleware/
+│   ├── EnsureNotInstalled.php         # Blocks /install when locked
+│   └── RedirectIfNotInstalled.php     # Forces installer until done
 ├── Jobs/SyncGitHubMetricsJob.php
 ├── Livewire/
+│   ├── InstallWizard.php              # First-time installer
 │   ├── OpenSourceFinder.php
 │   ├── AlternativeDetail.php
 │   └── DomainCombinator.php
 ├── Models/...
-└── Services/
-    ├── DomainCombinatorService.php
-    ├── DomainCheckService.php
-    └── SitemapService.php
-database/migrations/...
-resources/views/livewire/...
+├── Services/...
+└── Support/Installer.php              # Lock file + artisan helper
 ```
 
 ## License
