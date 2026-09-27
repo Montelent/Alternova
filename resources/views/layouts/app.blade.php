@@ -11,7 +11,12 @@
     @endif
     <meta property="og:title" content="{{ $title ?? config('app.name', 'Alternova') }}">
     <meta property="og:type" content="website">
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    {{-- Prefer Vite when built; fall back to CDN on shared hosting --}}
+    @if (file_exists(public_path('build/manifest.json')))
+        @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @else
+        <script src="https://cdn.tailwindcss.com"></script>
+    @endif
     @livewireStyles
 </head>
 <body class="font-sans antialiased bg-gray-50 text-gray-900">
