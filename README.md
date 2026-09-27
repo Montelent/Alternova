@@ -47,8 +47,8 @@ Alternova is a production-ready Laravel 11 platform with two core tools:
 ## Getting Started
 
 ```bash
-git clone https://github.com/Montelent/open-alt-finder.git alternova
-cd alternova
+git clone https://github.com/Montelent/Alternova.git
+cd Alternova
 composer install
 # Optional until installer creates .env:
 # cp .env.example .env && php artisan key:generate
