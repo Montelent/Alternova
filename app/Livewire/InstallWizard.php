@@ -4,11 +4,12 @@ namespace App\Livewire;
 
 use App\Models\User;
 use App\Support\Installer;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rules\Password;
-use Livewire\Component;
 use Livewire\Attributes\Layout;
+use Livewire\Component;
 
 #[Layout('layouts.install')]
 class InstallWizard extends Component
@@ -19,7 +20,33 @@ class InstallWizard extends Component
 
     public bool $requirementsMet = false;
 
-    // Step 3 – admin account
+    // Step 2 – environment / database
+    public string $app_name = 'Open Alt Finder';
+
+    public string $app_url = '';
+
+    public string $db_connection = 'pgsql';
+
+    public string $db_host = '127.0.0.1';
+
+    public string $db_port = '5432';
+
+    public string $db_database = '';
+
+    public string $db_username = '';
+
+    public string $db_password = '';
+
+    public ?string $dbTestMessage = null;
+
+    public bool $dbTestSuccess = false;
+
+    // Step 3 – migrations feedback
+    public ?string $migrateOutput = null;
+
+    public bool $migrateSuccess = false;
+
+    // Step 4 – admin account
     public string $admin_name = '';
 
     public string $admin_email = '';
@@ -27,11 +54,6 @@ class InstallWizard extends Component
     public string $admin_password = '';
 
     public string $admin_password_confirmation = '';
-
-    // Feedback
-    public ?string $migrateOutput = null;
-
-    public bool $migrateSuccess = false;
 
     public ?string $errorMessage = null;
 
@@ -41,13 +63,47 @@ class InstallWizard extends Component
             abort(403, 'Application is already installed.');
         }
 
+        $this->app_url = rtrim(request()->getSchemeAndHttpHost(), '/');
         $this->refreshRequirements();
+
+        // Pre-create .env from example so later steps can write into it
+        Installer::ensureEnvFile();
+        Installer::ensureAppKey();
     }
 
     public function refreshRequirements(): void
     {
         $this->requirements = Installer::requirements();
         $this->requirementsMet = Installer::allRequirementsMet();
+    }
+
+    public function updatedDbConnection(string $value): void
+    {
+        $this->db_port = $value === 'mysql' ? '3306' : '5432';
+    }
+
+    public function testDatabase(): void
+    {
+        $this->validate([
+            'db_connection' => ['required', 'in:pgsql,mysql'],
+            'db_host' => ['required', 'string'],
+            'db_port' => ['required', 'string'],
+            'db_database' => ['required', 'string'],
+            'db_username' => ['required', 'string'],
+            'db_password' => ['nullable', 'string'],
+        ]);
+
+        $result = Installer::testDatabaseConnection(
+            $this->db_connection,
+            $this->db_host,
+            $this->db_port,
+            $this->db_database,
+            $this->db_username,
+            $this->db_password
+        );
+
+        $this->dbTestSuccess = $result['success'];
+        $this->dbTestMessage = $result['message'];
     }
 
     public function nextStep(): void
@@ -58,43 +114,148 @@ class InstallWizard extends Component
             $this->refreshRequirements();
             if (! $this->requirementsMet) {
                 $this->errorMessage = 'Please fix the failed requirements before continuing.';
+
                 return;
             }
+
+            // Ensure .env + APP_KEY exist before environment step
+            if (! Installer::ensureEnvFile()) {
+                $this->errorMessage = '.env.example is missing. Cannot create .env automatically.';
+
+                return;
+            }
+            Installer::ensureAppKey();
+
             $this->step = 2;
+
             return;
         }
 
         if ($this->step === 2) {
-            // Run migrations
-            try {
-                $result = Installer::runArtisan('migrate', ['--force' => true]);
-                $this->migrateOutput = $result['output'];
-                $this->migrateSuccess = $result['success'];
+            $this->saveEnvironmentAndContinue();
 
-                if (! $result['success']) {
-                    $this->errorMessage = 'Migration failed. Check the output below.';
-                    return;
-                }
-
-                $this->step = 3;
-            } catch (\Throwable $e) {
-                $this->errorMessage = 'Migration error: ' . $e->getMessage();
-                $this->migrateOutput = $e->getMessage();
-                $this->migrateSuccess = false;
-            }
             return;
         }
 
         if ($this->step === 3) {
+            $this->runMigrationsAndContinue();
+
+            return;
+        }
+
+        if ($this->step === 4) {
             $this->createAdminAndFinish();
         }
     }
 
     public function previousStep(): void
     {
-        if ($this->step > 1) {
+        if ($this->step > 1 && $this->step < 5) {
             $this->step--;
             $this->errorMessage = null;
+            $this->dbTestMessage = null;
+        }
+    }
+
+    protected function saveEnvironmentAndContinue(): void
+    {
+        $this->validate([
+            'app_name' => ['required', 'string', 'max:255'],
+            'app_url' => ['required', 'url'],
+            'db_connection' => ['required', 'in:pgsql,mysql'],
+            'db_host' => ['required', 'string'],
+            'db_port' => ['required', 'string'],
+            'db_database' => ['required', 'string'],
+            'db_username' => ['required', 'string'],
+            'db_password' => ['nullable', 'string'],
+        ]);
+
+        // Test connection first
+        $test = Installer::testDatabaseConnection(
+            $this->db_connection,
+            $this->db_host,
+            $this->db_port,
+            $this->db_database,
+            $this->db_username,
+            $this->db_password
+        );
+
+        if (! $test['success']) {
+            $this->dbTestSuccess = false;
+            $this->dbTestMessage = $test['message'];
+            $this->errorMessage = 'Database connection failed. Fix the credentials and try again.';
+
+            return;
+        }
+
+        try {
+            Installer::ensureEnvFile();
+            Installer::ensureAppKey();
+
+            Installer::writeEnv([
+                'APP_NAME' => $this->app_name,
+                'APP_URL' => $this->app_url,
+                'APP_ENV' => 'production',
+                'APP_DEBUG' => 'false',
+                'DB_CONNECTION' => $this->db_connection,
+                'DB_HOST' => $this->db_host,
+                'DB_PORT' => $this->db_port,
+                'DB_DATABASE' => $this->db_database,
+                'DB_USERNAME' => $this->db_username,
+                'DB_PASSWORD' => $this->db_password,
+            ]);
+
+            // Reload config so migrate uses the new credentials
+            Artisan::call('config:clear');
+
+            // Force runtime config for the current request
+            config([
+                'app.name' => $this->app_name,
+                'app.url' => $this->app_url,
+                'database.default' => $this->db_connection,
+                "database.connections.{$this->db_connection}.host" => $this->db_host,
+                "database.connections.{$this->db_connection}.port" => $this->db_port,
+                "database.connections.{$this->db_connection}.database" => $this->db_database,
+                "database.connections.{$this->db_connection}.username" => $this->db_username,
+                "database.connections.{$this->db_connection}.password" => $this->db_password,
+            ]);
+
+            $this->dbTestSuccess = true;
+            $this->dbTestMessage = 'Connection successful. Environment saved.';
+            $this->step = 3;
+        } catch (\Throwable $e) {
+            $this->errorMessage = 'Failed to write .env: ' . $e->getMessage();
+        }
+    }
+
+    protected function runMigrationsAndContinue(): void
+    {
+        try {
+            // Ensure runtime DB config is still applied
+            config([
+                'database.default' => $this->db_connection,
+                "database.connections.{$this->db_connection}.host" => $this->db_host,
+                "database.connections.{$this->db_connection}.port" => $this->db_port,
+                "database.connections.{$this->db_connection}.database" => $this->db_database,
+                "database.connections.{$this->db_connection}.username" => $this->db_username,
+                "database.connections.{$this->db_connection}.password" => $this->db_password,
+            ]);
+
+            $result = Installer::runArtisan('migrate', ['--force' => true]);
+            $this->migrateOutput = $result['output'] ?: '(no output)';
+            $this->migrateSuccess = $result['success'];
+
+            if (! $result['success']) {
+                $this->errorMessage = 'Migration failed. Check the output below and fix any issues.';
+
+                return;
+            }
+
+            $this->step = 4;
+        } catch (\Throwable $e) {
+            $this->migrateSuccess = false;
+            $this->migrateOutput = $e->getMessage();
+            $this->errorMessage = 'Migration error: ' . $e->getMessage();
         }
     }
 
@@ -107,13 +268,22 @@ class InstallWizard extends Component
         ]);
 
         try {
-            // Ensure users table exists (migrations should have run)
+            config([
+                'database.default' => $this->db_connection,
+                "database.connections.{$this->db_connection}.host" => $this->db_host,
+                "database.connections.{$this->db_connection}.port" => $this->db_port,
+                "database.connections.{$this->db_connection}.database" => $this->db_database,
+                "database.connections.{$this->db_connection}.username" => $this->db_username,
+                "database.connections.{$this->db_connection}.password" => $this->db_password,
+            ]);
+
             if (! Schema::hasTable('users')) {
-                $this->errorMessage = 'Users table is missing. Please go back and re-run migrations.';
+                $this->errorMessage = 'Users table is missing. Go back and re-run migrations.';
+
                 return;
             }
 
-            $existing = User::where('email', $this->admin_email)->first();
+            $existing = User::query()->where('email', $this->admin_email)->first();
 
             if ($existing) {
                 $existing->update([
@@ -129,12 +299,9 @@ class InstallWizard extends Component
                 ]);
             }
 
-            // Optional: mark as admin if you later add a role column / Spatie Permission
-            // For now the first user is the super admin by convention.
-
             Installer::lock();
 
-            $this->step = 4; // success
+            $this->step = 5;
         } catch (\Throwable $e) {
             $this->errorMessage = 'Failed to create admin user: ' . $e->getMessage();
         }
