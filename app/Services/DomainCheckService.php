@@ -10,8 +10,6 @@ class DomainCheckService
 {
     /**
      * Check domain availability.
-     * Strategy: DNS records first (fast, works on shared hosting),
-     * then RDAP only when DNS is empty and endpoint is reachable.
      *
      * @return array{domain: string, available: bool|null, status: string, checked_at: string}
      */
@@ -21,7 +19,6 @@ class DomainCheckService
         $cacheKey = 'domain_check:' . $domain;
 
         return Cache::remember($cacheKey, now()->addHours(24), function () use ($domain) {
-            // 1. DNS: if A/AAAA/NS/CNAME exist → taken
             $hasDns = $this->hasDnsRecords($domain);
 
             if ($hasDns) {
@@ -33,11 +30,9 @@ class DomainCheckService
                 ];
             }
 
-            // 2. RDAP (best-effort). Failures do not force "available".
             $rdap = $this->checkRdap($domain);
 
             if ($rdap === true) {
-                // RDAP says registered
                 return [
                     'domain' => $domain,
                     'available' => false,
@@ -47,7 +42,6 @@ class DomainCheckService
             }
 
             if ($rdap === false) {
-                // RDAP 404 / not found → likely available
                 return [
                     'domain' => $domain,
                     'available' => true,
@@ -56,7 +50,6 @@ class DomainCheckService
                 ];
             }
 
-            // RDAP unknown (network error). No DNS → treat as available (optimistic).
             return [
                 'domain' => $domain,
                 'available' => true,
@@ -64,6 +57,23 @@ class DomainCheckService
                 'checked_at' => now()->toIso8601String(),
             ];
         });
+    }
+
+    /**
+     * Build registrar affiliate / search links for a domain.
+     *
+     * @return array<string, string>
+     */
+    public function affiliateLinks(string $domain): array
+    {
+        $domain = strtolower(trim($domain));
+        $encoded = rawurlencode($domain);
+
+        return [
+            'namecheap' => 'https://www.namecheap.com/domains/registration/results/?domain=' . $encoded,
+            'porkbun' => 'https://porkbun.com/checkout/search?q=' . $encoded,
+            'godaddy' => 'https://www.godaddy.com/domainsearch/find?domainToCheck=' . $encoded,
+        ];
     }
 
     protected function hasDnsRecords(string $domain): bool
@@ -77,7 +87,6 @@ class DomainCheckService
                 }
             }
 
-            // gethostbyname fallback
             $ip = @gethostbyname($domain);
             if ($ip && $ip !== $domain && filter_var($ip, FILTER_VALIDATE_IP)) {
                 return true;
@@ -111,7 +120,6 @@ class DomainCheckService
 
                 if ($response->successful()) {
                     $body = $response->json();
-                    // ObjectClassName domain with a handle usually means registered
                     if (is_array($body) && (
                         isset($body['objectClassName'])
                         || isset($body['ldhName'])
@@ -140,7 +148,6 @@ class DomainCheckService
      */
     protected function rdapEndpoints(string $tld): array
     {
-        // Prefer public bootstrap / well-known endpoints that resolve on most hosts
         $map = [
             'com' => ['https://rdap.verisign.com/com/v1'],
             'net' => ['https://rdap.verisign.com/net/v1'],
@@ -153,8 +160,6 @@ class DomainCheckService
         ];
 
         $list = $map[$tld] ?? [];
-
-        // Generic fallback used by many registries
         $list[] = 'https://rdap.org';
 
         return $list;
