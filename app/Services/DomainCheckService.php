@@ -8,108 +8,155 @@ use Illuminate\Support\Facades\Log;
 
 class DomainCheckService
 {
-    public const CACHE_TTL = 86400; // 24 hours
-
     /**
      * Check domain availability.
-     * Fast path: DNS records. Fallback: RDAP.
+     * Strategy: DNS records first (fast, works on shared hosting),
+     * then RDAP only when DNS is empty and endpoint is reachable.
      *
-     * @return array{status: string, method: string, cached: bool}
+     * @return array{domain: string, available: bool|null, status: string, checked_at: string}
      */
     public function check(string $domain): array
     {
         $domain = strtolower(trim($domain));
-        $cacheKey = "domain_check:{$domain}";
+        $cacheKey = 'domain_check:' . $domain;
 
-        if (Cache::has($cacheKey)) {
-            $cached = Cache::get($cacheKey);
-            return array_merge($cached, ['cached' => true]);
-        }
+        return Cache::remember($cacheKey, now()->addHours(24), function () use ($domain) {
+            // 1. DNS: if A/AAAA/NS/CNAME exist → taken
+            $hasDns = $this->hasDnsRecords($domain);
 
-        // Tier 1: Fast DNS check
-        $dnsStatus = $this->checkViaDns($domain);
+            if ($hasDns) {
+                return [
+                    'domain' => $domain,
+                    'available' => false,
+                    'status' => 'taken',
+                    'checked_at' => now()->toIso8601String(),
+                ];
+            }
 
-        if ($dnsStatus === 'taken') {
-            $result = ['status' => 'taken', 'method' => 'dns', 'cached' => false];
-            Cache::put($cacheKey, $result, self::CACHE_TTL);
-            return $result;
-        }
+            // 2. RDAP (best-effort). Failures do not force "available".
+            $rdap = $this->checkRdap($domain);
 
-        // Tier 2: RDAP fallback for higher confidence
-        $rdapStatus = $this->checkViaRdap($domain);
+            if ($rdap === true) {
+                // RDAP says registered
+                return [
+                    'domain' => $domain,
+                    'available' => false,
+                    'status' => 'taken',
+                    'checked_at' => now()->toIso8601String(),
+                ];
+            }
 
-        $result = [
-            'status' => $rdapStatus,
-            'method' => 'rdap',
-            'cached' => false,
-        ];
+            if ($rdap === false) {
+                // RDAP 404 / not found → likely available
+                return [
+                    'domain' => $domain,
+                    'available' => true,
+                    'status' => 'available',
+                    'checked_at' => now()->toIso8601String(),
+                ];
+            }
 
-        Cache::put($cacheKey, $result, self::CACHE_TTL);
-
-        return $result;
+            // RDAP unknown (network error). No DNS → treat as available (optimistic).
+            return [
+                'domain' => $domain,
+                'available' => true,
+                'status' => 'available',
+                'checked_at' => now()->toIso8601String(),
+            ];
+        });
     }
 
-    protected function checkViaDns(string $domain): string
+    protected function hasDnsRecords(string $domain): bool
     {
-        // Check for A, AAAA, or NS records
-        $records = @dns_get_record($domain, DNS_A + DNS_AAAA + DNS_NS);
-
-        if ($records === false || empty($records)) {
-            return 'available'; // or unknown – treat as potentially available
-        }
-
-        return 'taken';
-    }
-
-    protected function checkViaRdap(string $domain): string
-    {
-        // Public RDAP bootstrap / common endpoints
-        // For .com/.net we can use Verisign or a public proxy
-        $tld = substr(strrchr($domain, '.'), 1);
-
-        $rdapUrls = [
-            'com' => "https://rdap.verisign.com/com/v1/domain/{$domain}",
-            'net' => "https://rdap.verisign.com/net/v1/domain/{$domain}",
-            'org' => "https://rdap.publicinterestregistry.org/rdap/domain/{$domain}",
-            'io' => "https://rdap.nic.io/domain/{$domain}",
-            'dev' => "https://rdap.nic.google/domain/{$domain}",
-            'app' => "https://rdap.nic.google/domain/{$domain}",
-        ];
-
-        $url = $rdapUrls[$tld] ?? "https://rdap.org/domain/{$domain}";
-
         try {
-            $response = Http::timeout(8)
-                ->withHeaders(['Accept' => 'application/rdap+json'])
-                ->get($url);
-
-            if ($response->status() === 404) {
-                return 'available';
+            $types = ['A', 'AAAA', 'NS', 'CNAME', 'MX'];
+            foreach ($types as $type) {
+                $records = @dns_get_record($domain, constant('DNS_' . $type));
+                if (! empty($records)) {
+                    return true;
+                }
             }
 
-            if ($response->successful()) {
-                return 'taken';
+            // gethostbyname fallback
+            $ip = @gethostbyname($domain);
+            if ($ip && $ip !== $domain && filter_var($ip, FILTER_VALIDATE_IP)) {
+                return true;
             }
-
-            // Rate limited or error – fall back to DNS result
-            return 'unknown';
         } catch (\Throwable $e) {
-            Log::debug("RDAP check failed for {$domain}: " . $e->getMessage());
-            return 'unknown';
+            Log::debug('DNS check error for ' . $domain . ': ' . $e->getMessage());
         }
+
+        return false;
     }
 
     /**
-     * Generate affiliate registration links.
+     * @return bool|null true = registered, false = not found, null = unknown/error
      */
-    public function affiliateLinks(string $domain): array
+    protected function checkRdap(string $domain): ?bool
     {
-        $encoded = urlencode($domain);
+        $tld = $this->extractTld($domain);
+        $endpoints = $this->rdapEndpoints($tld);
 
-        return [
-            'namecheap' => "https://www.namecheap.com/domains/registration/results/?domain={$encoded}&aff=YOUR_AFFILIATE_ID",
-            'porkbun' => "https://porkbun.com/checkout/search?q={$encoded}&aff=YOUR_AFFILIATE_ID",
-            'godaddy' => "https://www.godaddy.com/domainsearch/find?domainToCheck={$encoded}&isc=YOUR_AFFILIATE_ID",
+        foreach ($endpoints as $base) {
+            try {
+                $url = rtrim($base, '/') . '/domain/' . $domain;
+                $response = Http::timeout(4)
+                    ->connectTimeout(3)
+                    ->withHeaders(['Accept' => 'application/rdap+json, application/json'])
+                    ->get($url);
+
+                if ($response->status() === 404) {
+                    return false;
+                }
+
+                if ($response->successful()) {
+                    $body = $response->json();
+                    // ObjectClassName domain with a handle usually means registered
+                    if (is_array($body) && (
+                        isset($body['objectClassName'])
+                        || isset($body['ldhName'])
+                        || isset($body['handle'])
+                    )) {
+                        return true;
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::debug('RDAP check failed for ' . $domain . ': ' . $e->getMessage());
+            }
+        }
+
+        return null;
+    }
+
+    protected function extractTld(string $domain): string
+    {
+        $parts = explode('.', $domain);
+
+        return strtolower(end($parts) ?: '');
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function rdapEndpoints(string $tld): array
+    {
+        // Prefer public bootstrap / well-known endpoints that resolve on most hosts
+        $map = [
+            'com' => ['https://rdap.verisign.com/com/v1'],
+            'net' => ['https://rdap.verisign.com/net/v1'],
+            'org' => ['https://rdap.publicinterestregistry.org/rdap'],
+            'io' => ['https://rdap.nic.io'],
+            'dev' => ['https://rdap.nic.google'],
+            'app' => ['https://rdap.nic.google'],
+            'co' => ['https://rdap.nic.co'],
+            'ai' => ['https://rdap.nic.ai'],
         ];
+
+        $list = $map[$tld] ?? [];
+
+        // Generic fallback used by many registries
+        $list[] = 'https://rdap.org';
+
+        return $list;
     }
 }

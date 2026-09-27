@@ -28,8 +28,6 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->brandName('Alternova')
-            ->brandLogo(null)
-            ->favicon(null)
             ->colors([
                 'primary' => Color::Indigo,
                 'danger' => Color::Rose,
@@ -66,7 +64,6 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
-            ])
-            ->viteTheme(null);
+            ]);
     }
 }
