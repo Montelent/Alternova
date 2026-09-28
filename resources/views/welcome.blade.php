@@ -6,6 +6,8 @@
     <title>Alternova – Open-source alternatives & brandable domains</title>
     <meta name="description" content="Discover self-hostable open-source alternatives to proprietary tools. Generate brandable domain names with live availability checks.">
     <link rel="canonical" href="{{ url('/') }}">
+    <link rel="manifest" href="{{ url('/manifest.webmanifest') }}">
+    <meta name="theme-color" content="#4f46e5">
     <meta property="og:title" content="Alternova – Open-source alternatives & brandable domains">
     <meta property="og:description" content="Discover self-hostable open-source alternatives to proprietary tools. Generate brandable domain names with live availability checks.">
     <meta property="og:url" content="{{ url('/') }}">
@@ -64,7 +66,6 @@
             <div class="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
                 <a href="{{ route('finder') }}" class="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 hover:bg-brand-500 px-6 py-3.5 text-sm font-semibold shadow-lg shadow-brand-600/25 transition">
                     Browse alternatives
-                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
                 </a>
                 <a href="{{ route('domains') }}" class="inline-flex items-center justify-center rounded-xl border border-white/15 hover:border-white/30 bg-white/5 px-6 py-3.5 text-sm font-semibold transition">
                     Generate domains
@@ -73,7 +74,6 @@
         </div>
     </section>
 
-    {{-- Featured alternatives --}}
     @if(isset($featured) && $featured->isNotEmpty())
     <section class="py-16 border-t border-white/5" id="featured">
         <div class="mx-auto max-w-6xl px-4 sm:px-6">
@@ -81,37 +81,70 @@
                 <div>
                     <p class="text-sm font-semibold uppercase tracking-wider text-brand-500 mb-2">Editor’s picks</p>
                     <h2 class="text-2xl sm:text-3xl font-bold tracking-tight">Featured alternatives</h2>
-                    <p class="mt-2 text-slate-400 text-sm">Self-hostable projects worth a look — mark Featured in admin to pin them here.</p>
                 </div>
                 <a href="{{ route('finder') }}" class="text-sm font-medium text-brand-500 hover:text-brand-400 shrink-0">View all →</a>
             </div>
             <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 @foreach($featured as $alt)
-                    <a href="{{ route('alternatives.show', $alt) }}"
-                        class="group rounded-2xl border border-white/10 bg-white/[0.03] p-6 hover:border-brand-500/40 hover:bg-white/[0.05] transition">
-                        <div class="flex items-start justify-between gap-3">
-                            <div>
-                                <h3 class="text-lg font-semibold text-white group-hover:text-brand-500 transition">{{ $alt->name }}</h3>
-                                <p class="mt-1 text-sm text-slate-500">
-                                    vs {{ $alt->proprietaryTool?->name ?? 'proprietary tools' }}
-                                </p>
-                            </div>
-                            <span class="shrink-0 rounded-full bg-brand-600/20 text-brand-400 text-xs font-semibold px-2.5 py-1">
-                                {{ number_format($alt->overall_health_score, 0) }}
-                            </span>
-                        </div>
-                        <p class="mt-3 text-sm text-slate-400 line-clamp-2">{{ $alt->description }}</p>
-                        <div class="mt-4 flex flex-wrap gap-2">
-                            @if($alt->license_type)
-                                <span class="text-xs rounded-full bg-white/5 text-slate-400 px-2 py-0.5">{{ $alt->license_type }}</span>
-                            @endif
-                            @if($alt->primary_language)
-                                <span class="text-xs rounded-full bg-white/5 text-slate-400 px-2 py-0.5">{{ $alt->primary_language }}</span>
-                            @endif
-                            @if($alt->repoMetric)
-                                <span class="text-xs rounded-full bg-white/5 text-slate-400 px-2 py-0.5">★ {{ number_format($alt->repoMetric->github_stars) }}</span>
-                            @endif
-                        </div>
+                    @include('partials.home-alt-card', ['alt' => $alt])
+                @endforeach
+            </div>
+        </div>
+    </section>
+    @endif
+
+    @if(isset($recent) && $recent->isNotEmpty())
+    <section class="py-16 border-t border-white/5">
+        <div class="mx-auto max-w-6xl px-4 sm:px-6">
+            <div class="flex items-end justify-between gap-4 mb-10">
+                <div>
+                    <p class="text-sm font-semibold uppercase tracking-wider text-emerald-400 mb-2">Fresh</p>
+                    <h2 class="text-2xl sm:text-3xl font-bold tracking-tight">Recently added</h2>
+                </div>
+                <a href="{{ route('finder', ['sort' => 'newest']) }}" class="text-sm font-medium text-brand-500 hover:text-brand-400">Newest →</a>
+            </div>
+            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                @foreach($recent as $alt)
+                    @include('partials.home-alt-card', ['alt' => $alt])
+                @endforeach
+            </div>
+        </div>
+    </section>
+    @endif
+
+    @if(isset($popular) && $popular->isNotEmpty())
+    <section class="py-16 border-t border-white/5">
+        <div class="mx-auto max-w-6xl px-4 sm:px-6">
+            <div class="flex items-end justify-between gap-4 mb-10">
+                <div>
+                    <p class="text-sm font-semibold uppercase tracking-wider text-amber-400 mb-2">Community</p>
+                    <h2 class="text-2xl sm:text-3xl font-bold tracking-tight">Most voted</h2>
+                </div>
+                <a href="{{ route('finder', ['sort' => 'votes']) }}" class="text-sm font-medium text-brand-500 hover:text-brand-400">By votes →</a>
+            </div>
+            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                @foreach($popular as $alt)
+                    @include('partials.home-alt-card', ['alt' => $alt])
+                @endforeach
+            </div>
+        </div>
+    </section>
+    @endif
+
+    @if(isset($tools) && $tools->isNotEmpty())
+    <section class="py-16 border-t border-white/5">
+        <div class="mx-auto max-w-6xl px-4 sm:px-6">
+            <div class="mb-10">
+                <p class="text-sm font-semibold uppercase tracking-wider text-violet-400 mb-2">Browse by product</p>
+                <h2 class="text-2xl sm:text-3xl font-bold tracking-tight">Proprietary tools</h2>
+                <p class="mt-2 text-slate-400 text-sm">See every open-source option we list for a given product.</p>
+            </div>
+            <div class="flex flex-wrap gap-3">
+                @foreach($tools as $tool)
+                    <a href="{{ route('tools.show', $tool) }}"
+                        class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 hover:border-brand-500/50 hover:bg-brand-600/10 transition">
+                        {{ $tool->name }}
+                        <span class="text-xs text-slate-500">{{ $tool->alternatives_count }}</span>
                     </a>
                 @endforeach
             </div>
@@ -131,26 +164,14 @@
             </div>
             <div class="grid md:grid-cols-2 gap-6">
                 <a href="{{ route('finder') }}" class="group relative rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.07] to-transparent p-8 hover:border-brand-500/40 transition">
-                    <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-600/20 text-brand-500 mb-5">
-                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                    </div>
                     <h3 class="text-xl font-semibold group-hover:text-brand-500 transition">Open Source Finder</h3>
-                    <p class="mt-2 text-slate-400 text-sm leading-relaxed">
-                        Search self-hostable alternatives with live GitHub metrics, health scores,
-                        license filters, Docker blueprints, and one-click deploy links.
-                    </p>
-                    <span class="mt-6 inline-flex items-center text-sm font-medium text-brand-500">Explore →</span>
+                    <p class="mt-2 text-slate-400 text-sm leading-relaxed">Search self-hostable alternatives with health scores, licenses, and deploy links.</p>
+                    <span class="mt-6 inline-flex text-sm font-medium text-brand-500">Explore →</span>
                 </a>
                 <a href="{{ route('domains') }}" class="group relative rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.07] to-transparent p-8 hover:border-violet-500/40 transition">
-                    <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-600/20 text-violet-400 mb-5">
-                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
-                    </div>
                     <h3 class="text-xl font-semibold group-hover:text-violet-400 transition">Domain Combinator</h3>
-                    <p class="mt-2 text-slate-400 text-sm leading-relaxed">
-                        Combine keywords into brandable domains, score pronounceability,
-                        check availability in real time, and export with registrar links.
-                    </p>
-                    <span class="mt-6 inline-flex items-center text-sm font-medium text-violet-400">Generate →</span>
+                    <p class="mt-2 text-slate-400 text-sm leading-relaxed">Generate brandable domains, score them, and check availability.</p>
+                    <span class="mt-6 inline-flex text-sm font-medium text-violet-400">Generate →</span>
                 </a>
             </div>
         </div>
@@ -163,16 +184,16 @@
                 <div class="mt-1 text-sm text-slate-500">Published alternatives</div>
             </div>
             <div>
+                <div class="text-3xl font-bold text-white">{{ $stats['tools'] ?? '—' }}</div>
+                <div class="mt-1 text-sm text-slate-500">Proprietary tools</div>
+            </div>
+            <div>
                 <div class="text-3xl font-bold text-white">DNS + RDAP</div>
                 <div class="mt-1 text-sm text-slate-500">Domain checks</div>
             </div>
             <div>
-                <div class="text-3xl font-bold text-white">Docker</div>
-                <div class="mt-1 text-sm text-slate-500">Ready blueprints</div>
-            </div>
-            <div>
-                <div class="text-3xl font-bold text-white">SEO</div>
-                <div class="mt-1 text-sm text-slate-500">Schema & sitemaps</div>
+                <div class="text-3xl font-bold text-white">API + RSS</div>
+                <div class="mt-1 text-sm text-slate-500">Open feeds</div>
             </div>
         </div>
     </section>
@@ -183,7 +204,7 @@
             <div class="flex flex-wrap justify-center gap-5">
                 <a href="{{ route('finder') }}" class="hover:text-slate-300">Alternatives</a>
                 <a href="{{ route('domains') }}" class="hover:text-slate-300">Domains</a>
-                <a href="{{ route('suggest') }}" class="hover:text-slate-300">Suggest</a>
+                <a href="{{ route('disclosure') }}" class="hover:text-slate-300">Disclosure</a>
                 <a href="{{ route('privacy') }}" class="hover:text-slate-300">Privacy</a>
                 <a href="{{ route('about') }}" class="hover:text-slate-300">About</a>
             </div>
