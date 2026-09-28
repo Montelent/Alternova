@@ -1,42 +1,47 @@
 <x-filament-panels::page>
-    <div class="space-y-6">
+    <div class="grid gap-6 md:grid-cols-2">
         <x-filament::section>
-            <x-slot name="heading">System Tools</x-slot>
-            <x-slot name="description">
-                Run common maintenance commands from the admin panel. Migrations are the primary tool; use with care on production.
-            </x-slot>
-
-            <div class="prose prose-sm dark:prose-invert max-w-none">
-                <ul>
-                    <li><strong>Run Migrations</strong> — executes <code>php artisan migrate --force</code> (pending only).</li>
-                    <li><strong>Migration Status</strong> — shows which migrations have run.</li>
-                    <li><strong>Clear Caches</strong> — config, route, view, and application cache.</li>
-                    <li><strong>Optimize</strong> — caches config, routes, and views for production.</li>
-                </ul>
-                <p class="text-sm text-gray-500">
-                    Installer lock status:
-                    @if(\App\Support\Installer::isInstalled())
-                        <span class="text-green-600 font-medium">Locked (installed)</span>
-                    @else
-                        <span class="text-amber-600 font-medium">Not locked — installer still accessible</span>
-                    @endif
-                </p>
-            </div>
+            <x-slot name="heading">Database</x-slot>
+            <x-slot name="description">Apply pending schema changes (safe to re-run).</x-slot>
+            <x-filament::button wire:click="runMigrations" color="primary" icon="heroicon-o-circle-stack">
+                Run migrations
+            </x-filament::button>
         </x-filament::section>
 
-        @if($lastOutput !== null)
-            <x-filament::section>
-                <x-slot name="heading">
-                    Last command output
-                    @if($lastSuccess === true)
-                        <span class="text-green-600 text-sm font-normal">(success)</span>
-                    @elseif($lastSuccess === false)
-                        <span class="text-red-600 text-sm font-normal">(failed)</span>
-                    @endif
-                </x-slot>
+        <x-filament::section>
+            <x-slot name="heading">GitHub metrics</x-slot>
+            <x-slot name="description">Refresh stars, forks, issues, and health scores for all alternatives with a GitHub repo.</x-slot>
+            <x-filament::button wire:click="syncAllMetrics" color="success" icon="heroicon-o-arrow-path">
+                Sync all metrics
+            </x-filament::button>
+        </x-filament::section>
 
-                <pre class="bg-gray-900 text-gray-100 text-xs rounded-xl p-4 overflow-x-auto max-h-96 whitespace-pre-wrap">{{ $lastOutput }}</pre>
-            </x-filament::section>
-        @endif
+        <x-filament::section>
+            <x-slot name="heading">Performance</x-slot>
+            <x-slot name="description">Clear config, routes, views, and app cache after deploys.</x-slot>
+            <x-filament::button wire:click="clearCaches" color="gray" icon="heroicon-o-trash">
+                Clear caches
+            </x-filament::button>
+        </x-filament::section>
+
+        <x-filament::section>
+            <x-slot name="heading">Installer</x-slot>
+            <x-slot name="description">Allow /install again (does not drop the database).</x-slot>
+            <x-filament::button
+                wire:click="unlockInstaller"
+                color="warning"
+                icon="heroicon-o-lock-open"
+                wire:confirm="Unlock the installer? Anyone who can reach /install can re-run setup."
+            >
+                Unlock installer
+            </x-filament::button>
+        </x-filament::section>
     </div>
+
+    @if($lastOutput)
+        <x-filament::section class="mt-6">
+            <x-slot name="heading">Last output</x-slot>
+            <pre class="text-xs whitespace-pre-wrap font-mono bg-gray-50 dark:bg-gray-900 p-4 rounded-lg overflow-x-auto">{{ $lastOutput }}</pre>
+        </x-filament::section>
+    @endif
 </x-filament-panels::page>
