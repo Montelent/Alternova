@@ -99,17 +99,12 @@ class OpenSourceAlternativeResource extends Resource
                         ->multiple()
                         ->options($categoryOptions)
                         ->searchable()
-                        ->columnSpanFull()
-                        ->helperText('Filters on the public finder. You can pick several.'),
+                        ->columnSpanFull(),
                 ])->columns(2),
 
                 Forms\Components\Section::make('Publishing')->schema([
-                    Forms\Components\Toggle::make('is_published')
-                        ->label('Published (visible on site)')
-                        ->default(false),
-                    Forms\Components\Toggle::make('is_featured')
-                        ->label('Featured')
-                        ->default(false),
+                    Forms\Components\Toggle::make('is_published')->label('Published (visible on site)')->default(false),
+                    Forms\Components\Toggle::make('is_featured')->label('Featured')->default(false),
                 ])->columns(2),
 
                 Forms\Components\Section::make('Technical')->schema([
@@ -135,16 +130,21 @@ class OpenSourceAlternativeResource extends Resource
                         ])
                         ->default(3),
                     Forms\Components\TextInput::make('primary_language'),
-                    Forms\Components\TextInput::make('overall_health_score')
-                        ->numeric()
-                        ->disabled()
-                        ->helperText('Updated when you click Sync GitHub'),
-                    Forms\Components\Textarea::make('docker_compose_blueprint')
-                        ->rows(10)
-                        ->columnSpanFull(),
+                    Forms\Components\TextInput::make('overall_health_score')->numeric()->disabled(),
+                    Forms\Components\Textarea::make('docker_compose_blueprint')->rows(10)->columnSpanFull(),
                     Forms\Components\TagsInput::make('pros')->columnSpanFull(),
                     Forms\Components\TagsInput::make('cons')->columnSpanFull(),
                     Forms\Components\Textarea::make('editor_note')->rows(3)->columnSpanFull(),
+                    Forms\Components\Textarea::make('changelog')
+                        ->label('Public changelog / notes')
+                        ->rows(6)
+                        ->columnSpanFull()
+                        ->helperText('Shown on the public detail page.'),
+                    Forms\Components\TagsInput::make('gallery_urls')
+                        ->label('Screenshot URLs')
+                        ->placeholder('https://…')
+                        ->columnSpanFull()
+                        ->helperText('Public image URLs displayed as a gallery.'),
                 ])->columns(2),
 
                 Forms\Components\Section::make('Link health')->schema([
@@ -152,7 +152,7 @@ class OpenSourceAlternativeResource extends Resource
                         ->label('Status')
                         ->content(function (?OpenSourceAlternative $record) {
                             if (! $record || ! $record->links_checked_at) {
-                                return 'Not checked yet. Use “Check links” in the table actions.';
+                                return 'Not checked yet.';
                             }
                             $repo = $record->repo_reachable === null ? '—' : ($record->repo_reachable ? 'OK' : 'BROKEN');
                             $site = $record->website_reachable === null ? '—' : ($record->website_reachable ? 'OK' : 'BROKEN');
@@ -164,7 +164,7 @@ class OpenSourceAlternativeResource extends Resource
                 Forms\Components\Section::make('SEO')->schema([
                     Forms\Components\TextInput::make('meta_title')->maxLength(70),
                     Forms\Components\Textarea::make('meta_description')->rows(3)->maxLength(160),
-                ])->columns(1)->collapsed(),
+                ])->collapsed(),
             ]);
     }
 
@@ -175,29 +175,16 @@ class OpenSourceAlternativeResource extends Resource
                 Tables\Columns\TextColumn::make('name')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('proprietaryTool.name')->label('Proprietary')->toggleable(),
                 Tables\Columns\TextColumn::make('license_type')->toggleable(),
-                Tables\Columns\TextColumn::make('tags.name')
-                    ->label('Categories')
-                    ->badge()
-                    ->separator(',')
-                    ->toggleable(),
+                Tables\Columns\TextColumn::make('tags.name')->label('Categories')->badge()->separator(',')->toggleable(),
                 Tables\Columns\TextColumn::make('overall_health_score')->sortable()->label('Health'),
+                Tables\Columns\TextColumn::make('votes_count')->label('Votes')->sortable()->toggleable(),
                 Tables\Columns\TextColumn::make('repoMetric.github_stars')->label('Stars')->sortable()->toggleable(),
                 Tables\Columns\IconColumn::make('is_published')->boolean()->label('Published'),
                 Tables\Columns\IconColumn::make('is_featured')->boolean()->label('Featured')->toggleable(),
-                Tables\Columns\IconColumn::make('repo_reachable')->boolean()->label('Repo')->toggleable(),
-                Tables\Columns\IconColumn::make('website_reachable')->boolean()->label('Site')->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('repoMetric.synced_at')->dateTime()->label('Last synced')->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 Tables\Filters\TernaryFilter::make('is_published'),
                 Tables\Filters\TernaryFilter::make('is_featured'),
-                Tables\Filters\TernaryFilter::make('repo_reachable')->label('Repo reachable'),
-                Tables\Filters\SelectFilter::make('license_type')
-                    ->options([
-                        'MIT' => 'MIT',
-                        'Apache-2.0' => 'Apache-2.0',
-                        'AGPL-3.0' => 'AGPL-3.0',
-                    ]),
             ])
             ->actions([
                 Tables\Actions\Action::make('syncMetrics')
@@ -207,11 +194,9 @@ class OpenSourceAlternativeResource extends Resource
                         try {
                             SyncGitHubMetricsJob::dispatchSync($record);
                             $fresh = $record->fresh(['repoMetric']);
-                            Notification::make()
-                                ->title('Metrics updated')
+                            Notification::make()->title('Metrics updated')
                                 ->body('Stars: '.($fresh->repoMetric?->github_stars ?? 0).' · Health: '.$fresh->overall_health_score)
-                                ->success()
-                                ->send();
+                                ->success()->send();
                         } catch (\Throwable $e) {
                             Notification::make()->title('Sync failed')->body($e->getMessage())->danger()->send();
                         }
@@ -221,55 +206,13 @@ class OpenSourceAlternativeResource extends Resource
                     ->icon('heroicon-o-link')
                     ->action(function (OpenSourceAlternative $record) {
                         app(LinkHealthService::class)->checkAlternative($record);
-                        $fresh = $record->fresh();
-                        $msg = 'Repo: '.($fresh->repo_reachable ? 'OK' : 'broken');
-                        if ($fresh->website_url) {
-                            $msg .= ' · Site: '.($fresh->website_reachable ? 'OK' : 'broken');
-                        }
-                        Notification::make()->title('Link check done')->body($msg)->success()->send();
+                        Notification::make()->title('Link check done')->success()->send();
                     }),
-                Tables\Actions\Action::make('publish')
-                    ->icon('heroicon-o-eye')
-                    ->visible(fn (OpenSourceAlternative $r) => ! $r->is_published)
-                    ->action(fn (OpenSourceAlternative $r) => $r->update(['is_published' => true])),
-                Tables\Actions\Action::make('unpublish')
-                    ->icon('heroicon-o-eye-slash')
-                    ->color('gray')
-                    ->visible(fn (OpenSourceAlternative $r) => $r->is_published)
-                    ->action(fn (OpenSourceAlternative $r) => $r->update(['is_published' => false])),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\BulkAction::make('publishSelected')
-                        ->label('Publish')
-                        ->icon('heroicon-o-eye')
-                        ->action(fn ($records) => $records->each->update(['is_published' => true])),
-                    Tables\Actions\BulkAction::make('unpublishSelected')
-                        ->label('Unpublish')
-                        ->icon('heroicon-o-eye-slash')
-                        ->action(fn ($records) => $records->each->update(['is_published' => false])),
-                    Tables\Actions\BulkAction::make('syncSelected')
-                        ->label('Sync GitHub')
-                        ->icon('heroicon-o-arrow-path')
-                        ->action(function ($records) {
-                            foreach ($records as $record) {
-                                try {
-                                    SyncGitHubMetricsJob::dispatchSync($record);
-                                } catch (\Throwable) {
-                                }
-                            }
-                        }),
-                    Tables\Actions\BulkAction::make('checkLinks')
-                        ->label('Check links')
-                        ->icon('heroicon-o-link')
-                        ->action(function ($records) {
-                            $service = app(LinkHealthService::class);
-                            foreach ($records as $record) {
-                                $service->checkAlternative($record);
-                            }
-                        }),
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
