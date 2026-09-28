@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\OpenSourceAlternative;
+use App\Models\ProprietaryTool;
 use App\Support\CategoryCatalog;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
@@ -25,6 +26,9 @@ class OpenSourceFinder extends Component
 
     #[Url]
     public array $categories = [];
+
+    #[Url(as: 'tool')]
+    public string $toolSlug = '';
 
     #[Url]
     public string $sort = 'health';
@@ -51,6 +55,11 @@ class OpenSourceFinder extends Component
         $this->resetPage();
     }
 
+    public function updatingToolSlug(): void
+    {
+        $this->resetPage();
+    }
+
     public function toggleCategory(string $name): void
     {
         if (in_array($name, $this->categories, true)) {
@@ -66,7 +75,7 @@ class OpenSourceFinder extends Component
 
     public function clearFilters(): void
     {
-        $this->reset(['search', 'licenses', 'difficulties', 'categories']);
+        $this->reset(['search', 'licenses', 'difficulties', 'categories', 'toolSlug']);
         $this->sort = 'health';
         $this->resetPage();
     }
@@ -80,9 +89,7 @@ class OpenSourceFinder extends Component
 
         if (strlen($this->search) >= 2) {
             try {
-                $searchResults = OpenSourceAlternative::search($this->search)
-                    ->take(200)
-                    ->keys();
+                $searchResults = OpenSourceAlternative::search($this->search)->take(200)->keys();
                 $query->whereIn('id', $searchResults);
             } catch (\Throwable) {
                 $query->where(function ($q) {
@@ -104,6 +111,10 @@ class OpenSourceFinder extends Component
             $query->withAnyTags($this->categories, 'category');
         }
 
+        if ($this->toolSlug !== '') {
+            $query->whereHas('proprietaryTool', fn ($q) => $q->where('slug', $this->toolSlug));
+        }
+
         $query = match ($this->sort) {
             'stars' => $query->leftJoin('repo_metrics', 'open_source_alternatives.id', '=', 'repo_metrics.open_source_alternative_id')
                 ->orderByDesc('repo_metrics.github_stars')
@@ -121,15 +132,15 @@ class OpenSourceFinder extends Component
     {
         $usedCategories = [];
         try {
-            $usedCategories = Tag::query()
-                ->where('type', 'category')
-                ->orderBy('name')
-                ->pluck('name')
-                ->all();
+            $usedCategories = Tag::query()->where('type', 'category')->orderBy('name')->pluck('name')->all();
         } catch (\Throwable) {
         }
 
-        $chipCategories = $usedCategories ?: CategoryCatalog::names();
+        $tools = ProprietaryTool::query()
+            ->where('is_published', true)
+            ->whereHas('publishedAlternatives')
+            ->orderBy('name')
+            ->get(['id', 'name', 'slug']);
 
         return view('livewire.open-source-finder', [
             'alternatives' => $this->alternatives,
@@ -141,7 +152,8 @@ class OpenSourceFinder extends Component
                 4 => 'Hard',
                 5 => 'Expert',
             ],
-            'chipCategories' => $chipCategories,
+            'chipCategories' => $usedCategories ?: CategoryCatalog::names(),
+            'tools' => $tools,
         ])->layout('layouts.app', [
             'title' => 'Open Source Alternative Finder | Alternova',
             'description' => 'Discover high-quality, self-hostable open-source alternatives. Filter by license, difficulty, and category.',

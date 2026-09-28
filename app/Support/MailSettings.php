@@ -17,10 +17,7 @@ class MailSettings
             return;
         }
 
-        $mailer = SiteSetting::get('mail_mailer', config('mail.default', 'log'));
-        if (! $mailer) {
-            $mailer = 'log';
-        }
+        $mailer = SiteSetting::get('mail_mailer', config('mail.default', 'log')) ?: 'log';
 
         Config::set('mail.default', $mailer);
 
@@ -34,7 +31,6 @@ class MailSettings
             Config::set('mail.from.name', $fromName);
         }
 
-        // SMTP
         Config::set('mail.mailers.smtp.host', SiteSetting::get('mail_smtp_host', config('mail.mailers.smtp.host')));
         Config::set('mail.mailers.smtp.port', (int) SiteSetting::get('mail_smtp_port', config('mail.mailers.smtp.port', 587)));
         Config::set('mail.mailers.smtp.username', SiteSetting::get('mail_smtp_username', config('mail.mailers.smtp.username')));
@@ -43,19 +39,17 @@ class MailSettings
             Config::set('mail.mailers.smtp.password', $password);
         }
         Config::set('mail.mailers.smtp.encryption', SiteSetting::get('mail_smtp_encryption', config('mail.mailers.smtp.encryption')) ?: null);
-        Config::set('mail.mailers.smtp.scheme', SiteSetting::get('mail_smtp_scheme', config('mail.mailers.smtp.scheme')));
 
-        // Resend
         $resendKey = SiteSetting::get('mail_resend_key', config('services.resend.key'));
         if ($resendKey) {
             Config::set('services.resend.key', $resendKey);
             Config::set('mail.mailers.resend.key', $resendKey);
         }
 
-        // Alert preferences
         Config::set('alternova.mail.admin_email', SiteSetting::get('mail_admin_email', $fromAddress));
         Config::set('alternova.mail.alert_contact', SiteSetting::getBool('mail_alert_contact', true));
         Config::set('alternova.mail.alert_submission', SiteSetting::getBool('mail_alert_submission', true));
+        Config::set('alternova.mail.contact_autoreply', SiteSetting::getBool('mail_contact_autoreply', false));
     }
 
     public static function adminEmail(): ?string

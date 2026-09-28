@@ -26,7 +26,7 @@
 
         <x-filament::section>
             <x-slot name="heading">Demo catalog</x-slot>
-            <x-slot name="description">Seed Notion, Slack, Analytics alternatives (AppFlowy, Mattermost, Plausible, etc.). Skips if you already have 5+ alternatives.</x-slot>
+            <x-slot name="description">Seed starter tools (Notion, Slack, Analytics, etc.).</x-slot>
             <div class="flex flex-wrap gap-2">
                 <x-filament::button wire:click="seedDemoData" color="info" icon="heroicon-o-sparkles">
                     Seed demo data
@@ -36,6 +36,30 @@
                     Force seed
                 </x-filament::button>
             </div>
+        </x-filament::section>
+
+        <x-filament::section>
+            <x-slot name="heading">Export catalog</x-slot>
+            <x-slot name="description">Download all alternatives as CSV.</x-slot>
+            <x-filament::button wire:click="exportCatalog" color="gray" icon="heroicon-o-arrow-down-tray">
+                Download CSV
+            </x-filament::button>
+        </x-filament::section>
+
+        <x-filament::section>
+            <x-slot name="heading">Maintenance mode</x-slot>
+            <x-slot name="description">Public site shows a 503 page. Admin panel stays available.</x-slot>
+            <x-filament::button
+                wire:click="toggleMaintenance"
+                color="{{ $maintenanceOn ? 'success' : 'danger' }}"
+                icon="heroicon-o-wrench"
+                wire:confirm="{{ $maintenanceOn ? 'Turn OFF maintenance and restore the public site?' : 'Turn ON maintenance mode for visitors?' }}"
+            >
+                {{ $maintenanceOn ? 'Disable maintenance' : 'Enable maintenance' }}
+            </x-filament::button>
+            @if($maintenanceOn)
+                <p class="mt-2 text-sm text-warning-600 dark:text-warning-400">Maintenance is currently ON.</p>
+            @endif
         </x-filament::section>
 
         <x-filament::section>
@@ -62,7 +86,7 @@
 
     <x-filament::section class="mt-6">
         <x-slot name="heading">Import alternatives (CSV)</x-slot>
-        <x-slot name="description">Paste CSV rows. Creates proprietary tools as needed. Sample file: samples/alternatives-import.csv</x-slot>
+        <x-slot name="description">Paste CSV rows. Creates proprietary tools as needed.</x-slot>
         <form wire:submit="importCsv" class="space-y-4">
             {{ $this->form }}
             <x-filament::button type="submit" icon="heroicon-o-arrow-up-tray">

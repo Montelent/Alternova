@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Jobs\SyncGitHubMetricsJob;
 use App\Models\OpenSourceAlternative;
+use App\Models\SiteSetting;
 use App\Services\AlternativeCsvImporter;
 use App\Services\DemoDataSeeder;
 use App\Services\LinkHealthService;
@@ -17,6 +18,7 @@ use Filament\Pages\Page;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SystemTools extends Page implements HasForms
 {
@@ -38,11 +40,19 @@ class SystemTools extends Page implements HasForms
 
     public ?array $data = [];
 
+    public bool $maintenanceOn = false;
+
     public function mount(): void
     {
         $this->form->fill([
             'csv' => "proprietary_name,alternative_name,repo_url,website_url,description,license_type,difficulty,language,published,featured\n",
         ]);
+
+        try {
+            $this->maintenanceOn = SiteSetting::getBool('maintenance_mode', false);
+        } catch (\Throwable) {
+            $this->maintenanceOn = false;
+        }
     }
 
     public function form(Form $form): Form
@@ -119,38 +129,76 @@ class SystemTools extends Page implements HasForms
     {
         $result = app(DemoDataSeeder::class)->seed(force: false);
         $this->lastOutput = $result['message'];
-
-        Notification::make()
-            ->title('Demo data')
-            ->body($result['message'])
-            ->success()
-            ->send();
+        Notification::make()->title('Demo data')->body($result['message'])->success()->send();
     }
 
     public function seedDemoDataForce(): void
     {
         $result = app(DemoDataSeeder::class)->seed(force: true);
         $this->lastOutput = $result['message'];
-
-        Notification::make()
-            ->title('Demo data (force)')
-            ->body($result['message'])
-            ->success()
-            ->send();
+        Notification::make()->title('Demo data (force)')->body($result['message'])->success()->send();
     }
 
     public function importCsv(): void
     {
         $csv = (string) ($this->form->getState()['csv'] ?? '');
         $result = app(AlternativeCsvImporter::class)->importFromString($csv);
+        $this->lastOutput = "Imported {$result['imported']}, skipped {$result['skipped']}.\n".implode("\n", $result['errors']);
+        Notification::make()->title('CSV import')->body("Imported {$result['imported']} row(s).")->success()->send();
+    }
 
-        $this->lastOutput = "Imported {$result['imported']}, skipped {$result['skipped']}.\n"
-            .implode("\n", $result['errors']);
+    public function exportCatalog(): StreamedResponse
+    {
+        $rows = OpenSourceAlternative::query()
+            ->with('proprietaryTool')
+            ->orderBy('name')
+            ->get();
+
+        return response()->streamDownload(function () use ($rows) {
+            $h = fopen('php://output', 'w');
+            fputcsv($h, [
+                'name', 'slug', 'proprietary', 'repo_url', 'website_url', 'license',
+                'language', 'difficulty', 'health', 'votes', 'published', 'featured',
+            ]);
+            foreach ($rows as $r) {
+                fputcsv($h, [
+                    $r->name,
+                    $r->slug,
+                    $r->proprietaryTool?->name,
+                    $r->repo_url,
+                    $r->website_url,
+                    $r->license_type,
+                    $r->primary_language,
+                    $r->self_host_difficulty,
+                    $r->overall_health_score,
+                    $r->votes_count,
+                    $r->is_published ? 1 : 0,
+                    $r->is_featured ? 1 : 0,
+                ]);
+            }
+            fclose($h);
+        }, 'alternova-catalog-'.date('Y-m-d').'.csv', [
+            'Content-Type' => 'text/csv',
+        ]);
+    }
+
+    public function toggleMaintenance(): void
+    {
+        $next = ! SiteSetting::getBool('maintenance_mode', false);
+        SiteSetting::set('maintenance_mode', $next);
+        SiteSetting::set(
+            'maintenance_message',
+            'Alternova is temporarily offline for maintenance. Please check back soon.'
+        );
+        Cache::forget('site_settings');
+        $this->maintenanceOn = $next;
+        $this->lastOutput = $next
+            ? 'Maintenance mode ON — public site returns 503. Admin still works.'
+            : 'Maintenance mode OFF — public site is live.';
 
         Notification::make()
-            ->title('CSV import')
-            ->body("Imported {$result['imported']} row(s), skipped {$result['skipped']}.")
-            ->success()
+            ->title($next ? 'Maintenance enabled' : 'Maintenance disabled')
+            ->{$next ? 'warning' : 'success'}()
             ->send();
     }
 
@@ -161,7 +209,6 @@ class SystemTools extends Page implements HasForms
             Artisan::call('route:clear');
             Artisan::call('view:clear');
             Cache::flush();
-
             $views = storage_path('framework/views');
             if (is_dir($views)) {
                 foreach (File::glob($views.'/*') as $file) {
@@ -170,7 +217,6 @@ class SystemTools extends Page implements HasForms
                     }
                 }
             }
-
             Cache::forget('site_settings');
             $this->lastOutput = 'Config, route, view, and application cache cleared.';
             Notification::make()->title('Caches cleared')->success()->send();
