@@ -66,12 +66,14 @@ class AlternativeSubmissionResource extends Resource
                 Tables\Columns\TextColumn::make('alternative_name')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('proprietary_name')->label('Replaces')->searchable(),
                 Tables\Columns\TextColumn::make('repo_url')->limit(30)->url(fn ($r) => $r->repo_url, true),
-                Tables\Columns\BadgeColumn::make('status')
-                    ->colors([
-                        'warning' => 'pending',
-                        'success' => 'approved',
-                        'danger' => 'rejected',
-                    ]),
+                Tables\Columns\TextColumn::make('status')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'pending' => 'warning',
+                        'approved' => 'success',
+                        'rejected' => 'danger',
+                        default => 'gray',
+                    }),
                 Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
             ])
             ->filters([

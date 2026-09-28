@@ -58,9 +58,9 @@
                         class="px-3 py-1.5 rounded-lg {{ request()->routeIs('domains') ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-100' }}">
                         Domains
                     </a>
-                    <a href="{{ route('about') }}"
-                        class="hidden sm:inline px-3 py-1.5 rounded-lg {{ request()->routeIs('about') ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-100' }}">
-                        About
+                    <a href="{{ route('suggest') }}"
+                        class="hidden sm:inline px-3 py-1.5 rounded-lg {{ request()->routeIs('suggest') ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-100' }}">
+                        Suggest
                     </a>
                     <a href="{{ url('/admin') }}" class="ml-1 px-3 py-1.5 rounded-lg text-slate-500 hover:bg-slate-100 text-xs sm:text-sm">
                         Admin
@@ -90,6 +90,7 @@
                         <ul class="space-y-2 text-slate-500">
                             <li><a href="{{ route('finder') }}" class="hover:text-slate-800">Alternatives</a></li>
                             <li><a href="{{ route('domains') }}" class="hover:text-slate-800">Domains</a></li>
+                            <li><a href="{{ route('suggest') }}" class="hover:text-slate-800">Suggest a tool</a></li>
                         </ul>
                     </div>
                     <div>
