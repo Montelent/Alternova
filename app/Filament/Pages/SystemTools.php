@@ -42,6 +42,11 @@ class SystemTools extends Page implements HasForms
 
     public bool $maintenanceOn = false;
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->canManageSystem() ?? false;
+    }
+
     public function mount(): void
     {
         $this->form->fill([
