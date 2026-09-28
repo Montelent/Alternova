@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\SitemapController;
@@ -16,9 +17,7 @@ Route::middleware(['web', 'not.installed'])->prefix('install')->group(function (
     Route::post('/recheck', [InstallController::class, 'recheck'])->name('install.recheck');
 });
 
-Route::get('/', function () {
-    return view('welcome');
-})->name('home');
+Route::get('/', HomeController::class)->name('home');
 
 Route::get('/alternatives', OpenSourceFinder::class)->name('finder');
 Route::get('/alternatives/{alternative:slug}', AlternativeDetail::class)->name('alternatives.show');
@@ -32,7 +31,6 @@ Route::get('/contact', [PageController::class, 'contact'])->name('contact');
 
 Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
 
-// Serve ads.txt / robots from project root when docroot is public_html
 Route::get('/ads.txt', function () {
     $path = public_path('ads.txt');
     abort_unless(is_file($path), 404);
