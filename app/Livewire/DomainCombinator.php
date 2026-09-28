@@ -6,6 +6,7 @@ use App\Models\DomainSearchLog;
 use App\Models\SavedDomain;
 use App\Services\DomainCheckService;
 use App\Services\DomainCombinatorService;
+use App\Services\SeoManager;
 use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -289,11 +290,14 @@ class DomainCombinator extends Component
 
     public function render()
     {
+        $seo = app(SeoManager::class);
+
         return view('livewire.domain-combinator', [
             'availableTlds' => ['com', 'net', 'org', 'io', 'dev', 'app', 'co', 'ai', 'xyz', 'me'],
         ])->layout('layouts.app', [
-            'title' => 'Domain Name Idea Combinator | Alternova',
+            'title' => $seo->pageTitle('domains', 'Domain Name Idea Combinator'),
             'description' => 'Generate brandable domain ideas from seed keywords, score them, and check availability in real time.',
+            'canonical' => route('domains'),
         ]);
     }
 }

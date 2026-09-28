@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\ProprietaryTool;
+use App\Services\SeoManager;
 use Livewire\Component;
 
 class ProprietaryToolShow extends Component
@@ -23,16 +24,15 @@ class ProprietaryToolShow extends Component
     public function render()
     {
         $tool = $this->tool;
-        $title = ($tool->meta_title ?: $tool->name.' open-source alternatives').' | Alternova';
-        $description = $tool->meta_description
-            ?: str('Discover free, self-hostable open-source alternatives to '.$tool->name.'. '.($tool->description ?? ''))->limit(155)->toString();
+        $seo = app(SeoManager::class);
 
         return view('livewire.proprietary-tool-show', [
             'alternatives' => $tool->publishedAlternatives,
         ])->layout('layouts.app', [
-            'title' => $title,
-            'description' => $description,
+            'title' => $seo->toolTitle($tool),
+            'description' => $seo->toolDescription($tool),
             'canonical' => route('tools.show', $tool),
+            'ogType' => 'article',
         ]);
     }
 }

@@ -5,30 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ $title ?? config('app.name', 'Alternova') }}</title>
-    <meta name="description" content="{{ $description ?? \App\Models\SiteSetting::get('default_meta_description', 'Discover open-source alternatives and generate brandable domain names with Alternova.') }}">
-    <meta name="robots" content="{{ $robots ?? 'index,follow,max-image-preview:large,max-snippet:-1' }}">
-    <link rel="canonical" href="{{ $canonical ?? url()->current() }}">
+    @include('partials.seo-head')
+
     <link rel="alternate" type="application/rss+xml" title="Alternova Alternatives" href="{{ url('/feed') }}">
     <link rel="manifest" href="{{ url('/manifest.webmanifest') }}">
     <meta name="theme-color" content="#4f46e5">
-
-    <meta property="og:site_name" content="{{ config('app.name', 'Alternova') }}">
-    <meta property="og:type" content="{{ $ogType ?? 'website' }}">
-    <meta property="og:title" content="{{ $title ?? config('app.name', 'Alternova') }}">
-    <meta property="og:description" content="{{ $description ?? \App\Models\SiteSetting::get('default_meta_description', 'Discover open-source alternatives and generate brandable domain names with Alternova.') }}">
-    <meta property="og:url" content="{{ $canonical ?? url()->current() }}">
-    @php $defaultOg = $ogImage ?? \App\Models\SiteSetting::get('og_image_url'); @endphp
-    @if(!empty($defaultOg))
-        <meta property="og:image" content="{{ $defaultOg }}">
-    @endif
-
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="{{ $title ?? config('app.name', 'Alternova') }}">
-    <meta name="twitter:description" content="{{ $description ?? \App\Models\SiteSetting::get('default_meta_description', 'Discover open-source alternatives and generate brandable domain names with Alternova.') }}">
-    @if($tw = \App\Models\SiteSetting::get('twitter_handle'))
-        <meta name="twitter:site" content="{{ $tw }}">
-    @endif
 
     @include('partials.adsense-head')
 

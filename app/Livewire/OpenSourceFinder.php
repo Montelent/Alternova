@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\OpenSourceAlternative;
 use App\Models\ProprietaryTool;
+use App\Services\SeoManager;
 use App\Support\CategoryCatalog;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
@@ -142,6 +143,8 @@ class OpenSourceFinder extends Component
             ->orderBy('name')
             ->get(['id', 'name', 'slug']);
 
+        $seo = app(SeoManager::class);
+
         return view('livewire.open-source-finder', [
             'alternatives' => $this->alternatives,
             'availableLicenses' => ['MIT', 'Apache-2.0', 'AGPL-3.0', 'GPL-3.0', 'BSD-3-Clause', 'MPL-2.0', 'BSL-1.1'],
@@ -155,8 +158,9 @@ class OpenSourceFinder extends Component
             'chipCategories' => $usedCategories ?: CategoryCatalog::names(),
             'tools' => $tools,
         ])->layout('layouts.app', [
-            'title' => 'Open Source Alternative Finder | Alternova',
+            'title' => $seo->pageTitle('finder', 'Open Source Alternatives Finder'),
             'description' => 'Discover high-quality, self-hostable open-source alternatives. Filter by license, difficulty, and category.',
+            'canonical' => route('finder'),
         ]);
     }
 }
