@@ -9,8 +9,6 @@ use Illuminate\Support\Str;
 class DescriptionGeneratorService
 {
     /**
-     * Build a description for an open-source alternative from GitHub + context.
-     *
      * @return array{description: string, primary_language: ?string, license_type: ?string, website_url: ?string, success: bool, message: string}
      */
     public function fromGitHubRepo(string $repoUrl, ?string $proprietaryName = null): array
@@ -94,8 +92,6 @@ class DescriptionGeneratorService
     }
 
     /**
-     * Build a description for a proprietary tool from its website meta tags.
-     *
      * @return array{description: string, success: bool, message: string}
      */
     public function fromWebsite(string $websiteUrl, string $name = ''): array
@@ -206,8 +202,10 @@ class DescriptionGeneratorService
     protected function parseGitHubUrl(string $url): ?array
     {
         $url = trim($url);
-        if (preg_match('#github\.com[:/]([^/]+)/([^/\.\?#]+)#i', $url, $m)) {
-            return [$m[1], $m[2]];
+
+        // Use ~ delimiter so # in character class is safe
+        if (preg_match('~github\.com[:/]([^/\s]+)/([^/\s\.?#]+)~i', $url, $m)) {
+            return [$m[1], rtrim($m[2], '/')];
         }
 
         return null;
