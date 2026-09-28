@@ -14,6 +14,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class AlternativeSubmissionResource extends Resource
@@ -30,9 +31,17 @@ class AlternativeSubmissionResource extends Resource
 
     public static function getNavigationBadge(): ?string
     {
-        $count = AlternativeSubmission::query()->where('status', 'pending')->count();
+        try {
+            if (! Schema::hasTable('alternative_submissions')) {
+                return null;
+            }
 
-        return $count > 0 ? (string) $count : null;
+            $count = AlternativeSubmission::query()->where('status', 'pending')->count();
+
+            return $count > 0 ? (string) $count : null;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public static function form(Form $form): Form
@@ -168,7 +177,6 @@ class AlternativeSubmissionResource extends Resource
             'is_featured' => false,
         ]);
 
-        // Sync GitHub stars / health score immediately (QUEUE_CONNECTION=sync runs now)
         try {
             SyncGitHubMetricsJob::dispatchSync($alt);
         } catch (\Throwable $e) {
@@ -184,7 +192,7 @@ class AlternativeSubmissionResource extends Resource
 
         Notification::make()
             ->title('Approved')
-            ->body($alt->name.' was created, published, and queued for GitHub metric sync.')
+            ->body($alt->name.' was created, published, and synced from GitHub.')
             ->success()
             ->send();
     }
