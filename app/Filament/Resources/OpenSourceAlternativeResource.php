@@ -135,12 +135,11 @@ class OpenSourceAlternativeResource extends Resource
                 ])->columns(2),
 
                 Forms\Components\Section::make('Link health')->schema([
-                    Forms\Components\IconEntry::make('repo_reachable')->boolean()->label('Repo reachable')->visible(false),
                     Forms\Components\Placeholder::make('link_status')
-                        ->label('Last check')
+                        ->label('Status')
                         ->content(function (?OpenSourceAlternative $record) {
                             if (! $record || ! $record->links_checked_at) {
-                                return 'Not checked yet';
+                                return 'Not checked yet. Use “Check links” in the table actions.';
                             }
                             $repo = $record->repo_reachable === null ? '—' : ($record->repo_reachable ? 'OK' : 'BROKEN');
                             $site = $record->website_reachable === null ? '—' : ($record->website_reachable ? 'OK' : 'BROKEN');
