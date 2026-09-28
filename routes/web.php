@@ -5,6 +5,7 @@ use App\Http\Controllers\InstallController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\SitemapController;
 use App\Livewire\AlternativeDetail;
+use App\Livewire\CompareAlternatives;
 use App\Livewire\ContactForm;
 use App\Livewire\DomainCombinator;
 use App\Livewire\OpenSourceFinder;
@@ -21,6 +22,7 @@ Route::middleware(['web', 'not.installed'])->prefix('install')->group(function (
 Route::get('/', HomeController::class)->name('home');
 
 Route::get('/alternatives', OpenSourceFinder::class)->name('finder');
+Route::get('/alternatives/compare', CompareAlternatives::class)->name('alternatives.compare');
 Route::get('/alternatives/{alternative:slug}', AlternativeDetail::class)->name('alternatives.show');
 Route::get('/domains', DomainCombinator::class)->name('domains');
 Route::get('/suggest', SuggestAlternative::class)->name('suggest');
