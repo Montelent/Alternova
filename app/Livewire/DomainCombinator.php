@@ -3,10 +3,11 @@
 namespace App\Livewire;
 
 use App\Models\DomainSearchLog;
+use App\Models\SavedDomain;
 use App\Services\DomainCheckService;
 use App\Services\DomainCombinatorService;
-use Livewire\Component;
 use Livewire\Attributes\Url;
+use Livewire\Component;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DomainCombinator extends Component
@@ -32,9 +33,10 @@ class DomainCombinator extends Component
 
     public bool $isGenerating = false;
 
-    public bool $isChecking = false;
+    public array $saved = [];
 
     protected DomainCombinatorService $combinator;
+
     protected DomainCheckService $checker;
 
     public function boot(DomainCombinatorService $combinator, DomainCheckService $checker): void
@@ -43,10 +45,73 @@ class DomainCombinator extends Component
         $this->checker = $checker;
     }
 
+    public function mount(): void
+    {
+        $this->loadSaved();
+    }
+
+    protected function sessionKey(): string
+    {
+        return substr(hash('sha256', session()->getId() ?: request()->ip()), 0, 64);
+    }
+
+    public function loadSaved(): void
+    {
+        try {
+            $this->saved = SavedDomain::query()
+                ->where('session_id', $this->sessionKey())
+                ->orderByDesc('created_at')
+                ->limit(100)
+                ->get()
+                ->map(fn (SavedDomain $d) => [
+                    'domain' => $d->domain,
+                    'score' => $d->brandability,
+                    'status' => $d->status,
+                ])
+                ->all();
+        } catch (\Throwable) {
+            $this->saved = [];
+        }
+    }
+
+    public function toggleSave(string $domain, int $score = 0, string $status = ''): void
+    {
+        $sid = $this->sessionKey();
+
+        $existing = SavedDomain::query()
+            ->where('session_id', $sid)
+            ->where('domain', $domain)
+            ->first();
+
+        if ($existing) {
+            $existing->delete();
+        } else {
+            SavedDomain::create([
+                'session_id' => $sid,
+                'domain' => $domain,
+                'brandability' => $score ?: null,
+                'status' => $status ?: null,
+            ]);
+        }
+
+        $this->loadSaved();
+    }
+
+    public function clearSaved(): void
+    {
+        SavedDomain::query()->where('session_id', $this->sessionKey())->delete();
+        $this->saved = [];
+    }
+
+    public function isSaved(string $domain): bool
+    {
+        return collect($this->saved)->contains(fn ($s) => $s['domain'] === $domain);
+    }
+
     public function addKeyword(): void
     {
         $kw = trim(strtolower($this->keywordInput));
-        if ($kw && !in_array($kw, $this->keywords) && count($this->keywords) < 8) {
+        if ($kw && ! in_array($kw, $this->keywords) && count($this->keywords) < 8) {
             $this->keywords[] = $kw;
         }
         $this->keywordInput = '';
@@ -94,11 +159,9 @@ class DomainCombinator extends Component
             ];
         }
 
-        // Sort by brandability desc and limit
         usort($filtered, fn ($a, $b) => $b['score'] <=> $a['score']);
         $this->results = array_slice($filtered, 0, 60);
 
-        // Log the search
         DomainSearchLog::create([
             'seed_keywords' => $this->keywords,
             'selected_tlds' => $this->selectedTlds,
@@ -108,8 +171,6 @@ class DomainCombinator extends Component
         ]);
 
         $this->isGenerating = false;
-
-        // Kick off async checks via Livewire events or polling
         $this->dispatch('domains-generated');
     }
 
@@ -167,10 +228,24 @@ class DomainCombinator extends Component
         ]);
     }
 
+    public function exportSavedTxt(): StreamedResponse
+    {
+        $domains = collect($this->saved)->pluck('domain');
+
+        return response()->streamDownload(function () use ($domains) {
+            echo $domains->implode(PHP_EOL);
+        }, 'saved-domains.txt', [
+            'Content-Type' => 'text/plain',
+        ]);
+    }
+
     public function render()
     {
         return view('livewire.domain-combinator', [
             'availableTlds' => ['com', 'net', 'org', 'io', 'dev', 'app', 'co', 'ai', 'xyz', 'me'],
-        ])->layout('layouts.app', ['title' => 'Domain Name Idea Combinator']);
+        ])->layout('layouts.app', [
+            'title' => 'Domain Name Idea Combinator | Alternova',
+            'description' => 'Generate brandable domain ideas from seed keywords, score them, and check availability in real time.',
+        ]);
     }
 }
