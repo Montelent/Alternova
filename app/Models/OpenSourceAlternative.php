@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Laravel\Scout\Searchable;
@@ -26,6 +27,7 @@ class OpenSourceAlternative extends Model
         'docker_compose_blueprint',
         'primary_language',
         'overall_health_score',
+        'votes_count',
         'is_published',
         'is_featured',
         'meta_title',
@@ -41,6 +43,7 @@ class OpenSourceAlternative extends Model
     protected $casts = [
         'self_host_difficulty' => 'integer',
         'overall_health_score' => 'float',
+        'votes_count' => 'integer',
         'is_published' => 'boolean',
         'is_featured' => 'boolean',
         'pros' => 'array',
@@ -58,6 +61,11 @@ class OpenSourceAlternative extends Model
     public function repoMetric(): HasOne
     {
         return $this->hasOne(RepoMetric::class);
+    }
+
+    public function votes(): HasMany
+    {
+        return $this->hasMany(AlternativeVote::class);
     }
 
     public function toSearchableArray(): array
@@ -114,9 +122,6 @@ class OpenSourceAlternative extends Model
         return $this->repo_reachable === false || $this->website_reachable === false;
     }
 
-    /**
-     * Weighted 0–100 score from GitHub activity. Always reads metrics from DB (not stale relation).
-     */
     public function recalculateHealthScore(): float
     {
         $metric = RepoMetric::query()
@@ -133,7 +138,6 @@ class OpenSourceAlternative extends Model
         $forks = max((int) $metric->github_forks, 0);
         $issues = max((int) $metric->open_issues, 0);
 
-        // log10 scale so huge repos don't max everything instantly
         $starsScore = min(log10(max($stars, 1)) * 15, 40);
         $forksScore = min(log10(max($forks, 1)) * 10, 20);
         $issuesScore = $issues < 50 ? 15 : max(0, 15 - ($issues / 20));

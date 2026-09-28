@@ -35,9 +35,6 @@ class PageController extends Controller
         return view('pages.disclosure', [
             'title' => 'Affiliate & Advertising Disclosure — Alternova',
             'description' => 'How Alternova uses affiliate links and advertising, and how that relates to open-source listings.',
-        ])->layout('layouts.app', [
-            'title' => 'Affiliate & Advertising Disclosure — Alternova',
-            'description' => 'How Alternova uses affiliate links and advertising, and how that relates to open-source listings.',
         ]);
     }
 }
