@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\ContactMessage;
+use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Component;
 
 class ContactForm extends Component
@@ -15,7 +16,7 @@ class ContactForm extends Component
 
     public string $message = '';
 
-    public string $website = ''; // honeypot
+    public string $website = '';
 
     public bool $sent = false;
 
@@ -38,8 +39,18 @@ class ContactForm extends Component
             return;
         }
 
+        $key = 'contact:'.request()->ip();
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            $seconds = RateLimiter::availableIn($key);
+            $this->addError('email', 'Too many messages. Try again in '.$seconds.' seconds.');
+
+            return;
+        }
+
         $data = $this->validate();
         unset($data['website']);
+
+        RateLimiter::hit($key, 3600);
 
         ContactMessage::create([
             ...$data,

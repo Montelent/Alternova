@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\PageController;
@@ -31,6 +32,10 @@ Route::get('/contact', ContactForm::class)->name('contact');
 Route::get('/about', [PageController::class, 'about'])->name('about');
 Route::get('/privacy', [PageController::class, 'privacy'])->name('privacy');
 Route::get('/terms', [PageController::class, 'terms'])->name('terms');
+
+Route::get('/feed', [FeedController::class, 'rss'])->name('feed.rss');
+Route::get('/feed/rss', [FeedController::class, 'rss']);
+Route::get('/feed/atom', [FeedController::class, 'atom'])->name('feed.atom');
 
 Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
 

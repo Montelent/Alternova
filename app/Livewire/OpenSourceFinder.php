@@ -3,10 +3,12 @@
 namespace App\Livewire;
 
 use App\Models\OpenSourceAlternative;
+use App\Support\CategoryCatalog;
+use Livewire\Attributes\Computed;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
-use Livewire\Attributes\Url;
-use Livewire\Attributes\Computed;
+use Spatie\Tags\Tag;
 
 class OpenSourceFinder extends Component
 {
@@ -29,14 +31,6 @@ class OpenSourceFinder extends Component
 
     public int $perPage = 12;
 
-    protected $queryString = [
-        'search' => ['except' => ''],
-        'licenses' => ['except' => []],
-        'difficulties' => ['except' => []],
-        'categories' => ['except' => []],
-        'sort' => ['except' => 'health'],
-    ];
-
     public function updatingSearch(): void
     {
         $this->resetPage();
@@ -57,6 +51,26 @@ class OpenSourceFinder extends Component
         $this->resetPage();
     }
 
+    public function toggleCategory(string $name): void
+    {
+        if (in_array($name, $this->categories, true)) {
+            $this->categories = array_values(array_filter(
+                $this->categories,
+                fn ($c) => $c !== $name
+            ));
+        } else {
+            $this->categories[] = $name;
+        }
+        $this->resetPage();
+    }
+
+    public function clearFilters(): void
+    {
+        $this->reset(['search', 'licenses', 'difficulties', 'categories']);
+        $this->sort = 'health';
+        $this->resetPage();
+    }
+
     #[Computed]
     public function alternatives()
     {
@@ -64,30 +78,34 @@ class OpenSourceFinder extends Component
             ->with(['proprietaryTool', 'repoMetric', 'tags'])
             ->where('is_published', true);
 
-        // Scout / Meilisearch full-text search when query present
         if (strlen($this->search) >= 2) {
-            $searchResults = OpenSourceAlternative::search($this->search)
-                ->where('is_published', true)
-                ->take(200)
-                ->keys();
-
-            $query->whereIn('id', $searchResults);
+            try {
+                $searchResults = OpenSourceAlternative::search($this->search)
+                    ->take(200)
+                    ->keys();
+                $query->whereIn('id', $searchResults);
+            } catch (\Throwable) {
+                $query->where(function ($q) {
+                    $q->where('name', 'like', '%'.$this->search.'%')
+                        ->orWhere('description', 'like', '%'.$this->search.'%');
+                });
+            }
         }
 
-        if (!empty($this->licenses)) {
+        if (! empty($this->licenses)) {
             $query->whereIn('license_type', $this->licenses);
         }
 
-        if (!empty($this->difficulties)) {
+        if (! empty($this->difficulties)) {
             $query->whereIn('self_host_difficulty', $this->difficulties);
         }
 
-        if (!empty($this->categories)) {
+        if (! empty($this->categories)) {
             $query->withAnyTags($this->categories, 'category');
         }
 
         $query = match ($this->sort) {
-            'stars' => $query->join('repo_metrics', 'open_source_alternatives.id', '=', 'repo_metrics.open_source_alternative_id')
+            'stars' => $query->leftJoin('repo_metrics', 'open_source_alternatives.id', '=', 'repo_metrics.open_source_alternative_id')
                 ->orderByDesc('repo_metrics.github_stars')
                 ->select('open_source_alternatives.*'),
             'newest' => $query->orderByDesc('created_at'),
@@ -100,9 +118,21 @@ class OpenSourceFinder extends Component
 
     public function render()
     {
+        $usedCategories = [];
+        try {
+            $usedCategories = Tag::query()
+                ->where('type', 'category')
+                ->orderBy('name')
+                ->pluck('name')
+                ->all();
+        } catch (\Throwable) {
+        }
+
+        $chipCategories = $usedCategories ?: CategoryCatalog::names();
+
         return view('livewire.open-source-finder', [
             'alternatives' => $this->alternatives,
-            'availableLicenses' => ['MIT', 'Apache-2.0', 'AGPL-3.0', 'GPL-3.0', 'BSD-3-Clause', 'MPL-2.0'],
+            'availableLicenses' => ['MIT', 'Apache-2.0', 'AGPL-3.0', 'GPL-3.0', 'BSD-3-Clause', 'MPL-2.0', 'BSL-1.1'],
             'difficultyLabels' => [
                 1 => 'Very Easy',
                 2 => 'Easy',
@@ -110,6 +140,10 @@ class OpenSourceFinder extends Component
                 4 => 'Hard',
                 5 => 'Expert',
             ],
-        ])->layout('layouts.app', ['title' => 'Open Source Alternative Finder']);
+            'chipCategories' => $chipCategories,
+        ])->layout('layouts.app', [
+            'title' => 'Open Source Alternative Finder | Alternova',
+            'description' => 'Discover high-quality, self-hostable open-source alternatives. Filter by license, difficulty, and category.',
+        ]);
     }
 }

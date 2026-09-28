@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\AlternativeSubmission;
+use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Component;
 
 class SuggestAlternative extends Component
@@ -23,7 +24,7 @@ class SuggestAlternative extends Component
 
     public string $license_type = '';
 
-    public string $website = ''; // honeypot
+    public string $website = '';
 
     public bool $submitted = false;
 
@@ -50,8 +51,18 @@ class SuggestAlternative extends Component
             return;
         }
 
+        $key = 'suggest:'.request()->ip();
+        if (RateLimiter::tooManyAttempts($key, 8)) {
+            $seconds = RateLimiter::availableIn($key);
+            $this->addError('repo_url', 'Too many submissions. Try again in '.$seconds.' seconds.');
+
+            return;
+        }
+
         $data = $this->validate();
         unset($data['website']);
+
+        RateLimiter::hit($key, 3600);
 
         AlternativeSubmission::create([
             ...$data,
