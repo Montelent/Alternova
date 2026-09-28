@@ -12,6 +12,7 @@
     <meta property="og:description" content="Discover self-hostable open-source alternatives to proprietary tools. Generate brandable domain names with live availability checks.">
     <meta property="og:url" content="{{ url('/') }}">
     <meta property="og:type" content="website">
+    @include('partials.homepage-schema')
     @include('partials.adsense-head')
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
