@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
 
 class AlternativeSubmission extends Model
 {
@@ -17,6 +18,7 @@ class AlternativeSubmission extends Model
         'description',
         'license_type',
         'status',
+        'tracking_token',
         'admin_notes',
         'reviewed_by',
         'reviewed_at',
@@ -28,6 +30,15 @@ class AlternativeSubmission extends Model
         'reviewed_at' => 'datetime',
     ];
 
+    protected static function booted(): void
+    {
+        static::creating(function (AlternativeSubmission $submission) {
+            if (empty($submission->tracking_token)) {
+                $submission->tracking_token = Str::random(40);
+            }
+        });
+    }
+
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');
@@ -36,5 +47,15 @@ class AlternativeSubmission extends Model
     public function isPending(): bool
     {
         return $this->status === 'pending';
+    }
+
+    public function statusLabel(): string
+    {
+        return match ($this->status) {
+            'pending' => 'Pending review',
+            'approved' => 'Approved',
+            'rejected' => 'Rejected',
+            default => ucfirst((string) $this->status),
+        };
     }
 }

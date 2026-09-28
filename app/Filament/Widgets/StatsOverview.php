@@ -4,6 +4,8 @@ namespace App\Filament\Widgets;
 
 use App\Models\AlternativeSubmission;
 use App\Models\DomainSearchLog;
+use App\Models\IssueReport;
+use App\Models\NewsletterSubscriber;
 use App\Models\OpenSourceAlternative;
 use App\Models\ProprietaryTool;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
@@ -21,21 +23,10 @@ class StatsOverview extends BaseWidget
         $published = OpenSourceAlternative::query()->where('is_published', true)->count();
         $featured = OpenSourceAlternative::query()->where('is_featured', true)->where('is_published', true)->count();
 
-        $searches = 0;
-        try {
-            if (Schema::hasTable('domain_search_logs')) {
-                $searches = DomainSearchLog::query()->count();
-            }
-        } catch (\Throwable) {
-        }
-
-        $pending = 0;
-        try {
-            if (Schema::hasTable('alternative_submissions')) {
-                $pending = AlternativeSubmission::query()->where('status', 'pending')->count();
-            }
-        } catch (\Throwable) {
-        }
+        $searches = $this->safeCount('domain_search_logs', fn () => DomainSearchLog::query()->count());
+        $pending = $this->safeCount('alternative_submissions', fn () => AlternativeSubmission::query()->where('status', 'pending')->count());
+        $openReports = $this->safeCount('issue_reports', fn () => IssueReport::query()->where('status', 'open')->count());
+        $subscribers = $this->safeCount('newsletter_subscribers', fn () => NewsletterSubscriber::query()->where('status', 'active')->count());
 
         return [
             Stat::make('Proprietary tools', $tools)
@@ -54,6 +45,27 @@ class StatsOverview extends BaseWidget
                 ->description('Awaiting review')
                 ->descriptionIcon('heroicon-m-inbox')
                 ->color($pending > 0 ? 'warning' : 'gray'),
+            Stat::make('Open issue reports', $openReports)
+                ->description('Community flags')
+                ->descriptionIcon('heroicon-m-flag')
+                ->color($openReports > 0 ? 'danger' : 'gray'),
+            Stat::make('Newsletter subscribers', $subscribers)
+                ->description('Active list')
+                ->descriptionIcon('heroicon-m-envelope')
+                ->color('success'),
         ];
+    }
+
+    protected function safeCount(string $table, callable $fn): int
+    {
+        try {
+            if (! Schema::hasTable($table)) {
+                return 0;
+            }
+
+            return (int) $fn();
+        } catch (\Throwable) {
+            return 0;
+        }
     }
 }

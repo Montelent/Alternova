@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AlternativeApiController;
+use App\Http\Controllers\Api\SearchSuggestController;
 use App\Http\Controllers\BadgeController;
 use App\Http\Controllers\EmbedController;
 use App\Http\Controllers\FeedController;
@@ -9,6 +10,7 @@ use App\Http\Controllers\InstallController;
 use App\Http\Controllers\NewsletterController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\SitemapController;
+use App\Http\Controllers\SubmissionStatusController;
 use App\Http\Controllers\WhatsNewController;
 use App\Livewire\AlternativeDetail;
 use App\Livewire\CompareAlternatives;
@@ -43,6 +45,7 @@ Route::get('/badge/{slug}/health.svg', [BadgeController::class, 'health'])->name
 
 Route::get('/domains', DomainCombinator::class)->name('domains');
 Route::get('/suggest', SuggestAlternative::class)->name('suggest');
+Route::get('/submissions/{token}', SubmissionStatusController::class)->name('submissions.status');
 Route::get('/contact', ContactForm::class)->name('contact');
 
 Route::get('/newsletter/unsubscribe', [NewsletterController::class, 'unsubscribe'])->name('newsletter.unsubscribe');
@@ -59,6 +62,7 @@ Route::get('/feed/atom', [FeedController::class, 'atom'])->name('feed.atom');
 Route::prefix('api')->middleware('throttle:60,1')->group(function () {
     Route::get('/alternatives', [AlternativeApiController::class, 'index'])->name('api.alternatives.index');
     Route::get('/alternatives/{slug}', [AlternativeApiController::class, 'show'])->name('api.alternatives.show');
+    Route::get('/suggest', SearchSuggestController::class)->name('api.suggest');
 });
 
 Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');

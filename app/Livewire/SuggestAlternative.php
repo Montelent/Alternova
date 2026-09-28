@@ -4,6 +4,8 @@ namespace App\Livewire;
 
 use App\Models\AlternativeSubmission;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Livewire\Component;
 
 class SuggestAlternative extends Component
@@ -28,6 +30,10 @@ class SuggestAlternative extends Component
 
     public bool $submitted = false;
 
+    public ?string $trackingToken = null;
+
+    public ?string $trackingUrl = null;
+
     protected function rules(): array
     {
         return [
@@ -51,6 +57,18 @@ class SuggestAlternative extends Component
             return;
         }
 
+        try {
+            if (! Schema::hasTable('alternative_submissions')) {
+                $this->addError('repo_url', 'Submissions are not ready yet. Please try again after migrations.');
+
+                return;
+            }
+        } catch (\Throwable) {
+            $this->addError('repo_url', 'Submissions temporarily unavailable.');
+
+            return;
+        }
+
         $key = 'suggest:'.request()->ip();
         if (RateLimiter::tooManyAttempts($key, 8)) {
             $seconds = RateLimiter::availableIn($key);
@@ -64,11 +82,17 @@ class SuggestAlternative extends Component
 
         RateLimiter::hit($key, 3600);
 
+        $token = Str::random(40);
+
         AlternativeSubmission::create([
             ...$data,
             'status' => 'pending',
+            'tracking_token' => $token,
             'ip_address' => request()->ip(),
         ]);
+
+        $this->trackingToken = $token;
+        $this->trackingUrl = route('submissions.status', $token);
 
         $this->reset([
             'submitter_name',
