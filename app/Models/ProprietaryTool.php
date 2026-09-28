@@ -42,6 +42,21 @@ class ProprietaryTool extends Model
             ->where('is_published', true);
     }
 
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
+
+    public function resolveRouteBinding($value, $field = null)
+    {
+        $field = $field ?: $this->getRouteKeyName();
+
+        return static::query()
+            ->where($field, $value)
+            ->where('is_published', true)
+            ->first();
+    }
+
     public function toSearchableArray(): array
     {
         return [
@@ -52,10 +67,5 @@ class ProprietaryTool extends Model
             'target_audience' => $this->target_audience,
             'key_features' => $this->key_features,
         ];
-    }
-
-    public function getRouteKeyName(): string
-    {
-        return 'slug';
     }
 }

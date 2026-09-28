@@ -108,6 +108,7 @@ class OpenSourceFinder extends Component
             'stars' => $query->leftJoin('repo_metrics', 'open_source_alternatives.id', '=', 'repo_metrics.open_source_alternative_id')
                 ->orderByDesc('repo_metrics.github_stars')
                 ->select('open_source_alternatives.*'),
+            'votes' => $query->orderByDesc('votes_count')->orderByDesc('overall_health_score'),
             'newest' => $query->orderByDesc('created_at'),
             'name' => $query->orderBy('name'),
             default => $query->orderByDesc('overall_health_score'),

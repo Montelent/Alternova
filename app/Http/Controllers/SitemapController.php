@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\OpenSourceAlternative;
+use App\Models\ProprietaryTool;
 use Illuminate\Http\Response;
 
 class SitemapController extends Controller
@@ -20,8 +21,23 @@ class SitemapController extends Controller
             ['loc' => $base.'/contact', 'changefreq' => 'monthly', 'priority' => '0.4'],
             ['loc' => $base.'/privacy', 'changefreq' => 'yearly', 'priority' => '0.3'],
             ['loc' => $base.'/terms', 'changefreq' => 'yearly', 'priority' => '0.3'],
+            ['loc' => $base.'/disclosure', 'changefreq' => 'yearly', 'priority' => '0.3'],
             ['loc' => $base.'/suggest', 'changefreq' => 'monthly', 'priority' => '0.5'],
         ];
+
+        $tools = ProprietaryTool::query()
+            ->where('is_published', true)
+            ->orderByDesc('updated_at')
+            ->get(['slug', 'updated_at']);
+
+        foreach ($tools as $tool) {
+            $urls[] = [
+                'loc' => $base.'/tools/'.$tool->slug,
+                'lastmod' => optional($tool->updated_at)->toAtomString(),
+                'changefreq' => 'weekly',
+                'priority' => '0.75',
+            ];
+        }
 
         $alternatives = OpenSourceAlternative::query()
             ->where('is_published', true)

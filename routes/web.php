@@ -11,6 +11,7 @@ use App\Livewire\CompareAlternatives;
 use App\Livewire\ContactForm;
 use App\Livewire\DomainCombinator;
 use App\Livewire\OpenSourceFinder;
+use App\Livewire\ProprietaryToolShow;
 use App\Livewire\SuggestAlternative;
 use Illuminate\Support\Facades\Route;
 
@@ -25,8 +26,9 @@ Route::get('/', HomeController::class)->name('home');
 
 Route::get('/alternatives', OpenSourceFinder::class)->name('finder');
 Route::get('/alternatives/compare', CompareAlternatives::class)->name('alternatives.compare');
-// Explicit binding name — Livewire full-page component
 Route::get('/alternatives/{alternative}', AlternativeDetail::class)->name('alternatives.show');
+
+Route::get('/tools/{tool}', ProprietaryToolShow::class)->name('tools.show');
 
 Route::get('/domains', DomainCombinator::class)->name('domains');
 Route::get('/suggest', SuggestAlternative::class)->name('suggest');
