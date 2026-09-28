@@ -8,13 +8,8 @@
     <title>{{ $title ?? config('app.name', 'Alternova') }}</title>
     <meta name="description" content="{{ $description ?? 'Discover open-source alternatives and generate brandable domain names with Alternova.' }}">
     <meta name="robots" content="{{ $robots ?? 'index,follow,max-image-preview:large,max-snippet:-1' }}">
-    @if(!empty($canonical))
-        <link rel="canonical" href="{{ $canonical }}">
-    @else
-        <link rel="canonical" href="{{ url()->current() }}">
-    @endif
+    <link rel="canonical" href="{{ $canonical ?? url()->current() }}">
 
-    {{-- Open Graph --}}
     <meta property="og:site_name" content="{{ config('app.name', 'Alternova') }}">
     <meta property="og:type" content="{{ $ogType ?? 'website' }}">
     <meta property="og:title" content="{{ $title ?? config('app.name', 'Alternova') }}">
@@ -25,13 +20,9 @@
     @endif
     <meta property="og:locale" content="en_US">
 
-    {{-- Twitter --}}
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{{ $title ?? config('app.name', 'Alternova') }}">
     <meta name="twitter:description" content="{{ $description ?? 'Discover open-source alternatives and generate brandable domain names with Alternova.' }}">
-    @if(!empty($ogImage))
-        <meta name="twitter:image" content="{{ $ogImage }}">
-    @endif
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -67,6 +58,10 @@
                         class="px-3 py-1.5 rounded-lg {{ request()->routeIs('domains') ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-100' }}">
                         Domains
                     </a>
+                    <a href="{{ route('about') }}"
+                        class="hidden sm:inline px-3 py-1.5 rounded-lg {{ request()->routeIs('about') ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-100' }}">
+                        About
+                    </a>
                     <a href="{{ url('/admin') }}" class="ml-1 px-3 py-1.5 rounded-lg text-slate-500 hover:bg-slate-100 text-xs sm:text-sm">
                         Admin
                     </a>
@@ -79,12 +74,42 @@
         {{ $slot }}
     </main>
 
-    <footer class="border-t border-slate-200 bg-white py-8 mt-auto">
-        <div class="mx-auto max-w-7xl px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-slate-500">
-            <span>© {{ date('Y') }} Alternova</span>
-            <div class="flex gap-5">
-                <a href="{{ route('finder') }}" class="hover:text-slate-800">Alternatives</a>
-                <a href="{{ route('domains') }}" class="hover:text-slate-800">Domains</a>
+    <footer class="border-t border-slate-200 bg-white py-10 mt-auto">
+        <div class="mx-auto max-w-7xl px-4 sm:px-6">
+            <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-8">
+                <div>
+                    <div class="flex items-center gap-2 font-bold text-slate-900">
+                        <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-600 text-white text-xs">A</span>
+                        Alternova
+                    </div>
+                    <p class="mt-2 text-sm text-slate-500 max-w-xs">Open-source alternatives and brandable domain ideas.</p>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-8 text-sm">
+                    <div>
+                        <p class="font-semibold text-slate-900 mb-3">Product</p>
+                        <ul class="space-y-2 text-slate-500">
+                            <li><a href="{{ route('finder') }}" class="hover:text-slate-800">Alternatives</a></li>
+                            <li><a href="{{ route('domains') }}" class="hover:text-slate-800">Domains</a></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-slate-900 mb-3">Company</p>
+                        <ul class="space-y-2 text-slate-500">
+                            <li><a href="{{ route('about') }}" class="hover:text-slate-800">About</a></li>
+                            <li><a href="{{ route('contact') }}" class="hover:text-slate-800">Contact</a></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-slate-900 mb-3">Legal</p>
+                        <ul class="space-y-2 text-slate-500">
+                            <li><a href="{{ route('privacy') }}" class="hover:text-slate-800">Privacy</a></li>
+                            <li><a href="{{ route('terms') }}" class="hover:text-slate-800">Terms</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-8 pt-6 border-t border-slate-100 text-xs text-slate-400">
+                © {{ date('Y') }} Alternova. All trademarks belong to their owners.
             </div>
         </div>
     </footer>

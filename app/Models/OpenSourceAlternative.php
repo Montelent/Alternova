@@ -7,8 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Spatie\Tags\HasTags;
 use Laravel\Scout\Searchable;
+use Spatie\Tags\HasTags;
 
 class OpenSourceAlternative extends Model
 {
@@ -28,6 +28,11 @@ class OpenSourceAlternative extends Model
         'overall_health_score',
         'is_published',
         'is_featured',
+        'meta_title',
+        'meta_description',
+        'editor_note',
+        'pros',
+        'cons',
     ];
 
     protected $casts = [
@@ -35,6 +40,8 @@ class OpenSourceAlternative extends Model
         'overall_health_score' => 'float',
         'is_published' => 'boolean',
         'is_featured' => 'boolean',
+        'pros' => 'array',
+        'cons' => 'array',
     ];
 
     public function proprietaryTool(): BelongsTo
@@ -68,16 +75,40 @@ class OpenSourceAlternative extends Model
         return 'slug';
     }
 
+    public function seoTitle(): string
+    {
+        if ($this->meta_title) {
+            return $this->meta_title;
+        }
+
+        $prop = $this->proprietaryTool?->name ?? 'proprietary tools';
+
+        return $this->name.' — Open-Source '.$prop.' Alternative | Alternova';
+    }
+
+    public function seoDescription(): string
+    {
+        if ($this->meta_description) {
+            return $this->meta_description;
+        }
+
+        return str(
+            $this->name.' is a free, self-hostable open-source alternative to '
+            .($this->proprietaryTool?->name ?? 'proprietary software').'. '
+            .($this->description ?? '')
+        )->limit(155)->toString();
+    }
+
     public function recalculateHealthScore(): void
     {
         $metric = $this->repoMetric;
 
-        if (!$metric) {
+        if (! $metric) {
             $this->update(['overall_health_score' => 0]);
+
             return;
         }
 
-        // Weighted scoring algorithm
         $starsScore = min(log10(max($metric->github_stars, 1)) * 15, 40);
         $forksScore = min(log10(max($metric->github_forks, 1)) * 10, 20);
         $issuesScore = $metric->open_issues < 50 ? 15 : max(0, 15 - ($metric->open_issues / 20));

@@ -23,29 +23,18 @@ class AlternativeDetail extends Component
         $alt = $this->alternative;
         $prop = $alt->proprietaryTool;
         $propName = $prop?->name ?? 'proprietary tools';
-
-        $pageTitle = $alt->name.' — Open-Source '.$propName.' Alternative | Alternova';
-        $metaDescription = str(
-            $alt->name.' is a free, self-hostable open-source alternative to '.$propName.'. '
-            .($alt->description ?? '')
-            .' License: '.($alt->license_type ?? 'OSS').'. Health score: '
-            .number_format((float) $alt->overall_health_score, 1).'/100.'
-        )->limit(155)->toString();
-
         $canonical = route('alternatives.show', $alt);
 
-        $schemas = $this->buildSchemas($alt, $prop, $canonical);
-
         return view('livewire.alternative-detail', [
-            'schemas' => $schemas,
+            'schemas' => $this->buildSchemas($alt, $prop, $canonical),
             'proprietary' => $prop,
             'metric' => $alt->repoMetric,
             'heading' => $alt->name,
             'subheading' => 'The open-source alternative to '.$propName,
             'propName' => $propName,
         ])->layout('layouts.app', [
-            'title' => $pageTitle,
-            'description' => $metaDescription,
+            'title' => $alt->seoTitle(),
+            'description' => $alt->seoDescription(),
             'canonical' => $canonical,
             'ogType' => 'article',
             'ogImage' => $prop?->logo_path ? url($prop->logo_path) : null,
@@ -89,24 +78,9 @@ class AlternativeDetail extends Component
             '@context' => 'https://schema.org',
             '@type' => 'BreadcrumbList',
             'itemListElement' => [
-                [
-                    '@type' => 'ListItem',
-                    'position' => 1,
-                    'name' => 'Home',
-                    'item' => route('home'),
-                ],
-                [
-                    '@type' => 'ListItem',
-                    'position' => 2,
-                    'name' => 'Open Source Alternatives',
-                    'item' => route('finder'),
-                ],
-                [
-                    '@type' => 'ListItem',
-                    'position' => 3,
-                    'name' => $alt->name,
-                    'item' => $canonical,
-                ],
+                ['@type' => 'ListItem', 'position' => 1, 'name' => 'Home', 'item' => route('home')],
+                ['@type' => 'ListItem', 'position' => 2, 'name' => 'Open Source Alternatives', 'item' => route('finder')],
+                ['@type' => 'ListItem', 'position' => 3, 'name' => $alt->name, 'item' => $canonical],
             ],
         ];
 

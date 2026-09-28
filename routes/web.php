@@ -1,17 +1,12 @@
 <?php
 
 use App\Http\Controllers\InstallController;
+use App\Http\Controllers\PageController;
 use App\Livewire\AlternativeDetail;
 use App\Livewire\DomainCombinator;
 use App\Livewire\OpenSourceFinder;
-use App\Support\Installer;
 use Illuminate\Support\Facades\Route;
 
-/*
-|--------------------------------------------------------------------------
-| Installer
-|--------------------------------------------------------------------------
-*/
 Route::middleware(['web', 'not.installed'])->prefix('install')->group(function () {
     Route::get('/', [InstallController::class, 'index'])->name('install.index');
     Route::post('/next', [InstallController::class, 'next'])->name('install.next');
@@ -26,3 +21,8 @@ Route::get('/', function () {
 Route::get('/alternatives', OpenSourceFinder::class)->name('finder');
 Route::get('/alternatives/{alternative:slug}', AlternativeDetail::class)->name('alternatives.show');
 Route::get('/domains', DomainCombinator::class)->name('domains');
+
+Route::get('/about', [PageController::class, 'about'])->name('about');
+Route::get('/privacy', [PageController::class, 'privacy'])->name('privacy');
+Route::get('/terms', [PageController::class, 'terms'])->name('terms');
+Route::get('/contact', [PageController::class, 'contact'])->name('contact');

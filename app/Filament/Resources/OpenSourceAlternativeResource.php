@@ -5,12 +5,16 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\OpenSourceAlternativeResource\Pages;
 use App\Jobs\SyncGitHubMetricsJob;
 use App\Models\OpenSourceAlternative;
+use App\Models\ProprietaryTool;
+use App\Services\DescriptionGeneratorService;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Filament\Notifications\Notification;
 use Illuminate\Support\Str;
 
 class OpenSourceAlternativeResource extends Resource
@@ -21,26 +25,82 @@ class OpenSourceAlternativeResource extends Resource
 
     protected static ?string $navigationGroup = 'Open Source Finder';
 
+    protected static ?int $navigationSort = 2;
+
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
                 Forms\Components\Section::make('Core')->schema([
                     Forms\Components\Select::make('proprietary_tool_id')
+                        ->label('Proprietary tool')
                         ->relationship('proprietaryTool', 'name')
                         ->required()
                         ->searchable()
-                        ->preload(),
+                        ->preload()
+                        ->live(),
                     Forms\Components\TextInput::make('name')
                         ->required()
                         ->live(onBlur: true)
-                        ->afterStateUpdated(fn ($state, Forms\Set $set) => $set('slug', Str::slug($state))),
+                        ->afterStateUpdated(fn ($state, Set $set) => $set('slug', Str::slug($state))),
                     Forms\Components\TextInput::make('slug')
                         ->required()
                         ->unique(ignoreRecord: true),
-                    Forms\Components\TextInput::make('repo_url')->url()->required(),
+                    Forms\Components\TextInput::make('repo_url')
+                        ->url()
+                        ->required()
+                        ->helperText('https://github.com/owner/repo'),
                     Forms\Components\TextInput::make('website_url')->url(),
-                    Forms\Components\Textarea::make('description')->rows(4)->columnSpanFull(),
+                    Forms\Components\Textarea::make('description')
+                        ->rows(5)
+                        ->columnSpanFull()
+                        ->helperText('Use “Generate from GitHub” to auto-fill when empty or to refresh.'),
+                    Forms\Components\Actions::make([
+                        Forms\Components\Actions\Action::make('generateDescription')
+                            ->label('Generate from GitHub')
+                            ->icon('heroicon-o-sparkles')
+                            ->color('gray')
+                            ->action(function (Get $get, Set $set) {
+                                $repo = $get('repo_url');
+                                if (! $repo) {
+                                    Notification::make()->title('Add a repo URL first')->warning()->send();
+
+                                    return;
+                                }
+                                $propName = null;
+                                if ($id = $get('proprietary_tool_id')) {
+                                    $propName = ProprietaryTool::query()->find($id)?->name;
+                                }
+                                $result = app(DescriptionGeneratorService::class)->fromGitHubRepo($repo, $propName);
+                                if ($result['description']) {
+                                    $set('description', $result['description']);
+                                }
+                                if ($result['primary_language'] && ! $get('primary_language')) {
+                                    $set('primary_language', $result['primary_language']);
+                                }
+                                if ($result['license_type'] && ! $get('license_type')) {
+                                    $set('license_type', $result['license_type']);
+                                }
+                                if ($result['website_url'] && ! $get('website_url')) {
+                                    $set('website_url', $result['website_url']);
+                                }
+                                Notification::make()
+                                    ->title($result['success'] ? 'Description generated' : 'Partial result')
+                                    ->body($result['message'])
+                                    ->{$result['success'] ? 'success' : 'warning'}()
+                                    ->send();
+                            }),
+                    ])->columnSpanFull(),
+                ])->columns(2),
+
+                Forms\Components\Section::make('Publishing')->schema([
+                    Forms\Components\Toggle::make('is_published')
+                        ->label('Published (visible on site)')
+                        ->helperText('Only published alternatives appear in the public finder.')
+                        ->default(false),
+                    Forms\Components\Toggle::make('is_featured')
+                        ->label('Featured')
+                        ->default(false),
                 ])->columns(2),
 
                 Forms\Components\Section::make('Technical')->schema([
@@ -52,7 +112,10 @@ class OpenSourceAlternativeResource extends Resource
                             'GPL-3.0' => 'GPL-3.0',
                             'BSD-3-Clause' => 'BSD-3-Clause',
                             'MPL-2.0' => 'MPL-2.0',
-                        ]),
+                            'BSL-1.1' => 'BSL-1.1',
+                            'Other' => 'Other',
+                        ])
+                        ->searchable(),
                     Forms\Components\Select::make('self_host_difficulty')
                         ->options([
                             1 => '1 - Very Easy',
@@ -65,12 +128,22 @@ class OpenSourceAlternativeResource extends Resource
                     Forms\Components\TextInput::make('primary_language'),
                     Forms\Components\TextInput::make('overall_health_score')->numeric()->disabled(),
                     Forms\Components\Textarea::make('docker_compose_blueprint')
-                        ->rows(12)
-                        ->columnSpanFull()
-                        ->helperText('Paste a complete docker-compose.yml blueprint'),
-                    Forms\Components\Toggle::make('is_published'),
-                    Forms\Components\Toggle::make('is_featured'),
+                        ->rows(10)
+                        ->columnSpanFull(),
+                    Forms\Components\TagsInput::make('pros')->columnSpanFull(),
+                    Forms\Components\TagsInput::make('cons')->columnSpanFull(),
+                    Forms\Components\Textarea::make('editor_note')->rows(3)->columnSpanFull(),
                 ])->columns(2),
+
+                Forms\Components\Section::make('SEO')->schema([
+                    Forms\Components\TextInput::make('meta_title')
+                        ->maxLength(70)
+                        ->helperText('Leave blank to auto-generate from name + proprietary tool.'),
+                    Forms\Components\Textarea::make('meta_description')
+                        ->rows(3)
+                        ->maxLength(160)
+                        ->helperText('Leave blank to auto-generate. ~150–160 characters ideal.'),
+                ])->columns(1)->collapsed(),
             ]);
     }
 
@@ -79,15 +152,16 @@ class OpenSourceAlternativeResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')->searchable()->sortable(),
-                Tables\Columns\TextColumn::make('proprietaryTool.name')->label('Proprietary'),
-                Tables\Columns\TextColumn::make('license_type'),
-                Tables\Columns\TextColumn::make('overall_health_score')->sortable(),
-                Tables\Columns\IconColumn::make('is_published')->boolean(),
-                Tables\Columns\IconColumn::make('is_featured')->boolean(),
-                Tables\Columns\TextColumn::make('repoMetric.synced_at')->dateTime()->label('Last Synced'),
+                Tables\Columns\TextColumn::make('proprietaryTool.name')->label('Proprietary')->toggleable(),
+                Tables\Columns\TextColumn::make('license_type')->toggleable(),
+                Tables\Columns\TextColumn::make('overall_health_score')->sortable()->label('Health'),
+                Tables\Columns\IconColumn::make('is_published')->boolean()->label('Published'),
+                Tables\Columns\IconColumn::make('is_featured')->boolean()->label('Featured')->toggleable(),
+                Tables\Columns\TextColumn::make('repoMetric.synced_at')->dateTime()->label('Last synced')->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 Tables\Filters\TernaryFilter::make('is_published'),
+                Tables\Filters\TernaryFilter::make('is_featured'),
                 Tables\Filters\SelectFilter::make('license_type')
                     ->options([
                         'MIT' => 'MIT',
@@ -101,16 +175,30 @@ class OpenSourceAlternativeResource extends Resource
                     ->icon('heroicon-o-arrow-path')
                     ->action(function (OpenSourceAlternative $record) {
                         SyncGitHubMetricsJob::dispatch($record);
-                        Notification::make()
-                            ->title('Sync job dispatched')
-                            ->success()
-                            ->send();
+                        Notification::make()->title('Sync job dispatched')->success()->send();
                     }),
+                Tables\Actions\Action::make('publish')
+                    ->icon('heroicon-o-eye')
+                    ->visible(fn (OpenSourceAlternative $r) => ! $r->is_published)
+                    ->action(fn (OpenSourceAlternative $r) => $r->update(['is_published' => true])),
+                Tables\Actions\Action::make('unpublish')
+                    ->icon('heroicon-o-eye-slash')
+                    ->color('gray')
+                    ->visible(fn (OpenSourceAlternative $r) => $r->is_published)
+                    ->action(fn (OpenSourceAlternative $r) => $r->update(['is_published' => false])),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\BulkAction::make('publishSelected')
+                        ->label('Publish')
+                        ->icon('heroicon-o-eye')
+                        ->action(fn ($records) => $records->each->update(['is_published' => true])),
+                    Tables\Actions\BulkAction::make('unpublishSelected')
+                        ->label('Unpublish')
+                        ->icon('heroicon-o-eye-slash')
+                        ->action(fn ($records) => $records->each->update(['is_published' => false])),
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);

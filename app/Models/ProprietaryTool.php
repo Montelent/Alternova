@@ -6,8 +6,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Spatie\Tags\HasTags;
 use Laravel\Scout\Searchable;
+use Spatie\Tags\HasTags;
 
 class ProprietaryTool extends Model
 {
@@ -22,6 +22,8 @@ class ProprietaryTool extends Model
         'key_features',
         'target_audience',
         'is_published',
+        'meta_title',
+        'meta_description',
     ];
 
     protected $casts = [
