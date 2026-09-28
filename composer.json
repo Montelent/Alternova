@@ -13,7 +13,8 @@
         "filament/filament": "^3.2",
         "spatie/laravel-tags": "^4.6",
         "meilisearch/meilisearch-php": "^1.10",
-        "http-interop/http-factory-guzzle": "^1.2"
+        "http-interop/http-factory-guzzle": "^1.2",
+        "resend/resend-laravel": "^0.19"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
