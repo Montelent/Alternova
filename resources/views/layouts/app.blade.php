@@ -53,15 +53,19 @@
                 </a>
                 <nav class="flex items-center gap-1 sm:gap-2 text-sm font-medium">
                     <a href="{{ route('finder') }}"
-                        class="px-3 py-1.5 rounded-lg {{ request()->routeIs('finder','alternatives.*') ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-100' }}">
+                        class="px-3 py-1.5 rounded-lg {{ request()->routeIs('finder','alternatives.show') ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-100' }}">
                         Alternatives
+                    </a>
+                    <a href="{{ route('alternatives.compare') }}"
+                        class="hidden sm:inline px-3 py-1.5 rounded-lg {{ request()->routeIs('alternatives.compare') ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-100' }}">
+                        Compare
                     </a>
                     <a href="{{ route('domains') }}"
                         class="px-3 py-1.5 rounded-lg {{ request()->routeIs('domains') ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-100' }}">
                         Domains
                     </a>
                     <a href="{{ route('suggest') }}"
-                        class="hidden sm:inline px-3 py-1.5 rounded-lg {{ request()->routeIs('suggest') ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-100' }}">
+                        class="hidden md:inline px-3 py-1.5 rounded-lg {{ request()->routeIs('suggest') ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-100' }}">
                         Suggest
                     </a>
                     <a href="{{ url('/admin') }}" class="ml-1 px-3 py-1.5 rounded-lg text-slate-500 hover:bg-slate-100 text-xs sm:text-sm">
@@ -95,6 +99,7 @@
                         <p class="font-semibold text-slate-900 mb-3">Product</p>
                         <ul class="space-y-2 text-slate-500">
                             <li><a href="{{ route('finder') }}" class="hover:text-slate-800">Alternatives</a></li>
+                            <li><a href="{{ route('alternatives.compare') }}" class="hover:text-slate-800">Compare</a></li>
                             <li><a href="{{ route('domains') }}" class="hover:text-slate-800">Domains</a></li>
                             <li><a href="{{ route('suggest') }}" class="hover:text-slate-800">Suggest a tool</a></li>
                         </ul>
