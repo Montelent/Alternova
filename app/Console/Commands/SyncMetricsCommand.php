@@ -8,47 +8,41 @@ use Illuminate\Console\Command;
 
 class SyncMetricsCommand extends Command
 {
-    protected $signature = 'app:sync-metrics
-                            {--id= : Sync a specific alternative by ID}
-                            {--limit= : Limit number of alternatives to sync}';
+    protected $signature = 'alternova:sync-metrics {--limit=0 : Max alternatives to sync (0 = all)}';
 
-    protected $description = 'Dispatch jobs to sync GitHub metrics for all published open-source alternatives';
+    protected $description = 'Sync GitHub metrics and health scores for published alternatives';
 
     public function handle(): int
     {
         $query = OpenSourceAlternative::query()
-            ->where('is_published', true)
-            ->whereNotNull('repo_url');
+            ->whereNotNull('repo_url')
+            ->where('repo_url', 'like', '%github.com%')
+            ->orderBy('updated_at');
 
-        if ($id = $this->option('id')) {
-            $query->where('id', $id);
+        $limit = (int) $this->option('limit');
+        if ($limit > 0) {
+            $query->limit($limit);
         }
 
-        if ($limit = $this->option('limit')) {
-            $query->limit((int) $limit);
+        $alts = $query->get();
+        $ok = 0;
+        $fail = 0;
+
+        $this->info('Syncing '.$alts->count().' alternative(s)…');
+
+        foreach ($alts as $alt) {
+            try {
+                SyncGitHubMetricsJob::dispatchSync($alt);
+                $ok++;
+                $this->line('  ✓ '.$alt->name.' → health '.$alt->fresh()->overall_health_score);
+            } catch (\Throwable $e) {
+                $fail++;
+                $this->error('  ✗ '.$alt->name.': '.$e->getMessage());
+            }
         }
 
-        $alternatives = $query->get();
+        $this->info("Done. OK: {$ok}, failed: {$fail}");
 
-        if ($alternatives->isEmpty()) {
-            $this->warn('No alternatives found to sync.');
-            return self::SUCCESS;
-        }
-
-        $this->info("Dispatching sync jobs for {$alternatives->count()} alternative(s)...");
-
-        $bar = $this->output->createProgressBar($alternatives->count());
-        $bar->start();
-
-        foreach ($alternatives as $alternative) {
-            SyncGitHubMetricsJob::dispatch($alternative);
-            $bar->advance();
-        }
-
-        $bar->finish();
-        $this->newLine();
-        $this->info('All sync jobs have been dispatched to the queue.');
-
-        return self::SUCCESS;
+        return $fail > 0 ? self::FAILURE : self::SUCCESS;
     }
 }

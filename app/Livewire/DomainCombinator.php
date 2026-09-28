@@ -6,6 +6,7 @@ use App\Models\DomainSearchLog;
 use App\Models\SavedDomain;
 use App\Services\DomainCheckService;
 use App\Services\DomainCombinatorService;
+use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -34,6 +35,8 @@ class DomainCombinator extends Component
     public bool $isGenerating = false;
 
     public array $saved = [];
+
+    public string $errorMessage = '';
 
     protected DomainCombinatorService $combinator;
 
@@ -124,6 +127,16 @@ class DomainCombinator extends Component
 
     public function generate(): void
     {
+        $this->errorMessage = '';
+
+        $key = 'domain-gen:'.request()->ip();
+        if (RateLimiter::tooManyAttempts($key, 20)) {
+            $this->errorMessage = 'Rate limit: max 20 generations per hour from this network. Try later.';
+
+            return;
+        }
+        RateLimiter::hit($key, 3600);
+
         $this->validate([
             'keywords' => 'required|array|min:1|max:8',
             'selectedTlds' => 'required|array|min:1',
@@ -162,13 +175,16 @@ class DomainCombinator extends Component
         usort($filtered, fn ($a, $b) => $b['score'] <=> $a['score']);
         $this->results = array_slice($filtered, 0, 60);
 
-        DomainSearchLog::create([
-            'seed_keywords' => $this->keywords,
-            'selected_tlds' => $this->selectedTlds,
-            'domain_generated_count' => count($this->results),
-            'ip_address' => request()->ip(),
-            'user_id' => auth()->id(),
-        ]);
+        try {
+            DomainSearchLog::create([
+                'seed_keywords' => $this->keywords,
+                'selected_tlds' => $this->selectedTlds,
+                'domain_generated_count' => count($this->results),
+                'ip_address' => request()->ip(),
+                'user_id' => auth()->id(),
+            ]);
+        } catch (\Throwable) {
+        }
 
         $this->isGenerating = false;
         $this->dispatch('domains-generated');

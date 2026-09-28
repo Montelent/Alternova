@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\OpenSourceAlternative;
 use App\Services\FavoriteService;
+use App\Services\RecentlyViewedService;
 use App\Services\VoteService;
 use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Component;
@@ -28,6 +29,11 @@ class AlternativeDetail extends Component
 
         $this->alternative = $alternative->load(['proprietaryTool', 'repoMetric', 'tags']);
         $this->votesCount = (int) ($this->alternative->votes_count ?? 0);
+
+        try {
+            app(RecentlyViewedService::class)->push($this->alternative->id);
+        } catch (\Throwable) {
+        }
 
         try {
             $voterKey = app(VoteService::class)->voterKey(session()->getId(), request()->ip());
@@ -69,7 +75,7 @@ class AlternativeDetail extends Component
             $result = app(FavoriteService::class)->toggle($this->alternative);
             $this->isFavorited = $result['favorited'];
             $this->favoriteMessage = $result['message'];
-        } catch (\Throwable $e) {
+        } catch (\Throwable) {
             $this->favoriteMessage = 'Could not update favorites. Run migrations first.';
         }
     }
@@ -94,6 +100,8 @@ class AlternativeDetail extends Component
             ->limit(6)
             ->get();
 
+        $recent = app(RecentlyViewedService::class)->list($alt->id);
+
         $badgeUrl = url('/badge/'.$alt->slug.'/health.svg');
 
         return view('livewire.alternative-detail', [
@@ -104,6 +112,7 @@ class AlternativeDetail extends Component
             'subheading' => 'The open-source alternative to '.$propName,
             'propName' => $propName,
             'related' => $related,
+            'recent' => $recent,
             'badgeUrl' => $badgeUrl,
         ])->layout('layouts.app', [
             'title' => $alt->seoTitle(),
