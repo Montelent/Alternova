@@ -1,0 +1,6 @@
+# Alternova ads.txt
+# After Google AdSense approval, replace the line below with the exact snippet from AdSense.
+# Example format:
+# google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0
+
+# google.com, pub-YOUR_PUBLISHER_ID, DIRECT, f08c47fec0942fa0

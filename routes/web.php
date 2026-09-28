@@ -2,9 +2,11 @@
 
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\PageController;
+use App\Http\Controllers\SitemapController;
 use App\Livewire\AlternativeDetail;
 use App\Livewire\DomainCombinator;
 use App\Livewire\OpenSourceFinder;
+use App\Livewire\SuggestAlternative;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['web', 'not.installed'])->prefix('install')->group(function () {
@@ -21,8 +23,31 @@ Route::get('/', function () {
 Route::get('/alternatives', OpenSourceFinder::class)->name('finder');
 Route::get('/alternatives/{alternative:slug}', AlternativeDetail::class)->name('alternatives.show');
 Route::get('/domains', DomainCombinator::class)->name('domains');
+Route::get('/suggest', SuggestAlternative::class)->name('suggest');
 
 Route::get('/about', [PageController::class, 'about'])->name('about');
 Route::get('/privacy', [PageController::class, 'privacy'])->name('privacy');
 Route::get('/terms', [PageController::class, 'terms'])->name('terms');
 Route::get('/contact', [PageController::class, 'contact'])->name('contact');
+
+Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
+
+// Serve ads.txt / robots from project root when docroot is public_html
+Route::get('/ads.txt', function () {
+    $path = public_path('ads.txt');
+    abort_unless(is_file($path), 404);
+
+    return response(file_get_contents($path), 200)->header('Content-Type', 'text/plain');
+});
+
+Route::get('/robots.txt', function () {
+    $path = public_path('robots.txt');
+    $base = rtrim(config('app.url'), '/');
+    $body = is_file($path) ? file_get_contents($path) : "User-agent: *\nAllow: /\n";
+    $body = preg_replace('/^Sitemap:.*$/m', 'Sitemap: '.$base.'/sitemap.xml', $body);
+    if (! str_contains($body, 'Sitemap:')) {
+        $body = rtrim($body)."\n\nSitemap: {$base}/sitemap.xml\n";
+    }
+
+    return response($body, 200)->header('Content-Type', 'text/plain');
+});
