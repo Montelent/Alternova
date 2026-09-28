@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\NewsletterSubscriber;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Component;
 
 class NewsletterSubscribe extends Component
@@ -21,6 +22,20 @@ class NewsletterSubscribe extends Component
         $this->validate([
             'email' => 'required|email|max:190',
         ]);
+
+        try {
+            if (! Schema::hasTable('newsletter_subscribers')) {
+                $this->success = false;
+                $this->message = 'Newsletter is not ready yet. Please try again after the site finishes updating.';
+
+                return;
+            }
+        } catch (\Throwable) {
+            $this->success = false;
+            $this->message = 'Newsletter is temporarily unavailable.';
+
+            return;
+        }
 
         $key = 'newsletter:'.request()->ip();
         if (RateLimiter::tooManyAttempts($key, 5)) {

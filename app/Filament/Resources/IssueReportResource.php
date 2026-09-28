@@ -9,6 +9,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Schema;
 
 class IssueReportResource extends Resource
 {
@@ -22,9 +23,31 @@ class IssueReportResource extends Resource
 
     protected static ?int $navigationSort = 15;
 
+    public static function tableReady(): bool
+    {
+        try {
+            return Schema::hasTable('issue_reports');
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::tableReady();
+    }
+
+    public static function canAccess(): bool
+    {
+        return static::tableReady();
+    }
+
     public static function getNavigationBadge(): ?string
     {
         try {
+            if (! static::tableReady()) {
+                return null;
+            }
             $count = IssueReport::query()->where('status', 'open')->count();
 
             return $count > 0 ? (string) $count : null;

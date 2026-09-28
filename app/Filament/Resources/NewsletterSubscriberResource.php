@@ -9,6 +9,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class NewsletterSubscriberResource extends Resource
@@ -22,6 +23,25 @@ class NewsletterSubscriberResource extends Resource
     protected static ?string $navigationLabel = 'Newsletter';
 
     protected static ?int $navigationSort = 20;
+
+    public static function tableReady(): bool
+    {
+        try {
+            return Schema::hasTable('newsletter_subscribers');
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::tableReady();
+    }
+
+    public static function canAccess(): bool
+    {
+        return static::tableReady();
+    }
 
     public static function form(Form $form): Form
     {

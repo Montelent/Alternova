@@ -3,8 +3,8 @@
 namespace App\Livewire;
 
 use App\Models\IssueReport;
-use App\Models\OpenSourceAlternative;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Component;
 
 class ReportIssue extends Component
@@ -40,6 +40,18 @@ class ReportIssue extends Component
             'message' => 'required|string|min:10|max:2000',
             'email' => 'nullable|email|max:190',
         ]);
+
+        try {
+            if (! Schema::hasTable('issue_reports')) {
+                $this->statusMessage = 'Reporting is not ready yet. Please run database migrations.';
+
+                return;
+            }
+        } catch (\Throwable) {
+            $this->statusMessage = 'Reporting is temporarily unavailable.';
+
+            return;
+        }
 
         $key = 'report:'.request()->ip();
         if (RateLimiter::tooManyAttempts($key, 8)) {
