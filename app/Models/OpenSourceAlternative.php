@@ -71,6 +71,43 @@ class OpenSourceAlternative extends Model
         return $this->hasMany(AlternativeVote::class);
     }
 
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
+
+    /**
+     * Resolve published alternatives by slug, or follow slug_redirects.
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        $field = $field ?: $this->getRouteKeyName();
+
+        $record = static::query()
+            ->where($field, $value)
+            ->where('is_published', true)
+            ->first();
+
+        if ($record) {
+            return $record;
+        }
+
+        // Old slug → current slug
+        try {
+            $redirect = SlugRedirect::query()->where('old_slug', $value)->first();
+            if ($redirect) {
+                return static::query()
+                    ->where('slug', $redirect->new_slug)
+                    ->where('is_published', true)
+                    ->first();
+            }
+        } catch (\Throwable) {
+            // table may not exist yet
+        }
+
+        return null;
+    }
+
     public function toSearchableArray(): array
     {
         return [
@@ -85,11 +122,6 @@ class OpenSourceAlternative extends Model
             'proprietary_tool_name' => $this->proprietaryTool?->name,
             'tags' => $this->tags->pluck('name')->toArray(),
         ];
-    }
-
-    public function getRouteKeyName(): string
-    {
-        return 'slug';
     }
 
     public function seoTitle(): string

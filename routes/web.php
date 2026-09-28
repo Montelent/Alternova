@@ -25,7 +25,9 @@ Route::get('/', HomeController::class)->name('home');
 
 Route::get('/alternatives', OpenSourceFinder::class)->name('finder');
 Route::get('/alternatives/compare', CompareAlternatives::class)->name('alternatives.compare');
+// Explicit binding name — Livewire full-page component
 Route::get('/alternatives/{alternative}', AlternativeDetail::class)->name('alternatives.show');
+
 Route::get('/domains', DomainCombinator::class)->name('domains');
 Route::get('/suggest', SuggestAlternative::class)->name('suggest');
 Route::get('/contact', ContactForm::class)->name('contact');

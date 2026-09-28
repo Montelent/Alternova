@@ -3,15 +3,12 @@
 namespace App\Livewire;
 
 use App\Models\OpenSourceAlternative;
-use App\Models\SlugRedirect;
 use App\Services\VoteService;
 use Illuminate\Support\Facades\RateLimiter;
-use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class AlternativeDetail extends Component
 {
-    #[Locked]
     public OpenSourceAlternative $alternative;
 
     public bool $hasVoted = false;
@@ -20,37 +17,20 @@ class AlternativeDetail extends Component
 
     public string $voteMessage = '';
 
-    public function mount(string $alternative): void
+    public function mount(OpenSourceAlternative $alternative): void
     {
-        // Custom binding so we can resolve slug redirects
-        $record = OpenSourceAlternative::query()
-            ->with(['proprietaryTool', 'repoMetric', 'tags'])
-            ->where('slug', $alternative)
-            ->where('is_published', true)
-            ->first();
+        // Ensure published (also enforced in resolveRouteBinding)
+        abort_unless($alternative->is_published, 404);
 
-        if (! $record) {
-            $redirect = SlugRedirect::query()->where('old_slug', $alternative)->first();
-            if ($redirect) {
-                $record = OpenSourceAlternative::query()
-                    ->where('slug', $redirect->new_slug)
-                    ->where('is_published', true)
-                    ->first();
+        $this->alternative = $alternative->load(['proprietaryTool', 'repoMetric', 'tags']);
+        $this->votesCount = (int) ($this->alternative->votes_count ?? 0);
 
-                if ($record) {
-                    $this->redirect(route('alternatives.show', $record), navigate: false);
-
-                    return;
-                }
-            }
-            abort(404);
+        try {
+            $voterKey = app(VoteService::class)->voterKey(session()->getId(), request()->ip());
+            $this->hasVoted = app(VoteService::class)->hasVoted($this->alternative, $voterKey);
+        } catch (\Throwable) {
+            $this->hasVoted = false;
         }
-
-        $this->alternative = $record;
-        $this->votesCount = (int) ($record->votes_count ?? 0);
-
-        $voterKey = app(VoteService::class)->voterKey(session()->getId(), request()->ip());
-        $this->hasVoted = app(VoteService::class)->hasVoted($record, $voterKey);
     }
 
     public function vote(): void
@@ -170,7 +150,7 @@ class AlternativeDetail extends Component
                     'name' => 'How difficult is it to self-host '.$alt->name.'?',
                     'acceptedAnswer' => [
                         '@type' => 'Answer',
-                        'text' => 'Self-host difficulty is rated '.$alt->self_host_difficulty.'/5. Basic Docker knowledge is recommended for production setups.',
+                        'text' => 'Self-host difficulty is rated '.$alt->self_host_difficulty.'/5.',
                     ],
                 ],
                 [
@@ -179,14 +159,6 @@ class AlternativeDetail extends Component
                     'acceptedAnswer' => [
                         '@type' => 'Answer',
                         'text' => $alt->name.' is a self-hostable open-source alternative to '.($prop?->name ?? 'proprietary software').'.',
-                    ],
-                ],
-                [
-                    '@type' => 'Question',
-                    'name' => 'Where can I contribute to '.$alt->name.'?',
-                    'acceptedAnswer' => [
-                        '@type' => 'Answer',
-                        'text' => 'Visit the GitHub repository at '.$alt->repo_url.' to open issues or submit pull requests.',
                     ],
                 ],
             ],
