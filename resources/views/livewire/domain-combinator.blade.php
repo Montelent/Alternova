@@ -34,6 +34,8 @@
                 </div>
             </div>
 
+            @include('livewire.partials.domain-affixes')
+
             <div>
                 <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">TLDs</label>
                 <div class="flex flex-wrap gap-3">
