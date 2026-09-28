@@ -24,6 +24,12 @@ class ProprietaryTool extends Model
         'is_published',
         'meta_title',
         'meta_description',
+        'focus_keyword',
+        'robots_meta',
+        'canonical_url',
+        'og_title',
+        'og_description',
+        'og_image_url',
     ];
 
     protected $casts = [

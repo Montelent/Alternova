@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Forms\SeoForm;
 use App\Filament\Resources\ProprietaryToolResource\Pages;
 use App\Models\ProprietaryTool;
 use App\Services\DescriptionGeneratorService;
@@ -74,10 +75,7 @@ class ProprietaryToolResource extends Resource
                         ->default(true),
                 ])->columns(2),
 
-                Forms\Components\Section::make('SEO')->schema([
-                    Forms\Components\TextInput::make('meta_title')->maxLength(70),
-                    Forms\Components\Textarea::make('meta_description')->rows(3)->maxLength(160),
-                ])->collapsed(),
+                ...SeoForm::schema('proprietary tool', 'slug'),
             ]);
     }
 
@@ -87,6 +85,7 @@ class ProprietaryToolResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('name')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('slug')->toggleable(),
+                Tables\Columns\TextColumn::make('focus_keyword')->label('Keyphrase')->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\IconColumn::make('is_published')->boolean(),
                 Tables\Columns\TextColumn::make('open_source_alternatives_count')
                     ->counts('openSourceAlternatives')

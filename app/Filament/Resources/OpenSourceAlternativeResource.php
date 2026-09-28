@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Forms\SeoForm;
 use App\Filament\Resources\OpenSourceAlternativeResource\Pages;
 use App\Jobs\SyncGitHubMetricsJob;
 use App\Models\OpenSourceAlternative;
@@ -139,13 +140,11 @@ class OpenSourceAlternativeResource extends Resource
                     Forms\Components\Textarea::make('changelog')
                         ->label('Public changelog / notes')
                         ->rows(6)
-                        ->columnSpanFull()
-                        ->helperText('Shown on the public detail page.'),
+                        ->columnSpanFull(),
                     Forms\Components\TagsInput::make('gallery_urls')
                         ->label('Screenshot URLs')
                         ->placeholder('https://…')
-                        ->columnSpanFull()
-                        ->helperText('Public image URLs displayed as a gallery.'),
+                        ->columnSpanFull(),
                 ])->columns(2),
 
                 Forms\Components\Section::make('Link health')->schema([
@@ -162,10 +161,7 @@ class OpenSourceAlternativeResource extends Resource
                         }),
                 ])->collapsed(),
 
-                Forms\Components\Section::make('SEO')->schema([
-                    Forms\Components\TextInput::make('meta_title')->maxLength(70),
-                    Forms\Components\Textarea::make('meta_description')->rows(3)->maxLength(160),
-                ])->collapsed(),
+                ...SeoForm::schema('open-source alternative', 'slug'),
             ]);
     }
 
@@ -175,6 +171,7 @@ class OpenSourceAlternativeResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('name')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('proprietaryTool.name')->label('Proprietary')->toggleable(),
+                Tables\Columns\TextColumn::make('focus_keyword')->label('Keyphrase')->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('license_type')->toggleable(),
                 Tables\Columns\TextColumn::make('tags.name')->label('Categories')->badge()->separator(',')->toggleable(),
                 Tables\Columns\TextColumn::make('overall_health_score')->sortable()->label('Health'),
