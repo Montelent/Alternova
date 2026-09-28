@@ -3,6 +3,9 @@
 namespace App\Livewire;
 
 use App\Models\OpenSourceAlternative;
+use App\Models\SlugRedirect;
+use App\Services\VoteService;
+use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
 
@@ -11,11 +14,63 @@ class AlternativeDetail extends Component
     #[Locked]
     public OpenSourceAlternative $alternative;
 
-    public function mount(OpenSourceAlternative $alternative): void
-    {
-        $this->alternative = $alternative->load(['proprietaryTool', 'repoMetric', 'tags']);
+    public bool $hasVoted = false;
 
-        abort_unless($this->alternative->is_published, 404);
+    public int $votesCount = 0;
+
+    public string $voteMessage = '';
+
+    public function mount(string $alternative): void
+    {
+        // Custom binding so we can resolve slug redirects
+        $record = OpenSourceAlternative::query()
+            ->with(['proprietaryTool', 'repoMetric', 'tags'])
+            ->where('slug', $alternative)
+            ->where('is_published', true)
+            ->first();
+
+        if (! $record) {
+            $redirect = SlugRedirect::query()->where('old_slug', $alternative)->first();
+            if ($redirect) {
+                $record = OpenSourceAlternative::query()
+                    ->where('slug', $redirect->new_slug)
+                    ->where('is_published', true)
+                    ->first();
+
+                if ($record) {
+                    $this->redirect(route('alternatives.show', $record), navigate: false);
+
+                    return;
+                }
+            }
+            abort(404);
+        }
+
+        $this->alternative = $record;
+        $this->votesCount = (int) ($record->votes_count ?? 0);
+
+        $voterKey = app(VoteService::class)->voterKey(session()->getId(), request()->ip());
+        $this->hasVoted = app(VoteService::class)->hasVoted($record, $voterKey);
+    }
+
+    public function vote(): void
+    {
+        $key = 'vote:'.request()->ip();
+        if (RateLimiter::tooManyAttempts($key, 30)) {
+            $this->voteMessage = 'Too many votes from this network. Try later.';
+
+            return;
+        }
+
+        RateLimiter::hit($key, 3600);
+
+        $service = app(VoteService::class);
+        $voterKey = $service->voterKey(session()->getId(), request()->ip());
+        $result = $service->vote($this->alternative, $voterKey, request()->ip());
+
+        $this->votesCount = $result['votes'];
+        $this->hasVoted = $result['voted'];
+        $this->voteMessage = $result['message'];
     }
 
     public function render()

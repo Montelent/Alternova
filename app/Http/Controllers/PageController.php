@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\View\View;
+use Illuminate\Contracts\View\View;
 
 class PageController extends Controller
 {
@@ -30,11 +30,14 @@ class PageController extends Controller
         ]);
     }
 
-    public function contact(): View
+    public function disclosure(): View
     {
-        return view('pages.contact', [
-            'title' => 'Contact — Alternova',
-            'description' => 'Contact the Alternova team for feedback, corrections, or partnership inquiries.',
+        return view('pages.disclosure', [
+            'title' => 'Affiliate & Advertising Disclosure — Alternova',
+            'description' => 'How Alternova uses affiliate links and advertising, and how that relates to open-source listings.',
+        ])->layout('layouts.app', [
+            'title' => 'Affiliate & Advertising Disclosure — Alternova',
+            'description' => 'How Alternova uses affiliate links and advertising, and how that relates to open-source listings.',
         ]);
     }
 }

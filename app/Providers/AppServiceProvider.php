@@ -4,8 +4,10 @@ namespace App\Providers;
 
 use App\Models\AlternativeSubmission;
 use App\Models\ContactMessage;
+use App\Models\OpenSourceAlternative;
 use App\Observers\AlternativeSubmissionObserver;
 use App\Observers\ContactMessageObserver;
+use App\Observers\OpenSourceAlternativeObserver;
 use App\Support\MailSettings;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
@@ -23,14 +25,13 @@ class AppServiceProvider extends ServiceProvider
             URL::forceScheme('https');
         }
 
-        // Apply DB mail settings after boot (safe if table missing)
         try {
             MailSettings::apply();
         } catch (\Throwable) {
-            // installer / missing DB
         }
 
         ContactMessage::observe(ContactMessageObserver::class);
         AlternativeSubmission::observe(AlternativeSubmissionObserver::class);
+        OpenSourceAlternative::observe(OpenSourceAlternativeObserver::class);
     }
 }
