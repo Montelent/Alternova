@@ -33,6 +33,9 @@ class OpenSourceAlternative extends Model
         'editor_note',
         'pros',
         'cons',
+        'repo_reachable',
+        'website_reachable',
+        'links_checked_at',
     ];
 
     protected $casts = [
@@ -42,6 +45,9 @@ class OpenSourceAlternative extends Model
         'is_featured' => 'boolean',
         'pros' => 'array',
         'cons' => 'array',
+        'repo_reachable' => 'boolean',
+        'website_reachable' => 'boolean',
+        'links_checked_at' => 'datetime',
     ];
 
     public function proprietaryTool(): BelongsTo
@@ -97,6 +103,15 @@ class OpenSourceAlternative extends Model
             .($this->proprietaryTool?->name ?? 'proprietary software').'. '
             .($this->description ?? '')
         )->limit(155)->toString();
+    }
+
+    public function hasBrokenLinks(): bool
+    {
+        if ($this->links_checked_at === null) {
+            return false;
+        }
+
+        return $this->repo_reachable === false || $this->website_reachable === false;
     }
 
     public function recalculateHealthScore(): void
