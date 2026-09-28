@@ -1,14 +1,16 @@
 @props([
-    'slot' => 'in_article', // header|in_article|sidebar|footer
+    'slot' => 'in_article',
     'class' => '',
 ])
 
 @php
-    $enabled = config('ads.enabled');
-    $showPlaceholder = config('ads.show_placeholders');
-    $client = config('ads.adsense.client');
-    $slotId = config('ads.adsense.slots.'.$slot, '');
-    $canRender = $enabled && $client && $slotId;
+    use App\Support\AdSettings;
+
+    $enabled = AdSettings::enabled();
+    $showPlaceholder = AdSettings::showPlaceholders();
+    $client = AdSettings::client();
+    $slotId = AdSettings::slot($slot);
+    $canRender = AdSettings::canRender($slot);
 @endphp
 
 @if($canRender)
@@ -27,6 +29,6 @@
     <div {{ $attributes->merge(['class' => 'ad-slot-placeholder border border-dashed border-slate-300 bg-slate-50 text-slate-400 text-xs text-center rounded-xl py-6 px-4 '.$class]) }}
         data-ad-slot="{{ $slot }}"
         role="presentation">
-        Ad placement: {{ str_replace('_', ' ', $slot) }} (not live — ADS_ENABLED=false)
+        Ad placement: {{ str_replace('_', ' ', $slot) }} (preview only — enable live ads in Admin → Ad settings)
     </div>
 @endif
