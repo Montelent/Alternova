@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\OpenSourceAlternative;
+use App\Services\FavoriteService;
 use App\Services\VoteService;
 use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Component;
@@ -17,9 +18,12 @@ class AlternativeDetail extends Component
 
     public string $voteMessage = '';
 
+    public bool $isFavorited = false;
+
+    public string $favoriteMessage = '';
+
     public function mount(OpenSourceAlternative $alternative): void
     {
-        // Ensure published (also enforced in resolveRouteBinding)
         abort_unless($alternative->is_published, 404);
 
         $this->alternative = $alternative->load(['proprietaryTool', 'repoMetric', 'tags']);
@@ -30,6 +34,12 @@ class AlternativeDetail extends Component
             $this->hasVoted = app(VoteService::class)->hasVoted($this->alternative, $voterKey);
         } catch (\Throwable) {
             $this->hasVoted = false;
+        }
+
+        try {
+            $this->isFavorited = app(FavoriteService::class)->has($this->alternative);
+        } catch (\Throwable) {
+            $this->isFavorited = false;
         }
     }
 
@@ -53,6 +63,17 @@ class AlternativeDetail extends Component
         $this->voteMessage = $result['message'];
     }
 
+    public function toggleFavorite(): void
+    {
+        try {
+            $result = app(FavoriteService::class)->toggle($this->alternative);
+            $this->isFavorited = $result['favorited'];
+            $this->favoriteMessage = $result['message'];
+        } catch (\Throwable $e) {
+            $this->favoriteMessage = 'Could not update favorites. Run migrations first.';
+        }
+    }
+
     public function render()
     {
         $alt = $this->alternative;
@@ -73,6 +94,8 @@ class AlternativeDetail extends Component
             ->limit(6)
             ->get();
 
+        $badgeUrl = url('/badge/'.$alt->slug.'/health.svg');
+
         return view('livewire.alternative-detail', [
             'schemas' => $this->buildSchemas($alt, $prop, $canonical),
             'proprietary' => $prop,
@@ -81,6 +104,7 @@ class AlternativeDetail extends Component
             'subheading' => 'The open-source alternative to '.$propName,
             'propName' => $propName,
             'related' => $related,
+            'badgeUrl' => $badgeUrl,
         ])->layout('layouts.app', [
             'title' => $alt->seoTitle(),
             'description' => $alt->seoDescription(),

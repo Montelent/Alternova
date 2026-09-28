@@ -6,7 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>{{ $title ?? config('app.name', 'Alternova') }}</title>
-    <meta name="description" content="{{ $description ?? 'Discover open-source alternatives and generate brandable domain names with Alternova.' }}">
+    <meta name="description" content="{{ $description ?? \App\Models\SiteSetting::get('default_meta_description', 'Discover open-source alternatives and generate brandable domain names with Alternova.') }}">
     <meta name="robots" content="{{ $robots ?? 'index,follow,max-image-preview:large,max-snippet:-1' }}">
     <link rel="canonical" href="{{ $canonical ?? url()->current() }}">
     <link rel="alternate" type="application/rss+xml" title="Alternova Alternatives" href="{{ url('/feed') }}">
@@ -16,15 +16,19 @@
     <meta property="og:site_name" content="{{ config('app.name', 'Alternova') }}">
     <meta property="og:type" content="{{ $ogType ?? 'website' }}">
     <meta property="og:title" content="{{ $title ?? config('app.name', 'Alternova') }}">
-    <meta property="og:description" content="{{ $description ?? 'Discover open-source alternatives and generate brandable domain names with Alternova.' }}">
+    <meta property="og:description" content="{{ $description ?? \App\Models\SiteSetting::get('default_meta_description', 'Discover open-source alternatives and generate brandable domain names with Alternova.') }}">
     <meta property="og:url" content="{{ $canonical ?? url()->current() }}">
-    @if(!empty($ogImage))
-        <meta property="og:image" content="{{ $ogImage }}">
+    @php $defaultOg = $ogImage ?? \App\Models\SiteSetting::get('og_image_url'); @endphp
+    @if(!empty($defaultOg))
+        <meta property="og:image" content="{{ $defaultOg }}">
     @endif
 
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{{ $title ?? config('app.name', 'Alternova') }}">
-    <meta name="twitter:description" content="{{ $description ?? 'Discover open-source alternatives and generate brandable domain names with Alternova.' }}">
+    <meta name="twitter:description" content="{{ $description ?? \App\Models\SiteSetting::get('default_meta_description', 'Discover open-source alternatives and generate brandable domain names with Alternova.') }}">
+    @if($tw = \App\Models\SiteSetting::get('twitter_handle'))
+        <meta name="twitter:site" content="{{ $tw }}">
+    @endif
 
     @include('partials.adsense-head')
 
@@ -72,13 +76,13 @@
                         class="hidden sm:inline px-3 py-1.5 rounded-lg {{ request()->routeIs('whats-new') ? 'bg-brand-50 text-brand-700 dark:bg-brand-600/20 dark:text-brand-300' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                         What's new
                     </a>
-                    <a href="{{ route('alternatives.compare') }}"
-                        class="hidden md:inline px-3 py-1.5 rounded-lg {{ request()->routeIs('alternatives.compare') ? 'bg-brand-50 text-brand-700 dark:bg-brand-600/20 dark:text-brand-300' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
-                        Compare
-                    </a>
                     <a href="{{ route('domains') }}"
                         class="px-3 py-1.5 rounded-lg {{ request()->routeIs('domains') ? 'bg-brand-50 text-brand-700 dark:bg-brand-600/20 dark:text-brand-300' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                         Domains
+                    </a>
+                    <a href="{{ route('favorites') }}"
+                        class="hidden md:inline px-3 py-1.5 rounded-lg {{ request()->routeIs('favorites') ? 'bg-brand-50 text-brand-700 dark:bg-brand-600/20 dark:text-brand-300' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
+                        ★
                     </a>
                     <button type="button" @click="toggle()" class="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" title="Toggle theme" aria-label="Toggle dark mode">
                         <svg x-show="!dark" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
@@ -102,13 +106,19 @@
 
     <footer class="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-10 mt-auto">
         <div class="mx-auto max-w-7xl px-4 sm:px-6">
-            <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-8">
-                <div>
+            <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-10">
+                <div class="max-w-sm">
                     <div class="flex items-center gap-2 font-bold text-slate-900 dark:text-white">
                         <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-600 text-white text-xs">A</span>
                         Alternova
                     </div>
-                    <p class="mt-2 text-sm text-slate-500 dark:text-slate-400 max-w-xs">Open-source alternatives and brandable domain ideas.</p>
+                    <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                        {{ \App\Models\SiteSetting::get('site_tagline', 'Open-source alternatives and brandable domain ideas.') }}
+                    </p>
+                    <div class="mt-5">
+                        <p class="text-sm font-semibold text-slate-900 dark:text-white mb-2">Get product updates</p>
+                        @livewire('newsletter-subscribe', ['source' => 'footer'])
+                    </div>
                 </div>
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-8 text-sm">
                     <div>
@@ -116,7 +126,7 @@
                         <ul class="space-y-2 text-slate-500 dark:text-slate-400">
                             <li><a href="{{ route('finder') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Alternatives</a></li>
                             <li><a href="{{ route('whats-new') }}" class="hover:text-slate-800 dark:hover:text-slate-200">What's new</a></li>
-                            <li><a href="{{ route('alternatives.compare') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Compare</a></li>
+                            <li><a href="{{ route('favorites') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Favorites</a></li>
                             <li><a href="{{ route('domains') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Domains</a></li>
                             <li><a href="{{ route('suggest') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Suggest</a></li>
                             <li><a href="{{ url('/feed') }}" class="hover:text-slate-800 dark:hover:text-slate-200">RSS</a></li>

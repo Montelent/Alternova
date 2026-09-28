@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AlternativeApiController;
+use App\Http\Controllers\BadgeController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InstallController;
@@ -11,6 +12,7 @@ use App\Livewire\AlternativeDetail;
 use App\Livewire\CompareAlternatives;
 use App\Livewire\ContactForm;
 use App\Livewire\DomainCombinator;
+use App\Livewire\FavoritesPage;
 use App\Livewire\OpenSourceFinder;
 use App\Livewire\ProprietaryToolShow;
 use App\Livewire\SuggestAlternative;
@@ -32,6 +34,9 @@ Route::get('/alternatives/{alternative}', AlternativeDetail::class)->name('alter
 Route::get('/tools/{tool}', ProprietaryToolShow::class)->name('tools.show');
 
 Route::get('/whats-new', WhatsNewController::class)->name('whats-new');
+Route::get('/favorites', FavoritesPage::class)->name('favorites');
+
+Route::get('/badge/{slug}/health.svg', [BadgeController::class, 'health'])->name('badge.health');
 
 Route::get('/domains', DomainCombinator::class)->name('domains');
 Route::get('/suggest', SuggestAlternative::class)->name('suggest');
