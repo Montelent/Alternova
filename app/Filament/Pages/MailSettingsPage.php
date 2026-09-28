@@ -5,8 +5,8 @@ namespace App\Filament\Pages;
 use App\Mail\TestMail;
 use App\Models\SiteSetting;
 use App\Support\MailSettings;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Concerns\InteractsWithForms;
@@ -44,6 +44,7 @@ class MailSettingsPage extends Page implements HasForms
             'mail_admin_email' => SiteSetting::get('mail_admin_email', ''),
             'mail_alert_contact' => SiteSetting::getBool('mail_alert_contact', true),
             'mail_alert_submission' => SiteSetting::getBool('mail_alert_submission', true),
+            'mail_contact_autoreply' => SiteSetting::getBool('mail_contact_autoreply', false),
             'mail_smtp_host' => SiteSetting::get('mail_smtp_host', ''),
             'mail_smtp_port' => SiteSetting::get('mail_smtp_port', '587'),
             'mail_smtp_username' => SiteSetting::get('mail_smtp_username', ''),
@@ -71,14 +72,8 @@ class MailSettingsPage extends Page implements HasForms
                             ])
                             ->required()
                             ->live(),
-                        TextInput::make('mail_from_address')
-                            ->label('From address')
-                            ->email()
-                            ->required()
-                            ->helperText('Must be allowed by your provider (e.g. verified domain on Resend).'),
-                        TextInput::make('mail_from_name')
-                            ->label('From name')
-                            ->required(),
+                        TextInput::make('mail_from_address')->label('From address')->email()->required(),
+                        TextInput::make('mail_from_name')->label('From name')->required(),
                         TextInput::make('mail_admin_email')
                             ->label('Admin alert inbox')
                             ->email()
@@ -95,8 +90,12 @@ class MailSettingsPage extends Page implements HasForms
                         Toggle::make('mail_alert_submission')
                             ->label('Email me on new alternative submissions')
                             ->inline(false),
+                        Toggle::make('mail_contact_autoreply')
+                            ->label('Send auto-reply to contact form submitters')
+                            ->helperText('Visitor receives a short “we got your message” email.')
+                            ->inline(false),
                     ])
-                    ->columns(2),
+                    ->columns(1),
 
                 Section::make('Resend')
                     ->description('Create an API key at resend.com. Verify your domain, then paste the key below.')
@@ -106,22 +105,21 @@ class MailSettingsPage extends Page implements HasForms
                             ->label('Resend API key')
                             ->password()
                             ->revealable()
-                            ->helperText('Starts with re_…')
                             ->columnSpanFull(),
                     ]),
 
                 Section::make('SMTP')
-                    ->description('Hostinger, Gmail app password, Mailgun SMTP, Amazon SES SMTP, etc.')
+                    ->description('Hostinger, Gmail app password, Mailgun SMTP, etc.')
                     ->visible(fn (Get $get) => $get('mail_mailer') === 'smtp')
                     ->schema([
-                        TextInput::make('mail_smtp_host')->label('Host')->placeholder('smtp.hostinger.com'),
-                        TextInput::make('mail_smtp_port')->label('Port')->placeholder('587'),
+                        TextInput::make('mail_smtp_host')->label('Host'),
+                        TextInput::make('mail_smtp_port')->label('Port'),
                         TextInput::make('mail_smtp_username')->label('Username'),
                         TextInput::make('mail_smtp_password')->label('Password')->password()->revealable(),
                         Select::make('mail_smtp_encryption')
                             ->label('Encryption')
                             ->options([
-                                'tls' => 'TLS (recommended, port 587)',
+                                'tls' => 'TLS (port 587)',
                                 'ssl' => 'SSL (port 465)',
                                 '' => 'None',
                             ]),
@@ -130,10 +128,7 @@ class MailSettingsPage extends Page implements HasForms
 
                 Section::make('Send test email')
                     ->schema([
-                        TextInput::make('test_to')
-                            ->label('Send test to')
-                            ->email()
-                            ->helperText('Saves settings first, then sends a test message.'),
+                        TextInput::make('test_to')->label('Send test to')->email(),
                     ]),
             ])
             ->statePath('data');
@@ -150,6 +145,7 @@ class MailSettingsPage extends Page implements HasForms
             'mail_admin_email' => trim((string) ($state['mail_admin_email'] ?? '')),
             'mail_alert_contact' => ! empty($state['mail_alert_contact']),
             'mail_alert_submission' => ! empty($state['mail_alert_submission']),
+            'mail_contact_autoreply' => ! empty($state['mail_contact_autoreply']),
             'mail_smtp_host' => trim((string) ($state['mail_smtp_host'] ?? '')),
             'mail_smtp_port' => trim((string) ($state['mail_smtp_port'] ?? '587')),
             'mail_smtp_username' => trim((string) ($state['mail_smtp_username'] ?? '')),
@@ -160,10 +156,7 @@ class MailSettingsPage extends Page implements HasForms
 
         MailSettings::apply();
 
-        Notification::make()
-            ->title('Email settings saved')
-            ->success()
-            ->send();
+        Notification::make()->title('Email settings saved')->success()->send();
     }
 
     public function sendTest(): void
@@ -180,18 +173,13 @@ class MailSettingsPage extends Page implements HasForms
         try {
             MailSettings::apply();
             Mail::to($to)->send(new TestMail('If you received this, delivery is configured correctly.'));
-
             Notification::make()
                 ->title('Test email sent')
                 ->body('Check inbox (and spam) for '.$to.'. Driver: '.config('mail.default'))
                 ->success()
                 ->send();
         } catch (\Throwable $e) {
-            Notification::make()
-                ->title('Test email failed')
-                ->body($e->getMessage())
-                ->danger()
-                ->send();
+            Notification::make()->title('Test email failed')->body($e->getMessage())->danger()->send();
         }
     }
 }

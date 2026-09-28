@@ -38,6 +38,13 @@
                     >
                 </div>
                 <div class="flex flex-wrap gap-3 items-center">
+                    <select wire:model.live="toolSlug"
+                        class="rounded-xl border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white text-sm focus:ring-brand-500 focus:border-brand-500 max-w-[12rem]">
+                        <option value="">All products</option>
+                        @foreach($tools as $tool)
+                            <option value="{{ $tool->slug }}">{{ $tool->name }}</option>
+                        @endforeach
+                    </select>
                     <select wire:model.live="sort" class="rounded-xl border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white text-sm focus:ring-brand-500 focus:border-brand-500">
                         <option value="health">Best Health Score</option>
                         <option value="stars">Most Stars</option>
@@ -45,7 +52,7 @@
                         <option value="newest">Newest</option>
                         <option value="name">Name A-Z</option>
                     </select>
-                    @if($search || count($licenses) || count($difficulties) || count($categories))
+                    @if($search || count($licenses) || count($difficulties) || count($categories) || $toolSlug)
                         <button type="button" wire:click="clearFilters" class="text-sm font-medium text-slate-500 hover:text-slate-800 dark:hover:text-white">Clear</button>
                     @endif
                 </div>
@@ -77,14 +84,10 @@
                             @if($alt->primary_language)
                                 <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200">{{ $alt->primary_language }}</span>
                             @endif
-                            @foreach($alt->tags->where('type', 'category')->take(2) as $tag)
-                                <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-200">{{ $tag->name }}</span>
-                            @endforeach
                         </div>
                         @if($alt->repoMetric)
                             <div class="mt-4 flex items-center gap-4 text-sm text-slate-500">
                                 <span>★ {{ number_format($alt->repoMetric->github_stars) }}</span>
-                                <span>{{ number_format($alt->repoMetric->github_forks) }} forks</span>
                                 @if($alt->votes_count)
                                     <span>{{ $alt->votes_count }} votes</span>
                                 @endif
@@ -95,7 +98,6 @@
             @empty
                 <div class="col-span-full text-center py-16">
                     <h3 class="text-lg font-medium text-slate-900 dark:text-white">No alternatives found</h3>
-                    <p class="mt-2 text-sm text-slate-500">Try adjusting your search or filters.</p>
                     <button type="button" wire:click="clearFilters" class="mt-4 text-sm font-semibold text-brand-600">Clear filters</button>
                 </div>
             @endforelse
