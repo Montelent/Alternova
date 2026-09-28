@@ -114,25 +114,43 @@ class OpenSourceAlternative extends Model
         return $this->repo_reachable === false || $this->website_reachable === false;
     }
 
-    public function recalculateHealthScore(): void
+    /**
+     * Weighted 0–100 score from GitHub activity. Always reads metrics from DB (not stale relation).
+     */
+    public function recalculateHealthScore(): float
     {
-        $metric = $this->repoMetric;
+        $metric = RepoMetric::query()
+            ->where('open_source_alternative_id', $this->id)
+            ->first();
 
         if (! $metric) {
-            $this->update(['overall_health_score' => 0]);
+            $this->forceFill(['overall_health_score' => 0])->save();
 
-            return;
+            return 0.0;
         }
 
-        $starsScore = min(log10(max($metric->github_stars, 1)) * 15, 40);
-        $forksScore = min(log10(max($metric->github_forks, 1)) * 10, 20);
-        $issuesScore = $metric->open_issues < 50 ? 15 : max(0, 15 - ($metric->open_issues / 20));
-        $recencyScore = $metric->last_commit_at && $metric->last_commit_at->gt(now()->subMonths(3))
-            ? 25
-            : ($metric->last_commit_at && $metric->last_commit_at->gt(now()->subYear()) ? 10 : 0);
+        $stars = max((int) $metric->github_stars, 0);
+        $forks = max((int) $metric->github_forks, 0);
+        $issues = max((int) $metric->open_issues, 0);
 
-        $score = round($starsScore + $forksScore + $issuesScore + $recencyScore, 2);
+        // log10 scale so huge repos don't max everything instantly
+        $starsScore = min(log10(max($stars, 1)) * 15, 40);
+        $forksScore = min(log10(max($forks, 1)) * 10, 20);
+        $issuesScore = $issues < 50 ? 15 : max(0, 15 - ($issues / 20));
 
-        $this->update(['overall_health_score' => min($score, 100)]);
+        $recencyScore = 0;
+        if ($metric->last_commit_at) {
+            if ($metric->last_commit_at->gt(now()->subMonths(3))) {
+                $recencyScore = 25;
+            } elseif ($metric->last_commit_at->gt(now()->subYear())) {
+                $recencyScore = 10;
+            }
+        }
+
+        $score = round(min($starsScore + $forksScore + $issuesScore + $recencyScore, 100), 2);
+
+        $this->forceFill(['overall_health_score' => $score])->save();
+
+        return $score;
     }
 }

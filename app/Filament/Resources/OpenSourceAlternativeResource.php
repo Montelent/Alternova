@@ -125,7 +125,10 @@ class OpenSourceAlternativeResource extends Resource
                         ])
                         ->default(3),
                     Forms\Components\TextInput::make('primary_language'),
-                    Forms\Components\TextInput::make('overall_health_score')->numeric()->disabled(),
+                    Forms\Components\TextInput::make('overall_health_score')
+                        ->numeric()
+                        ->disabled()
+                        ->helperText('Updated automatically when you click Sync GitHub'),
                     Forms\Components\Textarea::make('docker_compose_blueprint')
                         ->rows(10)
                         ->columnSpanFull(),
@@ -163,6 +166,7 @@ class OpenSourceAlternativeResource extends Resource
                 Tables\Columns\TextColumn::make('proprietaryTool.name')->label('Proprietary')->toggleable(),
                 Tables\Columns\TextColumn::make('license_type')->toggleable(),
                 Tables\Columns\TextColumn::make('overall_health_score')->sortable()->label('Health'),
+                Tables\Columns\TextColumn::make('repoMetric.github_stars')->label('Stars')->sortable()->toggleable(),
                 Tables\Columns\IconColumn::make('is_published')->boolean()->label('Published'),
                 Tables\Columns\IconColumn::make('is_featured')->boolean()->label('Featured')->toggleable(),
                 Tables\Columns\IconColumn::make('repo_reachable')
@@ -191,8 +195,24 @@ class OpenSourceAlternativeResource extends Resource
                     ->label('Sync GitHub')
                     ->icon('heroicon-o-arrow-path')
                     ->action(function (OpenSourceAlternative $record) {
-                        SyncGitHubMetricsJob::dispatch($record);
-                        Notification::make()->title('Sync job dispatched')->success()->send();
+                        try {
+                            SyncGitHubMetricsJob::dispatchSync($record);
+                            $fresh = $record->fresh(['repoMetric']);
+                            $stars = $fresh->repoMetric?->github_stars ?? 0;
+                            $score = $fresh->overall_health_score;
+
+                            Notification::make()
+                                ->title('Metrics updated')
+                                ->body("Stars: {$stars} · Health score: {$score}")
+                                ->success()
+                                ->send();
+                        } catch (\Throwable $e) {
+                            Notification::make()
+                                ->title('Sync failed')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
                     }),
                 Tables\Actions\Action::make('checkLinks')
                     ->label('Check links')
@@ -228,6 +248,17 @@ class OpenSourceAlternativeResource extends Resource
                         ->label('Unpublish')
                         ->icon('heroicon-o-eye-slash')
                         ->action(fn ($records) => $records->each->update(['is_published' => false])),
+                    Tables\Actions\BulkAction::make('syncSelected')
+                        ->label('Sync GitHub')
+                        ->icon('heroicon-o-arrow-path')
+                        ->action(function ($records) {
+                            foreach ($records as $record) {
+                                try {
+                                    SyncGitHubMetricsJob::dispatchSync($record);
+                                } catch (\Throwable) {
+                                }
+                            }
+                        }),
                     Tables\Actions\BulkAction::make('checkLinks')
                         ->label('Check links')
                         ->icon('heroicon-o-link')

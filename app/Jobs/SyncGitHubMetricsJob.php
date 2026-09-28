@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\OpenSourceAlternative;
 use App\Models\RepoMetric;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -11,13 +12,13 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Carbon\Carbon;
 
 class SyncGitHubMetricsJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
+
     public int $backoff = 60;
 
     public function __construct(
@@ -26,87 +27,104 @@ class SyncGitHubMetricsJob implements ShouldQueue
 
     public function handle(): void
     {
-        $repoUrl = $this->alternative->repo_url;
+        $this->alternative->refresh();
 
-        // Extract owner/repo from GitHub URL
-        if (!preg_match('#github\.com/([^/]+)/([^/]+?)(?:\.git)?/?$#i', $repoUrl, $matches)) {
+        $repoUrl = trim((string) $this->alternative->repo_url);
+
+        if (! preg_match('~github\.com[/:]([^/\s]+)/([^/\s\.?#]+)~i', $repoUrl, $matches)) {
             Log::warning("Invalid GitHub URL for alternative {$this->alternative->id}: {$repoUrl}");
+
             return;
         }
 
-        [$owner, $repo] = [$matches[1], $matches[2]];
+        $owner = $matches[1];
+        $repo = rtrim($matches[2], '/');
+        $repo = preg_replace('/\.git$/i', '', $repo);
 
-        $token = config('services.github.token');
+        $token = config('services.github.token') ?: env('GITHUB_TOKEN');
 
-        $headers = [
-            'Accept' => 'application/vnd.github+json',
-            'X-GitHub-Api-Version' => '2022-11-28',
-        ];
+        $request = Http::timeout(20)
+            ->connectTimeout(10)
+            ->acceptJson()
+            ->withHeaders([
+                'Accept' => 'application/vnd.github+json',
+                'X-GitHub-Api-Version' => '2022-11-28',
+                'User-Agent' => 'Alternova-MetricsSync/1.0',
+            ]);
 
         if ($token) {
-            $headers['Authorization'] = "Bearer {$token}";
+            $request = $request->withToken($token);
         }
 
         try {
-            // Fetch repository data
-            $response = Http::withHeaders($headers)
-                ->timeout(15)
-                ->get("https://api.github.com/repos/{$owner}/{$repo}");
+            $response = $request->get("https://api.github.com/repos/{$owner}/{$repo}");
 
             if ($response->failed()) {
                 Log::error("GitHub API failed for {$owner}/{$repo}", [
                     'status' => $response->status(),
-                    'body' => $response->body(),
+                    'body' => substr($response->body(), 0, 500),
                 ]);
+
                 return;
             }
 
             $data = $response->json();
 
-            // Fetch languages
-            $languagesResponse = Http::withHeaders($headers)
-                ->timeout(10)
-                ->get("https://api.github.com/repos/{$owner}/{$repo}/languages");
+            $languages = [];
+            try {
+                $languagesResponse = $request->get("https://api.github.com/repos/{$owner}/{$repo}/languages");
+                if ($languagesResponse->successful()) {
+                    $languages = $languagesResponse->json() ?: [];
+                }
+            } catch (\Throwable) {
+                // optional
+            }
 
-            $languages = $languagesResponse->successful() ? $languagesResponse->json() : [];
+            $primaryLanguage = $data['language']
+                ?? (is_array($languages) && $languages ? array_key_first($languages) : null);
 
-            // Determine primary language
-            $primaryLanguage = $data['language'] ?? (empty($languages) ? null : array_key_first($languages));
-
-            // Last commit via commits endpoint (more reliable than pushed_at sometimes)
             $lastCommitAt = isset($data['pushed_at'])
                 ? Carbon::parse($data['pushed_at'])
                 : null;
 
-            $metric = RepoMetric::updateOrCreate(
+            $license = $data['license']['spdx_id'] ?? null;
+            if ($license === 'NOASSERTION') {
+                $license = null;
+            }
+
+            RepoMetric::updateOrCreate(
                 ['open_source_alternative_id' => $this->alternative->id],
                 [
-                    'github_stars' => $data['stargazers_count'] ?? 0,
-                    'github_forks' => $data['forks_count'] ?? 0,
-                    'open_issues' => $data['open_issues_count'] ?? 0,
+                    'github_stars' => (int) ($data['stargazers_count'] ?? 0),
+                    'github_forks' => (int) ($data['forks_count'] ?? 0),
+                    'open_issues' => (int) ($data['open_issues_count'] ?? 0),
                     'last_commit_at' => $lastCommitAt,
-                    'verified_license' => $data['license']['spdx_id'] ?? null,
+                    'verified_license' => $license,
                     'default_branch' => $data['default_branch'] ?? 'main',
                     'languages' => $languages,
                     'synced_at' => now(),
                 ]
             );
 
-            // Update primary language on the alternative
-            $this->alternative->update([
-                'primary_language' => $primaryLanguage,
-                'license_type' => $metric->verified_license ?? $this->alternative->license_type,
-            ]);
+            $updates = [];
+            if ($primaryLanguage) {
+                $updates['primary_language'] = $primaryLanguage;
+            }
+            if ($license && ! $this->alternative->license_type) {
+                $updates['license_type'] = $license;
+            }
+            if ($updates) {
+                $this->alternative->forceFill($updates)->save();
+            }
 
-            // Recalculate health score
-            $this->alternative->recalculateHealthScore();
+            $score = $this->alternative->recalculateHealthScore();
 
             Log::info("Synced metrics for {$owner}/{$repo}", [
-                'stars' => $metric->github_stars,
-                'score' => $this->alternative->fresh()->overall_health_score,
+                'stars' => $data['stargazers_count'] ?? 0,
+                'score' => $score,
             ]);
         } catch (\Throwable $e) {
-            Log::error("Exception syncing GitHub metrics for {$owner}/{$repo}: " . $e->getMessage());
+            Log::error("Exception syncing GitHub metrics for {$owner}/{$repo}: ".$e->getMessage());
             throw $e;
         }
     }
