@@ -8,6 +8,12 @@
             </p>
         </div>
 
+        @if($errorMessage)
+            <div class="mb-6 rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 text-sm px-4 py-3">
+                {{ $errorMessage }}
+            </div>
+        @endif
+
         <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 mb-8 space-y-6">
             <div>
                 <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Seed Keywords</label>
