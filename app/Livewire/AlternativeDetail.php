@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\OpenSourceAlternative;
+use App\Services\CompareBasket;
 use App\Services\FavoriteService;
 use App\Services\RecentlyViewedService;
 use App\Services\VoteService;
@@ -22,6 +23,12 @@ class AlternativeDetail extends Component
     public bool $isFavorited = false;
 
     public string $favoriteMessage = '';
+
+    public bool $inCompare = false;
+
+    public string $compareMessage = '';
+
+    public ?string $compareUrl = null;
 
     public function mount(OpenSourceAlternative $alternative): void
     {
@@ -47,6 +54,34 @@ class AlternativeDetail extends Component
         } catch (\Throwable) {
             $this->isFavorited = false;
         }
+
+        $this->refreshCompareState();
+    }
+
+    protected function refreshCompareState(): void
+    {
+        $basket = app(CompareBasket::class);
+        $this->inCompare = $basket->has($this->alternative->slug);
+        $state = $basket->state();
+        $this->compareUrl = $state['url'];
+        $this->compareMessage = $state['count'] === 1 && $this->inCompare
+            ? 'Pick one more alternative to compare'
+            : '';
+    }
+
+    public function toggleCompare(): void
+    {
+        $basket = app(CompareBasket::class);
+
+        if ($basket->has($this->alternative->slug)) {
+            $state = $basket->remove($this->alternative->slug);
+        } else {
+            $state = $basket->add($this->alternative->slug);
+        }
+
+        $this->inCompare = $basket->has($this->alternative->slug);
+        $this->compareUrl = $state['url'];
+        $this->compareMessage = $state['message'];
     }
 
     public function vote(): void

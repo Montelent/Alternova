@@ -4,12 +4,11 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\DomainSearchLogResource\Pages;
 use App\Models\DomainSearchLog;
-use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Schema;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DomainSearchLogResource extends Resource
 {
@@ -17,31 +16,34 @@ class DomainSearchLogResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-chart-bar';
 
-    protected static ?string $navigationGroup = 'Open Source Finder';
+    protected static ?string $navigationGroup = 'Engagement';
 
     protected static ?string $navigationLabel = 'Domain analytics';
 
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 25;
+
+    public static function tableReady(): bool
+    {
+        try {
+            return Schema::hasTable('domain_search_logs');
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::tableReady();
+    }
+
+    public static function canAccess(): bool
+    {
+        return static::tableReady() && (auth()->user()?->canManageSystem() ?? false);
+    }
 
     public static function canCreate(): bool
     {
         return false;
-    }
-
-    public static function form(Form $form): Form
-    {
-        return $form->schema([
-            Forms\Components\Textarea::make('seed_keywords')->disabled()->formatStateUsing(
-                fn ($state) => is_array($state) ? implode(', ', $state) : $state
-            ),
-            Forms\Components\Textarea::make('selected_tlds')->disabled()->formatStateUsing(
-                fn ($state) => is_array($state) ? implode(', ', $state) : $state
-            ),
-            Forms\Components\TextInput::make('domain_generated_count')->disabled(),
-            Forms\Components\TextInput::make('available_count')->disabled(),
-            Forms\Components\TextInput::make('ip_address')->disabled(),
-            Forms\Components\DateTimePicker::make('created_at')->disabled(),
-        ]);
     }
 
     public static function table(Table $table): Table
@@ -52,21 +54,41 @@ class DomainSearchLogResource extends Resource
                 Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable()->label('When'),
                 Tables\Columns\TextColumn::make('seed_keywords')
                     ->label('Keywords')
-                    ->formatStateUsing(fn ($state) => is_array($state) ? implode(', ', $state) : $state)
-                    ->searchable()
+                    ->formatStateUsing(fn ($state) => is_array($state) ? implode(', ', $state) : (string) $state)
                     ->wrap()
-                    ->limit(40),
+                    ->searchable(),
                 Tables\Columns\TextColumn::make('selected_tlds')
                     ->label('TLDs')
-                    ->formatStateUsing(fn ($state) => is_array($state) ? implode(', ', $state) : $state)
+                    ->formatStateUsing(fn ($state) => is_array($state) ? implode(', ', $state) : (string) $state)
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('domain_generated_count')->label('Generated')->sortable(),
-                Tables\Columns\TextColumn::make('available_count')->label('Available')->sortable()->toggleable(),
                 Tables\Columns\TextColumn::make('ip_address')->toggleable(isToggledHiddenByDefault: true),
             ])
-            ->filters([])
+            ->headerActions([
+                Tables\Actions\Action::make('export')
+                    ->label('Export CSV')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->action(function (): StreamedResponse {
+                        $rows = DomainSearchLog::query()->orderByDesc('created_at')->limit(5000)->get();
+
+                        return response()->streamDownload(function () use ($rows) {
+                            $h = fopen('php://output', 'w');
+                            fputcsv($h, ['when', 'keywords', 'tlds', 'generated', 'ip']);
+                            foreach ($rows as $r) {
+                                fputcsv($h, [
+                                    optional($r->created_at)->toDateTimeString(),
+                                    is_array($r->seed_keywords) ? implode('|', $r->seed_keywords) : $r->seed_keywords,
+                                    is_array($r->selected_tlds) ? implode('|', $r->selected_tlds) : $r->selected_tlds,
+                                    $r->domain_generated_count,
+                                    $r->ip_address,
+                                ]);
+                            }
+                            fclose($h);
+                        }, 'domain-searches-'.date('Y-m-d').'.csv', ['Content-Type' => 'text/csv']);
+                    }),
+            ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
+                Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -79,16 +101,6 @@ class DomainSearchLogResource extends Resource
     {
         return [
             'index' => Pages\ListDomainSearchLogs::route('/'),
-            'view' => Pages\ViewDomainSearchLog::route('/{record}'),
         ];
-    }
-
-    public static function shouldRegisterNavigation(): bool
-    {
-        try {
-            return Schema::hasTable('domain_search_logs');
-        } catch (\Throwable) {
-            return false;
-        }
     }
 }
