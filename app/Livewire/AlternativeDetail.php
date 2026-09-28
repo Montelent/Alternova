@@ -6,6 +6,7 @@ use App\Models\OpenSourceAlternative;
 use App\Services\CompareBasket;
 use App\Services\FavoriteService;
 use App\Services\RecentlyViewedService;
+use App\Services\SeoManager;
 use App\Services\VoteService;
 use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Component;
@@ -120,7 +121,11 @@ class AlternativeDetail extends Component
         $alt = $this->alternative;
         $prop = $alt->proprietaryTool;
         $propName = $prop?->name ?? 'proprietary tools';
-        $canonical = route('alternatives.show', $alt);
+        $seo = app(SeoManager::class);
+
+        $title = $seo->alternativeTitle($alt);
+        $description = $seo->alternativeDescription($alt);
+        $canonical = $alt->canonical_url ?: route('alternatives.show', $alt);
 
         $related = OpenSourceAlternative::query()
             ->with(['repoMetric'])
@@ -136,7 +141,6 @@ class AlternativeDetail extends Component
             ->get();
 
         $recent = app(RecentlyViewedService::class)->list($alt->id);
-
         $badgeUrl = url('/badge/'.$alt->slug.'/health.svg');
 
         return view('livewire.alternative-detail', [
@@ -150,11 +154,15 @@ class AlternativeDetail extends Component
             'recent' => $recent,
             'badgeUrl' => $badgeUrl,
         ])->layout('layouts.app', [
-            'title' => $alt->seoTitle(),
-            'description' => $alt->seoDescription(),
+            'title' => $title,
+            'description' => $description,
             'canonical' => $canonical,
+            'robots' => $alt->robots_meta ?: null,
             'ogType' => 'article',
-            'ogImage' => $prop?->logo_path ? url($prop->logo_path) : null,
+            'ogTitle' => $alt->og_title ?: $title,
+            'ogDescription' => $alt->og_description ?: $description,
+            'ogImage' => $alt->og_image_url
+                ?: ($prop?->logo_path ? url($prop->logo_path) : null),
         ]);
     }
 

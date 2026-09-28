@@ -25,14 +25,22 @@ class ProprietaryToolShow extends Component
     {
         $tool = $this->tool;
         $seo = app(SeoManager::class);
+        $title = $seo->toolTitle($tool);
+        $description = $seo->toolDescription($tool);
+        $canonical = $tool->canonical_url ?: route('tools.show', $tool);
 
         return view('livewire.proprietary-tool-show', [
             'alternatives' => $tool->publishedAlternatives,
         ])->layout('layouts.app', [
-            'title' => $seo->toolTitle($tool),
-            'description' => $seo->toolDescription($tool),
-            'canonical' => route('tools.show', $tool),
+            'title' => $title,
+            'description' => $description,
+            'canonical' => $canonical,
+            'robots' => $tool->robots_meta ?: null,
             'ogType' => 'article',
+            'ogTitle' => $tool->og_title ?: $title,
+            'ogDescription' => $tool->og_description ?: $description,
+            'ogImage' => $tool->og_image_url
+                ?: ($tool->logo_path ? url($tool->logo_path) : null),
         ]);
     }
 }
