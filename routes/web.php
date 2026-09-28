@@ -6,6 +6,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\SitemapController;
+use App\Http\Controllers\WhatsNewController;
 use App\Livewire\AlternativeDetail;
 use App\Livewire\CompareAlternatives;
 use App\Livewire\ContactForm;
@@ -29,6 +30,8 @@ Route::get('/alternatives/compare', CompareAlternatives::class)->name('alternati
 Route::get('/alternatives/{alternative}', AlternativeDetail::class)->name('alternatives.show');
 
 Route::get('/tools/{tool}', ProprietaryToolShow::class)->name('tools.show');
+
+Route::get('/whats-new', WhatsNewController::class)->name('whats-new');
 
 Route::get('/domains', DomainCombinator::class)->name('domains');
 Route::get('/suggest', SuggestAlternative::class)->name('suggest');
