@@ -10,9 +10,17 @@
 
         <x-filament::section>
             <x-slot name="heading">GitHub metrics</x-slot>
-            <x-slot name="description">Refresh stars, forks, issues, and health scores for all alternatives with a GitHub repo.</x-slot>
+            <x-slot name="description">Refresh stars, forks, issues, and health scores.</x-slot>
             <x-filament::button wire:click="syncAllMetrics" color="success" icon="heroicon-o-arrow-path">
                 Sync all metrics
+            </x-filament::button>
+        </x-filament::section>
+
+        <x-filament::section>
+            <x-slot name="heading">Link health</x-slot>
+            <x-slot name="description">HTTP-check repo and website URLs. Marks broken links on each alternative.</x-slot>
+            <x-filament::button wire:click="checkAllLinks" color="warning" icon="heroicon-o-link">
+                Check all links
             </x-filament::button>
         </x-filament::section>
 
@@ -29,7 +37,7 @@
             <x-slot name="description">Allow /install again (does not drop the database).</x-slot>
             <x-filament::button
                 wire:click="unlockInstaller"
-                color="warning"
+                color="danger"
                 icon="heroicon-o-lock-open"
                 wire:confirm="Unlock the installer? Anyone who can reach /install can re-run setup."
             >

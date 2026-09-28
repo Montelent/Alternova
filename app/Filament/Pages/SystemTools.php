@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Jobs\SyncGitHubMetricsJob;
 use App\Models\OpenSourceAlternative;
+use App\Services\LinkHealthService;
 use App\Support\Installer;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -58,11 +59,9 @@ class SystemTools extends Page
         $count = 0;
         foreach ($alts as $alt) {
             try {
-                // sync driver runs immediately; otherwise queue
                 SyncGitHubMetricsJob::dispatch($alt);
                 $count++;
-            } catch (\Throwable $e) {
-                // continue others
+            } catch (\Throwable) {
             }
         }
 
@@ -70,7 +69,31 @@ class SystemTools extends Page
 
         Notification::make()
             ->title('GitHub sync queued')
-            ->body($this->lastOutput.' With QUEUE_CONNECTION=sync this runs on the next requests.')
+            ->body($this->lastOutput)
+            ->success()
+            ->send();
+    }
+
+    public function checkAllLinks(): void
+    {
+        $service = app(LinkHealthService::class);
+        $alts = OpenSourceAlternative::query()->get();
+        $broken = 0;
+        $checked = 0;
+
+        foreach ($alts as $alt) {
+            $service->checkAlternative($alt);
+            $checked++;
+            if ($alt->fresh()->hasBrokenLinks()) {
+                $broken++;
+            }
+        }
+
+        $this->lastOutput = "Checked {$checked} alternative(s). {$broken} have at least one unreachable link.";
+
+        Notification::make()
+            ->title('Link check finished')
+            ->body($this->lastOutput)
             ->success()
             ->send();
     }
@@ -94,7 +117,7 @@ class SystemTools extends Page
 
             Cache::forget('site_settings');
 
-            $this->lastOutput = "Config, route, view, and application cache cleared.";
+            $this->lastOutput = 'Config, route, view, and application cache cleared.';
 
             Notification::make()
                 ->title('Caches cleared')
