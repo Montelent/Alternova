@@ -10,18 +10,28 @@
 
         <x-filament::section>
             <x-slot name="heading">GitHub metrics</x-slot>
-            <x-slot name="description">Refresh stars, forks, issues, and health scores.</x-slot>
-            <x-filament::button wire:click="syncAllMetrics" color="success" icon="heroicon-o-arrow-path">
-                Sync all metrics
-            </x-filament::button>
+            <x-slot name="description">Full sync or limited batch (same as cron).</x-slot>
+            <div class="flex flex-wrap gap-2">
+                <x-filament::button wire:click="syncAllMetrics" color="success" icon="heroicon-o-arrow-path">
+                    Sync all metrics
+                </x-filament::button>
+                <x-filament::button wire:click="runScheduledSync" color="gray" icon="heroicon-o-clock">
+                    Sync batch (25)
+                </x-filament::button>
+            </div>
         </x-filament::section>
 
         <x-filament::section>
             <x-slot name="heading">Link health</x-slot>
             <x-slot name="description">HTTP-check repo and website URLs.</x-slot>
-            <x-filament::button wire:click="checkAllLinks" color="warning" icon="heroicon-o-link">
-                Check all links
-            </x-filament::button>
+            <div class="flex flex-wrap gap-2">
+                <x-filament::button wire:click="checkAllLinks" color="warning" icon="heroicon-o-link">
+                    Check all links
+                </x-filament::button>
+                <x-filament::button wire:click="runScheduledLinkCheck" color="gray" icon="heroicon-o-clock">
+                    Check batch (40)
+                </x-filament::button>
+            </div>
         </x-filament::section>
 
         <x-filament::section>

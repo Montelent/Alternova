@@ -17,6 +17,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
 
 class OpenSourceAlternativeResource extends Resource
@@ -213,6 +214,54 @@ class OpenSourceAlternativeResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\BulkAction::make('publish')
+                        ->label('Publish')
+                        ->icon('heroicon-o-eye')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->action(fn (Collection $records) => $records->each->update(['is_published' => true]))
+                        ->deselectRecordsAfterCompletion()
+                        ->successNotificationTitle('Published selected alternatives'),
+                    Tables\Actions\BulkAction::make('unpublish')
+                        ->label('Unpublish')
+                        ->icon('heroicon-o-eye-slash')
+                        ->color('warning')
+                        ->requiresConfirmation()
+                        ->action(fn (Collection $records) => $records->each->update(['is_published' => false]))
+                        ->deselectRecordsAfterCompletion()
+                        ->successNotificationTitle('Unpublished selected alternatives'),
+                    Tables\Actions\BulkAction::make('feature')
+                        ->label('Feature')
+                        ->icon('heroicon-o-star')
+                        ->action(fn (Collection $records) => $records->each->update(['is_featured' => true, 'is_published' => true]))
+                        ->deselectRecordsAfterCompletion()
+                        ->successNotificationTitle('Featured (and published) selected'),
+                    Tables\Actions\BulkAction::make('unfeature')
+                        ->label('Unfeature')
+                        ->icon('heroicon-o-x-mark')
+                        ->action(fn (Collection $records) => $records->each->update(['is_featured' => false]))
+                        ->deselectRecordsAfterCompletion()
+                        ->successNotificationTitle('Removed from featured'),
+                    Tables\Actions\BulkAction::make('syncSelected')
+                        ->label('Sync GitHub')
+                        ->icon('heroicon-o-arrow-path')
+                        ->action(function (Collection $records) {
+                            $ok = 0;
+                            $fail = 0;
+                            foreach ($records as $record) {
+                                try {
+                                    SyncGitHubMetricsJob::dispatchSync($record);
+                                    $ok++;
+                                } catch (\Throwable) {
+                                    $fail++;
+                                }
+                            }
+                            Notification::make()
+                                ->title("Synced {$ok}, failed {$fail}")
+                                ->success()
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);

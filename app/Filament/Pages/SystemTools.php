@@ -84,6 +84,30 @@ class SystemTools extends Page implements HasForms
         }
     }
 
+    public function runScheduledSync(): void
+    {
+        try {
+            Artisan::call('alternova:sync-metrics', ['--limit' => 25]);
+            $this->lastOutput = Artisan::output();
+            Notification::make()->title('Scheduled-style sync finished')->body(trim($this->lastOutput))->success()->send();
+        } catch (\Throwable $e) {
+            $this->lastOutput = $e->getMessage();
+            Notification::make()->title('Sync failed')->body($e->getMessage())->danger()->send();
+        }
+    }
+
+    public function runScheduledLinkCheck(): void
+    {
+        try {
+            Artisan::call('alternova:check-links', ['--limit' => 40]);
+            $this->lastOutput = Artisan::output();
+            Notification::make()->title('Link check finished')->body(trim($this->lastOutput))->success()->send();
+        } catch (\Throwable $e) {
+            $this->lastOutput = $e->getMessage();
+            Notification::make()->title('Link check failed')->body($e->getMessage())->danger()->send();
+        }
+    }
+
     public function syncAllMetrics(): void
     {
         $alts = OpenSourceAlternative::query()

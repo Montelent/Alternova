@@ -18,6 +18,10 @@ class DomainCombinator extends Component
 
     public string $keywordInput = '';
 
+    public string $prefixInput = '';
+
+    public string $suffixInput = '';
+
     public array $prefixes = ['get', 'my', 'the', 'try', 'use'];
 
     public array $suffixes = ['ly', 'ify', 'hub', 'app', 'hq', 'io'];
@@ -123,6 +127,34 @@ class DomainCombinator extends Component
     public function removeKeyword(string $keyword): void
     {
         $this->keywords = array_values(array_filter($this->keywords, fn ($k) => $k !== $keyword));
+    }
+
+    public function addPrefix(): void
+    {
+        $p = trim(strtolower(preg_replace('/[^a-z0-9]/i', '', $this->prefixInput) ?? ''));
+        if ($p && ! in_array($p, $this->prefixes, true) && count($this->prefixes) < 12) {
+            $this->prefixes[] = $p;
+        }
+        $this->prefixInput = '';
+    }
+
+    public function removePrefix(string $prefix): void
+    {
+        $this->prefixes = array_values(array_filter($this->prefixes, fn ($x) => $x !== $prefix));
+    }
+
+    public function addSuffix(): void
+    {
+        $s = trim(strtolower(preg_replace('/[^a-z0-9]/i', '', $this->suffixInput) ?? ''));
+        if ($s && ! in_array($s, $this->suffixes, true) && count($this->suffixes) < 12) {
+            $this->suffixes[] = $s;
+        }
+        $this->suffixInput = '';
+    }
+
+    public function removeSuffix(string $suffix): void
+    {
+        $this->suffixes = array_values(array_filter($this->suffixes, fn ($x) => $x !== $suffix));
     }
 
     public function generate(): void
