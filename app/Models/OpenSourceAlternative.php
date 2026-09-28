@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\SeoManager;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -76,9 +77,6 @@ class OpenSourceAlternative extends Model
         return 'slug';
     }
 
-    /**
-     * Resolve published alternatives by slug, or follow slug_redirects.
-     */
     public function resolveRouteBinding($value, $field = null)
     {
         $field = $field ?: $this->getRouteKeyName();
@@ -92,7 +90,6 @@ class OpenSourceAlternative extends Model
             return $record;
         }
 
-        // Old slug → current slug
         try {
             $redirect = SlugRedirect::query()->where('old_slug', $value)->first();
             if ($redirect) {
@@ -102,7 +99,6 @@ class OpenSourceAlternative extends Model
                     ->first();
             }
         } catch (\Throwable) {
-            // table may not exist yet
         }
 
         return null;
@@ -126,26 +122,12 @@ class OpenSourceAlternative extends Model
 
     public function seoTitle(): string
     {
-        if ($this->meta_title) {
-            return $this->meta_title;
-        }
-
-        $prop = $this->proprietaryTool?->name ?? 'proprietary tools';
-
-        return $this->name.' — Open-Source '.$prop.' Alternative | Alternova';
+        return app(SeoManager::class)->alternativeTitle($this);
     }
 
     public function seoDescription(): string
     {
-        if ($this->meta_description) {
-            return $this->meta_description;
-        }
-
-        return str(
-            $this->name.' is a free, self-hostable open-source alternative to '
-            .($this->proprietaryTool?->name ?? 'proprietary software').'. '
-            .($this->description ?? '')
-        )->limit(155)->toString();
+        return app(SeoManager::class)->alternativeDescription($this);
     }
 
     public function hasBrokenLinks(): bool
