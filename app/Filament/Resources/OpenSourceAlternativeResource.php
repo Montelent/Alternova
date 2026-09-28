@@ -31,6 +31,8 @@ class OpenSourceAlternativeResource extends Resource
 
     public static function form(Form $form): Form
     {
+        $categoryOptions = array_combine(CategoryCatalog::names(), CategoryCatalog::names());
+
         return $form
             ->schema([
                 Forms\Components\Section::make('Core')->schema([
@@ -92,12 +94,13 @@ class OpenSourceAlternativeResource extends Resource
                                     ->send();
                             }),
                     ])->columnSpanFull(),
-                    Forms\Components\SpatieTagsInput::make('tags')
-                        ->type('category')
+                    Forms\Components\Select::make('category_tags')
                         ->label('Categories')
-                        ->suggestions(CategoryCatalog::names())
+                        ->multiple()
+                        ->options($categoryOptions)
+                        ->searchable()
                         ->columnSpanFull()
-                        ->helperText('Used as filters on the public finder. Examples: Analytics, Chat & Communication, Docs & Knowledge.'),
+                        ->helperText('Filters on the public finder. You can pick several.'),
                 ])->columns(2),
 
                 Forms\Components\Section::make('Publishing')->schema([
@@ -172,7 +175,11 @@ class OpenSourceAlternativeResource extends Resource
                 Tables\Columns\TextColumn::make('name')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('proprietaryTool.name')->label('Proprietary')->toggleable(),
                 Tables\Columns\TextColumn::make('license_type')->toggleable(),
-                Tables\Columns\SpatieTagsColumn::make('tags')->type('category')->label('Categories')->toggleable(),
+                Tables\Columns\TextColumn::make('tags.name')
+                    ->label('Categories')
+                    ->badge()
+                    ->separator(',')
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('overall_health_score')->sortable()->label('Health'),
                 Tables\Columns\TextColumn::make('repoMetric.github_stars')->label('Stars')->sortable()->toggleable(),
                 Tables\Columns\IconColumn::make('is_published')->boolean()->label('Published'),
