@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AlternativeApiController;
 use App\Http\Controllers\BadgeController;
+use App\Http\Controllers\EmbedController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InstallController;
@@ -32,6 +33,7 @@ Route::get('/alternatives/compare', CompareAlternatives::class)->name('alternati
 Route::get('/alternatives/{alternative}', AlternativeDetail::class)->name('alternatives.show');
 
 Route::get('/tools/{tool}', ProprietaryToolShow::class)->name('tools.show');
+Route::get('/embed/tools/{tool}', [EmbedController::class, 'tool'])->name('embed.tool');
 
 Route::get('/whats-new', WhatsNewController::class)->name('whats-new');
 Route::get('/favorites', FavoritesPage::class)->name('favorites');

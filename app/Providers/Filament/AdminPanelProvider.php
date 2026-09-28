@@ -39,6 +39,7 @@ class AdminPanelProvider extends PanelProvider
             ->sidebarCollapsibleOnDesktop()
             ->navigationGroups([
                 'Open Source Finder',
+                'Engagement',
                 'System',
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
@@ -47,6 +48,7 @@ class AdminPanelProvider extends PanelProvider
                 Pages\Dashboard::class,
                 \App\Filament\Pages\AdSettings::class,
                 \App\Filament\Pages\MailSettingsPage::class,
+                \App\Filament\Pages\SiteSeoSettings::class,
                 \App\Filament\Pages\SystemTools::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
