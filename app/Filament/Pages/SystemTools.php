@@ -56,20 +56,27 @@ class SystemTools extends Page
             ->where('repo_url', 'like', '%github.com%')
             ->get();
 
-        $count = 0;
+        $ok = 0;
+        $fail = 0;
+        $lines = [];
+
         foreach ($alts as $alt) {
             try {
-                SyncGitHubMetricsJob::dispatch($alt);
-                $count++;
-            } catch (\Throwable) {
+                SyncGitHubMetricsJob::dispatchSync($alt);
+                $fresh = $alt->fresh();
+                $ok++;
+                $lines[] = $fresh->name.': health '.$fresh->overall_health_score;
+            } catch (\Throwable $e) {
+                $fail++;
+                $lines[] = $alt->name.': FAILED '.$e->getMessage();
             }
         }
 
-        $this->lastOutput = "Dispatched metric sync for {$count} alternative(s).";
+        $this->lastOutput = "Synced {$ok} OK, {$fail} failed.\n".implode("\n", $lines);
 
         Notification::make()
-            ->title('GitHub sync queued')
-            ->body($this->lastOutput)
+            ->title('GitHub sync finished')
+            ->body("{$ok} updated, {$fail} failed. See output below.")
             ->success()
             ->send();
     }
