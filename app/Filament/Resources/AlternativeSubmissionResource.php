@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\AlternativeSubmissionResource\Pages;
+use App\Jobs\SyncGitHubMetricsJob;
 use App\Models\AlternativeSubmission;
 use App\Models\OpenSourceAlternative;
 use App\Models\ProprietaryTool;
@@ -167,6 +168,13 @@ class AlternativeSubmissionResource extends Resource
             'is_featured' => false,
         ]);
 
+        // Sync GitHub stars / health score immediately (QUEUE_CONNECTION=sync runs now)
+        try {
+            SyncGitHubMetricsJob::dispatchSync($alt);
+        } catch (\Throwable $e) {
+            SyncGitHubMetricsJob::dispatch($alt);
+        }
+
         $record->update([
             'status' => 'approved',
             'reviewed_by' => auth()->id(),
@@ -176,7 +184,7 @@ class AlternativeSubmissionResource extends Resource
 
         Notification::make()
             ->title('Approved')
-            ->body($alt->name.' was created and published.')
+            ->body($alt->name.' was created, published, and queued for GitHub metric sync.')
             ->success()
             ->send();
     }

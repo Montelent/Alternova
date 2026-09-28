@@ -24,6 +24,8 @@
     <meta name="twitter:title" content="{{ $title ?? config('app.name', 'Alternova') }}">
     <meta name="twitter:description" content="{{ $description ?? 'Discover open-source alternatives and generate brandable domain names with Alternova.' }}">
 
+    @include('partials.adsense-head')
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -73,6 +75,10 @@
     <main class="flex-1">
         {{ $slot }}
     </main>
+
+    <div class="mx-auto max-w-7xl px-4 w-full">
+        <x-ad-slot slot="footer" class="my-4" />
+    </div>
 
     <footer class="border-t border-slate-200 bg-white py-10 mt-auto">
         <div class="mx-auto max-w-7xl px-4 sm:px-6">
