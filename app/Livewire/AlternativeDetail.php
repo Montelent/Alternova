@@ -25,6 +25,19 @@ class AlternativeDetail extends Component
         $propName = $prop?->name ?? 'proprietary tools';
         $canonical = route('alternatives.show', $alt);
 
+        $related = OpenSourceAlternative::query()
+            ->with(['repoMetric'])
+            ->where('is_published', true)
+            ->where('id', '!=', $alt->id)
+            ->when(
+                $alt->proprietary_tool_id,
+                fn ($q) => $q->where('proprietary_tool_id', $alt->proprietary_tool_id),
+                fn ($q) => $q->whereRaw('0 = 1')
+            )
+            ->orderByDesc('overall_health_score')
+            ->limit(6)
+            ->get();
+
         return view('livewire.alternative-detail', [
             'schemas' => $this->buildSchemas($alt, $prop, $canonical),
             'proprietary' => $prop,
@@ -32,6 +45,7 @@ class AlternativeDetail extends Component
             'heading' => $alt->name,
             'subheading' => 'The open-source alternative to '.$propName,
             'propName' => $propName,
+            'related' => $related,
         ])->layout('layouts.app', [
             'title' => $alt->seoTitle(),
             'description' => $alt->seoDescription(),
