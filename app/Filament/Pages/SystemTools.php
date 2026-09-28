@@ -4,16 +4,24 @@ namespace App\Filament\Pages;
 
 use App\Jobs\SyncGitHubMetricsJob;
 use App\Models\OpenSourceAlternative;
+use App\Services\AlternativeCsvImporter;
+use App\Services\DemoDataSeeder;
 use App\Services\LinkHealthService;
 use App\Support\Installer;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
+use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 
-class SystemTools extends Page
+class SystemTools extends Page implements HasForms
 {
+    use InteractsWithForms;
+
     protected static ?string $navigationIcon = 'heroicon-o-wrench-screwdriver';
 
     protected static ?string $navigationLabel = 'System tools';
@@ -28,24 +36,36 @@ class SystemTools extends Page
 
     public string $lastOutput = '';
 
+    public ?array $data = [];
+
+    public function mount(): void
+    {
+        $this->form->fill([
+            'csv' => "proprietary_name,alternative_name,repo_url,website_url,description,license_type,difficulty,language,published,featured\n",
+        ]);
+    }
+
+    public function form(Form $form): Form
+    {
+        return $form
+            ->schema([
+                Textarea::make('csv')
+                    ->label('CSV content')
+                    ->rows(10)
+                    ->helperText('Headers: proprietary_name, alternative_name, repo_url, website_url, description, license_type, difficulty, language, published, featured'),
+            ])
+            ->statePath('data');
+    }
+
     public function runMigrations(): void
     {
         try {
             Artisan::call('migrate', ['--force' => true]);
             $this->lastOutput = Artisan::output();
-
-            Notification::make()
-                ->title('Migrations completed')
-                ->body(trim($this->lastOutput) ?: 'No pending migrations.')
-                ->success()
-                ->send();
+            Notification::make()->title('Migrations completed')->body(trim($this->lastOutput) ?: 'No pending migrations.')->success()->send();
         } catch (\Throwable $e) {
             $this->lastOutput = $e->getMessage();
-            Notification::make()
-                ->title('Migration failed')
-                ->body($e->getMessage())
-                ->danger()
-                ->send();
+            Notification::make()->title('Migration failed')->body($e->getMessage())->danger()->send();
         }
     }
 
@@ -73,12 +93,7 @@ class SystemTools extends Page
         }
 
         $this->lastOutput = "Synced {$ok} OK, {$fail} failed.\n".implode("\n", $lines);
-
-        Notification::make()
-            ->title('GitHub sync finished')
-            ->body("{$ok} updated, {$fail} failed. See output below.")
-            ->success()
-            ->send();
+        Notification::make()->title('GitHub sync finished')->body("{$ok} updated, {$fail} failed.")->success()->send();
     }
 
     public function checkAllLinks(): void
@@ -97,10 +112,44 @@ class SystemTools extends Page
         }
 
         $this->lastOutput = "Checked {$checked} alternative(s). {$broken} have at least one unreachable link.";
+        Notification::make()->title('Link check finished')->body($this->lastOutput)->success()->send();
+    }
+
+    public function seedDemoData(): void
+    {
+        $result = app(DemoDataSeeder::class)->seed(force: false);
+        $this->lastOutput = $result['message'];
 
         Notification::make()
-            ->title('Link check finished')
-            ->body($this->lastOutput)
+            ->title('Demo data')
+            ->body($result['message'])
+            ->success()
+            ->send();
+    }
+
+    public function seedDemoDataForce(): void
+    {
+        $result = app(DemoDataSeeder::class)->seed(force: true);
+        $this->lastOutput = $result['message'];
+
+        Notification::make()
+            ->title('Demo data (force)')
+            ->body($result['message'])
+            ->success()
+            ->send();
+    }
+
+    public function importCsv(): void
+    {
+        $csv = (string) ($this->form->getState()['csv'] ?? '');
+        $result = app(AlternativeCsvImporter::class)->importFromString($csv);
+
+        $this->lastOutput = "Imported {$result['imported']}, skipped {$result['skipped']}.\n"
+            .implode("\n", $result['errors']);
+
+        Notification::make()
+            ->title('CSV import')
+            ->body("Imported {$result['imported']} row(s), skipped {$result['skipped']}.")
             ->success()
             ->send();
     }
@@ -123,20 +172,11 @@ class SystemTools extends Page
             }
 
             Cache::forget('site_settings');
-
             $this->lastOutput = 'Config, route, view, and application cache cleared.';
-
-            Notification::make()
-                ->title('Caches cleared')
-                ->success()
-                ->send();
+            Notification::make()->title('Caches cleared')->success()->send();
         } catch (\Throwable $e) {
             $this->lastOutput = $e->getMessage();
-            Notification::make()
-                ->title('Cache clear failed')
-                ->body($e->getMessage())
-                ->danger()
-                ->send();
+            Notification::make()->title('Cache clear failed')->body($e->getMessage())->danger()->send();
         }
     }
 
@@ -144,11 +184,6 @@ class SystemTools extends Page
     {
         Installer::unlock();
         $this->lastOutput = 'Installer unlocked. Visit /install to run the wizard again.';
-
-        Notification::make()
-            ->title('Installer unlocked')
-            ->warning()
-            ->body($this->lastOutput)
-            ->send();
+        Notification::make()->title('Installer unlocked')->warning()->body($this->lastOutput)->send();
     }
 }

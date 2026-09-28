@@ -18,10 +18,24 @@
 
         <x-filament::section>
             <x-slot name="heading">Link health</x-slot>
-            <x-slot name="description">HTTP-check repo and website URLs. Marks broken links on each alternative.</x-slot>
+            <x-slot name="description">HTTP-check repo and website URLs.</x-slot>
             <x-filament::button wire:click="checkAllLinks" color="warning" icon="heroicon-o-link">
                 Check all links
             </x-filament::button>
+        </x-filament::section>
+
+        <x-filament::section>
+            <x-slot name="heading">Demo catalog</x-slot>
+            <x-slot name="description">Seed Notion, Slack, Analytics alternatives (AppFlowy, Mattermost, Plausible, etc.). Skips if you already have 5+ alternatives.</x-slot>
+            <div class="flex flex-wrap gap-2">
+                <x-filament::button wire:click="seedDemoData" color="info" icon="heroicon-o-sparkles">
+                    Seed demo data
+                </x-filament::button>
+                <x-filament::button wire:click="seedDemoDataForce" color="gray" icon="heroicon-o-arrow-path"
+                    wire:confirm="Add demo rows even if the catalog is not empty?">
+                    Force seed
+                </x-filament::button>
+            </div>
         </x-filament::section>
 
         <x-filament::section>
@@ -45,6 +59,17 @@
             </x-filament::button>
         </x-filament::section>
     </div>
+
+    <x-filament::section class="mt-6">
+        <x-slot name="heading">Import alternatives (CSV)</x-slot>
+        <x-slot name="description">Paste CSV rows. Creates proprietary tools as needed. Sample file: samples/alternatives-import.csv</x-slot>
+        <form wire:submit="importCsv" class="space-y-4">
+            {{ $this->form }}
+            <x-filament::button type="submit" icon="heroicon-o-arrow-up-tray">
+                Import CSV
+            </x-filament::button>
+        </form>
+    </x-filament::section>
 
     @if($lastOutput)
         <x-filament::section class="mt-6">
