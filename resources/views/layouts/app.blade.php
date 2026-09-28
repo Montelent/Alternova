@@ -9,6 +9,7 @@
     <meta name="description" content="{{ $description ?? 'Discover open-source alternatives and generate brandable domain names with Alternova.' }}">
     <meta name="robots" content="{{ $robots ?? 'index,follow,max-image-preview:large,max-snippet:-1' }}">
     <link rel="canonical" href="{{ $canonical ?? url()->current() }}">
+    <link rel="alternate" type="application/rss+xml" title="Alternova Alternatives" href="{{ url('/feed') }}">
 
     <meta property="og:site_name" content="{{ config('app.name', 'Alternova') }}">
     <meta property="og:type" content="{{ $ogType ?? 'website' }}">
@@ -102,6 +103,8 @@
                             <li><a href="{{ route('alternatives.compare') }}" class="hover:text-slate-800">Compare</a></li>
                             <li><a href="{{ route('domains') }}" class="hover:text-slate-800">Domains</a></li>
                             <li><a href="{{ route('suggest') }}" class="hover:text-slate-800">Suggest a tool</a></li>
+                            <li><a href="{{ url('/feed') }}" class="hover:text-slate-800">RSS</a></li>
+                            <li><a href="{{ url('/api/alternatives') }}" class="hover:text-slate-800">API</a></li>
                         </ul>
                     </div>
                     <div>
@@ -116,6 +119,7 @@
                         <ul class="space-y-2 text-slate-500">
                             <li><a href="{{ route('privacy') }}" class="hover:text-slate-800">Privacy</a></li>
                             <li><a href="{{ route('terms') }}" class="hover:text-slate-800">Terms</a></li>
+                            <li><a href="{{ route('disclosure') }}" class="hover:text-slate-800">Affiliate disclosure</a></li>
                         </ul>
                     </div>
                 </div>
