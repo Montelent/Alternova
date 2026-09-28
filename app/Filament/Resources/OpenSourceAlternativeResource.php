@@ -8,6 +8,7 @@ use App\Models\OpenSourceAlternative;
 use App\Models\ProprietaryTool;
 use App\Services\DescriptionGeneratorService;
 use App\Services\LinkHealthService;
+use App\Support\CategoryCatalog;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -91,6 +92,12 @@ class OpenSourceAlternativeResource extends Resource
                                     ->send();
                             }),
                     ])->columnSpanFull(),
+                    Forms\Components\SpatieTagsInput::make('tags')
+                        ->type('category')
+                        ->label('Categories')
+                        ->suggestions(CategoryCatalog::names())
+                        ->columnSpanFull()
+                        ->helperText('Used as filters on the public finder. Examples: Analytics, Chat & Communication, Docs & Knowledge.'),
                 ])->columns(2),
 
                 Forms\Components\Section::make('Publishing')->schema([
@@ -128,7 +135,7 @@ class OpenSourceAlternativeResource extends Resource
                     Forms\Components\TextInput::make('overall_health_score')
                         ->numeric()
                         ->disabled()
-                        ->helperText('Updated automatically when you click Sync GitHub'),
+                        ->helperText('Updated when you click Sync GitHub'),
                     Forms\Components\Textarea::make('docker_compose_blueprint')
                         ->rows(10)
                         ->columnSpanFull(),
@@ -165,18 +172,13 @@ class OpenSourceAlternativeResource extends Resource
                 Tables\Columns\TextColumn::make('name')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('proprietaryTool.name')->label('Proprietary')->toggleable(),
                 Tables\Columns\TextColumn::make('license_type')->toggleable(),
+                Tables\Columns\SpatieTagsColumn::make('tags')->type('category')->label('Categories')->toggleable(),
                 Tables\Columns\TextColumn::make('overall_health_score')->sortable()->label('Health'),
                 Tables\Columns\TextColumn::make('repoMetric.github_stars')->label('Stars')->sortable()->toggleable(),
                 Tables\Columns\IconColumn::make('is_published')->boolean()->label('Published'),
                 Tables\Columns\IconColumn::make('is_featured')->boolean()->label('Featured')->toggleable(),
-                Tables\Columns\IconColumn::make('repo_reachable')
-                    ->boolean()
-                    ->label('Repo')
-                    ->toggleable(),
-                Tables\Columns\IconColumn::make('website_reachable')
-                    ->boolean()
-                    ->label('Site')
-                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\IconColumn::make('repo_reachable')->boolean()->label('Repo')->toggleable(),
+                Tables\Columns\IconColumn::make('website_reachable')->boolean()->label('Site')->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('repoMetric.synced_at')->dateTime()->label('Last synced')->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
@@ -198,20 +200,13 @@ class OpenSourceAlternativeResource extends Resource
                         try {
                             SyncGitHubMetricsJob::dispatchSync($record);
                             $fresh = $record->fresh(['repoMetric']);
-                            $stars = $fresh->repoMetric?->github_stars ?? 0;
-                            $score = $fresh->overall_health_score;
-
                             Notification::make()
                                 ->title('Metrics updated')
-                                ->body("Stars: {$stars} · Health score: {$score}")
+                                ->body('Stars: '.($fresh->repoMetric?->github_stars ?? 0).' · Health: '.$fresh->overall_health_score)
                                 ->success()
                                 ->send();
                         } catch (\Throwable $e) {
-                            Notification::make()
-                                ->title('Sync failed')
-                                ->body($e->getMessage())
-                                ->danger()
-                                ->send();
+                            Notification::make()->title('Sync failed')->body($e->getMessage())->danger()->send();
                         }
                     }),
                 Tables\Actions\Action::make('checkLinks')
