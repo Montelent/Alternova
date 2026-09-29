@@ -40,7 +40,8 @@ Route::get('/', HomeController::class)->name('home');
 
 Route::get('/alternatives', OpenSourceFinder::class)->name('finder');
 Route::get('/alternatives/compare', CompareAlternatives::class)->name('alternatives.compare');
-Route::get('/alternatives/{alternative}', AlternativeDetail::class)->name('alternatives.show');
+// Param named {slug} — must not match Eloquent property $alternative (Livewire implicit binding)
+Route::get('/alternatives/{slug}', AlternativeDetail::class)->name('alternatives.show');
 
 Route::get('/tools/{tool}', ProprietaryToolShow::class)->name('tools.show');
 Route::get('/embed/tools/{tool}', [EmbedController::class, 'tool'])->name('embed.tool');

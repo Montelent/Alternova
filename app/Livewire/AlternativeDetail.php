@@ -35,9 +35,13 @@ class AlternativeDetail extends Component
 
     public ?string $compareUrl = null;
 
-    public function mount(string $alternative): void
+    /**
+     * Route param must NOT be named the same as the Eloquent property `$alternative`,
+     * or Livewire implicit model binding 404s before mount runs.
+     */
+    public function mount(string $slug): void
     {
-        $requestedSlug = $alternative;
+        $requestedSlug = trim($slug);
 
         $record = OpenSourceAlternative::query()
             ->where('slug', $requestedSlug)
@@ -46,14 +50,17 @@ class AlternativeDetail extends Component
 
         if (! $record) {
             try {
-                $redirect = SlugRedirect::query()
-                    ->where('old_slug', $requestedSlug)
-                    ->where(function ($q) {
-                        $q->where('model_type', 'alternative')
-                            ->orWhereNull('model_type')
-                            ->orWhere('model_type', '');
-                    })
-                    ->first();
+                $redirect = null;
+                if (class_exists(SlugRedirect::class)) {
+                    $redirect = SlugRedirect::query()
+                        ->where('old_slug', $requestedSlug)
+                        ->where(function ($q) {
+                            $q->where('model_type', 'alternative')
+                                ->orWhereNull('model_type')
+                                ->orWhere('model_type', '');
+                        })
+                        ->first();
+                }
 
                 if ($redirect) {
                     $target = OpenSourceAlternative::query()
@@ -75,7 +82,13 @@ class AlternativeDetail extends Component
             abort(404);
         }
 
-        $this->alternative = $record->load(['proprietaryTool', 'repoMetric', 'tags']);
+        try {
+            $this->alternative = $record->load(['proprietaryTool', 'repoMetric', 'tags']);
+        } catch (\Throwable) {
+            // Tags table may be missing — still show the page
+            $this->alternative = $record->load(['proprietaryTool', 'repoMetric']);
+        }
+
         $this->votesCount = (int) ($this->alternative->votes_count ?? 0);
 
         try {
@@ -101,13 +114,19 @@ class AlternativeDetail extends Component
 
     protected function refreshCompareState(): void
     {
-        $basket = app(CompareBasket::class);
-        $this->inCompare = $basket->has($this->alternative->slug);
-        $state = $basket->state();
-        $this->compareUrl = $state['url'];
-        $this->compareMessage = $state['count'] === 1 && $this->inCompare
-            ? 'Pick one more alternative to compare'
-            : '';
+        try {
+            $basket = app(CompareBasket::class);
+            $this->inCompare = $basket->has($this->alternative->slug);
+            $state = $basket->state();
+            $this->compareUrl = $state['url'];
+            $this->compareMessage = $state['count'] === 1 && $this->inCompare
+                ? 'Pick one more alternative to compare'
+                : '';
+        } catch (\Throwable) {
+            $this->inCompare = false;
+            $this->compareUrl = null;
+            $this->compareMessage = '';
+        }
     }
 
     public function toggleCompare(): void
@@ -136,13 +155,17 @@ class AlternativeDetail extends Component
 
         RateLimiter::hit($key, 3600);
 
-        $service = app(VoteService::class);
-        $voterKey = $service->voterKey(session()->getId(), request()->ip());
-        $result = $service->vote($this->alternative, $voterKey, request()->ip());
+        try {
+            $service = app(VoteService::class);
+            $voterKey = $service->voterKey(session()->getId(), request()->ip());
+            $result = $service->vote($this->alternative, $voterKey, request()->ip());
 
-        $this->votesCount = $result['votes'];
-        $this->hasVoted = $result['voted'];
-        $this->voteMessage = $result['message'];
+            $this->votesCount = $result['votes'];
+            $this->hasVoted = $result['voted'];
+            $this->voteMessage = $result['message'];
+        } catch (\Throwable) {
+            $this->voteMessage = 'Voting is temporarily unavailable.';
+        }
     }
 
     public function toggleFavorite(): void
@@ -167,43 +190,60 @@ class AlternativeDetail extends Component
         $description = $seo->alternativeDescription($alt);
         $canonical = $alt->canonical_url ?: route('alternatives.show', $alt);
 
-        $related = OpenSourceAlternative::query()
-            ->with(['repoMetric'])
-            ->where('is_published', true)
-            ->where('id', '!=', $alt->id)
-            ->when(
-                $alt->proprietary_tool_id,
-                fn ($q) => $q->where('proprietary_tool_id', $alt->proprietary_tool_id),
-                fn ($q) => $q->whereRaw('0 = 1')
-            )
-            ->orderByDesc('overall_health_score')
-            ->limit(6)
-            ->get();
+        $related = collect();
+        try {
+            $related = OpenSourceAlternative::query()
+                ->with(['repoMetric'])
+                ->where('is_published', true)
+                ->where('id', '!=', $alt->id)
+                ->when(
+                    $alt->proprietary_tool_id,
+                    fn ($q) => $q->where('proprietary_tool_id', $alt->proprietary_tool_id),
+                    fn ($q) => $q->whereRaw('0 = 1')
+                )
+                ->orderByDesc('overall_health_score')
+                ->limit(6)
+                ->get();
 
-        if ($related->count() < 6) {
-            $categoryNames = $alt->tags->where('type', 'category')->pluck('name')->all();
-            if ($categoryNames !== []) {
-                $more = OpenSourceAlternative::query()
-                    ->with(['repoMetric'])
-                    ->where('is_published', true)
-                    ->where('id', '!=', $alt->id)
-                    ->whereNotIn('id', $related->pluck('id'))
-                    ->withAnyTags($categoryNames, 'category')
-                    ->orderByDesc('overall_health_score')
-                    ->limit(6 - $related->count())
-                    ->get();
-                $related = $related->concat($more)->values();
+            if ($related->count() < 6) {
+                $categoryNames = $alt->relationLoaded('tags')
+                    ? $alt->tags->where('type', 'category')->pluck('name')->all()
+                    : [];
+                if ($categoryNames !== []) {
+                    $more = OpenSourceAlternative::query()
+                        ->with(['repoMetric'])
+                        ->where('is_published', true)
+                        ->where('id', '!=', $alt->id)
+                        ->whereNotIn('id', $related->pluck('id'))
+                        ->withAnyTags($categoryNames, 'category')
+                        ->orderByDesc('overall_health_score')
+                        ->limit(6 - $related->count())
+                        ->get();
+                    $related = $related->concat($more)->values();
+                }
             }
+        } catch (\Throwable) {
         }
 
-        $recent = app(RecentlyViewedService::class)->list($alt->id);
+        $recent = collect();
+        try {
+            $recent = app(RecentlyViewedService::class)->list($alt->id);
+        } catch (\Throwable) {
+        }
+
         $badgeUrl = url('/badge/'.$alt->slug.'/health.svg');
         $ogImage = app(OgImageService::class)->alternativeUrl($alt);
 
-        $history = app(HealthHistoryService::class);
-        $healthSeries = $history->series($alt, 30);
-        $healthPoints = $history->sparklinePoints($healthSeries);
-        $healthTrend = $history->trend($healthSeries);
+        $healthSeries = collect();
+        $healthPoints = '';
+        $healthTrend = 'flat';
+        try {
+            $history = app(HealthHistoryService::class);
+            $healthSeries = $history->series($alt, 30);
+            $healthPoints = $history->sparklinePoints($healthSeries);
+            $healthTrend = $history->trend($healthSeries);
+        } catch (\Throwable) {
+        }
 
         return view('livewire.alternative-detail', [
             'schemas' => $this->buildSchemas($alt, $prop, $canonical),
