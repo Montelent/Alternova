@@ -9,10 +9,24 @@
             <x-filament::button type="button" color="gray" wire:click="sendTest" icon="heroicon-o-paper-airplane">
                 Save &amp; send test
             </x-filament::button>
+            <x-filament::button type="button" color="warning" wire:click="sendDigestNow" icon="heroicon-o-newspaper"
+                wire:confirm="Send the weekly digest now to all active subscribers? This ignores the enabled toggle and uses featured fallback if nothing is new.">
+                Send digest now
+            </x-filament::button>
         </div>
     </form>
 
     <x-filament::section class="mt-8">
+        <x-slot name="heading">Weekly digest</x-slot>
+        <ul class="list-disc list-inside space-y-1 text-sm text-gray-600 dark:text-gray-300">
+            <li>Scheduled Mondays at 09:00 via <code class="text-xs">php artisan schedule:run</code> (Hostinger cron hourly).</li>
+            <li>Command: <code class="text-xs">php artisan alternova:send-digest --days=7</code></li>
+            <li>Dry run: <code class="text-xs">php artisan alternova:send-digest --dry-run</code></li>
+            <li>Also available under <strong>System tools</strong>.</li>
+        </ul>
+    </x-filament::section>
+
+    <x-filament::section class="mt-4">
         <x-slot name="heading">Quick setup — Resend</x-slot>
         <ol class="list-decimal list-inside space-y-2 text-sm text-gray-600 dark:text-gray-300">
             <li>Create an account at <a href="https://resend.com" target="_blank" class="underline">resend.com</a>.</li>
