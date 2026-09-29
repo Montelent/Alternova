@@ -16,8 +16,10 @@ use App\Http\Controllers\SubmissionStatusController;
 use App\Http\Controllers\WhatsNewController;
 use App\Livewire\AccountPage;
 use App\Livewire\AlternativeDetail;
+use App\Livewire\Auth\ForgotPassword;
 use App\Livewire\Auth\Login;
 use App\Livewire\Auth\Register;
+use App\Livewire\Auth\ResetPassword;
 use App\Livewire\CompareAlternatives;
 use App\Livewire\ContactForm;
 use App\Livewire\DomainCombinator;
@@ -55,6 +57,8 @@ Route::get('/favorites', FavoritesPage::class)->name('favorites');
 
 Route::get('/login', Login::class)->name('login')->middleware('guest');
 Route::get('/register', Register::class)->name('register')->middleware('guest');
+Route::get('/forgot-password', ForgotPassword::class)->name('password.request')->middleware('guest');
+Route::get('/reset-password/{token}', ResetPassword::class)->name('password.reset')->middleware('guest');
 Route::get('/account', AccountPage::class)->name('account');
 
 Route::get('/badge/{slug}/health.svg', [BadgeController::class, 'health'])->name('badge.health');
