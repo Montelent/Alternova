@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\ProprietaryTool;
 use App\Models\SlugRedirect;
+use App\Services\OgImageService;
 use App\Services\SeoManager;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Livewire\Component;
@@ -62,6 +63,7 @@ class ProprietaryToolShow extends Component
         $title = $seo->toolTitle($tool);
         $description = $seo->toolDescription($tool);
         $canonical = $tool->canonical_url ?: route('tools.show', $tool);
+        $ogImage = app(OgImageService::class)->toolUrl($tool);
 
         return view('livewire.proprietary-tool-show', [
             'alternatives' => $tool->publishedAlternatives,
@@ -73,8 +75,7 @@ class ProprietaryToolShow extends Component
             'ogType' => 'article',
             'ogTitle' => $tool->og_title ?: $title,
             'ogDescription' => $tool->og_description ?: $description,
-            'ogImage' => $tool->og_image_url
-                ?: ($tool->logo_path ? url($tool->logo_path) : null),
+            'ogImage' => $ogImage,
         ]);
     }
 }

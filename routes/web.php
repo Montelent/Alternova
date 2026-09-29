@@ -9,6 +9,7 @@ use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\NewsletterController;
+use App\Http\Controllers\OgImageController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\SubmissionStatusController;
@@ -38,6 +39,13 @@ Route::get('/alternatives/{alternative}', AlternativeDetail::class)->name('alter
 
 Route::get('/tools/{tool}', ProprietaryToolShow::class)->name('tools.show');
 Route::get('/embed/tools/{tool}', [EmbedController::class, 'tool'])->name('embed.tool');
+
+Route::get('/og/alternative/{slug}', [OgImageController::class, 'alternative'])
+    ->where('slug', '.*')
+    ->name('og.alternative');
+Route::get('/og/tool/{slug}', [OgImageController::class, 'tool'])
+    ->where('slug', '.*')
+    ->name('og.tool');
 
 Route::get('/whats-new', WhatsNewController::class)->name('whats-new');
 Route::get('/favorites', FavoritesPage::class)->name('favorites');

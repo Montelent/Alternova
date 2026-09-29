@@ -6,6 +6,7 @@ use App\Models\OpenSourceAlternative;
 use App\Models\SlugRedirect;
 use App\Services\CompareBasket;
 use App\Services\FavoriteService;
+use App\Services\OgImageService;
 use App\Services\RecentlyViewedService;
 use App\Services\SeoManager;
 use App\Services\VoteService;
@@ -196,6 +197,7 @@ class AlternativeDetail extends Component
 
         $recent = app(RecentlyViewedService::class)->list($alt->id);
         $badgeUrl = url('/badge/'.$alt->slug.'/health.svg');
+        $ogImage = app(OgImageService::class)->alternativeUrl($alt);
 
         return view('livewire.alternative-detail', [
             'schemas' => $this->buildSchemas($alt, $prop, $canonical),
@@ -215,8 +217,7 @@ class AlternativeDetail extends Component
             'ogType' => 'article',
             'ogTitle' => $alt->og_title ?: $title,
             'ogDescription' => $alt->og_description ?: $description,
-            'ogImage' => $alt->og_image_url
-                ?: ($prop?->logo_path ? url($prop->logo_path) : null),
+            'ogImage' => $ogImage,
         ]);
     }
 
