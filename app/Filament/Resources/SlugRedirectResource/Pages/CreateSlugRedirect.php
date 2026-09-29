@@ -7,5 +7,5 @@ use Filament\Resources\Pages\CreateRecord;
 
 class CreateSlugRedirect extends CreateRecord
 {
-    protected static string $resource = SpugRedirectResource::class;
+    protected static string $resource = SlugRedirectResource::class;
 }

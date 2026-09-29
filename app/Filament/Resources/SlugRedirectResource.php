@@ -11,11 +11,6 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Schema;
 
-class SpugRedirectResource extends Resource
-{
-    // typo guard — real class below
-}
-
 class SlugRedirectResource extends Resource
 {
     protected static ?string $model = SlugRedirect::class;
@@ -51,7 +46,7 @@ class SlugRedirectResource extends Resource
     {
         return $form->schema([
             Forms\Components\Section::make('301 redirect')
-                ->description('When someone visits /alternatives/{old_slug}, they are sent to the current page.')
+                ->description('When someone visits an old slug, Laravel resolves the current published record and shows that page.')
                 ->schema([
                     Forms\Components\TextInput::make('old_slug')
                         ->label('Old slug')
