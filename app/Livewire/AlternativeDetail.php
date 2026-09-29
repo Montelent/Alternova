@@ -6,6 +6,7 @@ use App\Models\OpenSourceAlternative;
 use App\Models\SlugRedirect;
 use App\Services\CompareBasket;
 use App\Services\FavoriteService;
+use App\Services\HealthHistoryService;
 use App\Services\OgImageService;
 use App\Services\RecentlyViewedService;
 use App\Services\SeoManager;
@@ -199,6 +200,11 @@ class AlternativeDetail extends Component
         $badgeUrl = url('/badge/'.$alt->slug.'/health.svg');
         $ogImage = app(OgImageService::class)->alternativeUrl($alt);
 
+        $history = app(HealthHistoryService::class);
+        $healthSeries = $history->series($alt, 30);
+        $healthPoints = $history->sparklinePoints($healthSeries);
+        $healthTrend = $history->trend($healthSeries);
+
         return view('livewire.alternative-detail', [
             'schemas' => $this->buildSchemas($alt, $prop, $canonical),
             'proprietary' => $prop,
@@ -209,6 +215,9 @@ class AlternativeDetail extends Component
             'related' => $related,
             'recent' => $recent,
             'badgeUrl' => $badgeUrl,
+            'healthSeries' => $healthSeries,
+            'healthPoints' => $healthPoints,
+            'healthTrend' => $healthTrend,
         ])->layout('layouts.app', [
             'title' => $title,
             'description' => $description,

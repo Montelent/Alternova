@@ -132,17 +132,6 @@ class OpenSourceAlternative extends Model
         }
 
         try {
-            $redirect = ScreenshotRedirect::query()->where('old_slug', $value)->first();
-            if ($redirect) {
-                return static::query()
-                    ->where('slug', $redirect->new_slug)
-                    ->where('is_published', true)
-                    ->first();
-            }
-        } catch (\Throwable) {
-        }
-
-        try {
             $redirect = SlugRedirect::query()->where('old_slug', $value)->first();
             if ($redirect) {
                 return static::query()

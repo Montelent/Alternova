@@ -22,7 +22,7 @@
                         <p class="text-sm font-semibold uppercase tracking-wider text-brand-600 mb-3">Open-source alternative</p>
                         <h1 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-[1.15]">{{ $heading }}</h1>
                         <p class="mt-3 text-lg text-slate-600 dark:text-slate-300 font-medium">{{ $subheading }}</p>
-                        <div class="mt-5 flex flex-wrap gap-2">
+                        <div class="mt-5 flex flex-wrap gap-2 items-center">
                             @if($alternative->license_type)
                                 <span class="rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 px-3 py-1 text-xs font-semibold">{{ $alternative->license_type }}</span>
                             @endif
@@ -30,7 +30,10 @@
                                 <span class="rounded-full bg-sky-50 text-sky-700 border border-sky-100 px-3 py-1 text-xs font-semibold">{{ $alternative->primary_language }}</span>
                             @endif
                             <span class="rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-3 py-1 text-xs font-semibold">Difficulty {{ $alternative->self_host_difficulty }}/5</span>
-                            <span class="rounded-full bg-amber-50 text-amber-800 border border-amber-100 px-3 py-1 text-xs font-semibold">Health {{ number_format($alternative->overall_health_score, 1) }}/100</span>
+                            <span class="inline-flex items-center gap-2 rounded-full bg-amber-50 text-amber-800 border border-amber-100 px-3 py-1 text-xs font-semibold">
+                                Health {{ number_format($alternative->overall_health_score, 1) }}/100
+                                <x-health-sparkline :points="$healthPoints" :trend="$healthTrend" class="w-12 h-4" />
+                            </span>
                         </div>
                         @if($alternative->description)
                             <p class="mt-6 text-slate-600 dark:text-slate-300 leading-relaxed">{{ $alternative->description }}</p>
@@ -86,6 +89,8 @@
                 </div>
             </section>
         @endif
+
+        <x-health-chart :series="$healthSeries" :points="$healthPoints" :trend="$healthTrend" />
 
         @if($alternative->docker_compose_blueprint)
             <section class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm p-6 sm:p-8 mb-8" x-data="{ copied: false }">

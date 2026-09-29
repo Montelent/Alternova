@@ -61,6 +61,16 @@
 
         <div wire:loading.class="opacity-50" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             @forelse($alternatives as $alt)
+                @php
+                    $spark = '';
+                    $trend = 'flat';
+                    try {
+                        $hist = app(\App\Services\HealthHistoryService::class);
+                        $series = $hist->series($alt, 12);
+                        $spark = $hist->sparklinePoints($series);
+                        $trend = $hist->trend($series);
+                    } catch (\Throwable) {}
+                @endphp
                 <a href="{{ route('alternatives.show', $alt) }}"
                     class="group bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-brand-300 transition-all overflow-hidden">
                     <div class="p-6">
@@ -74,7 +84,14 @@
                                     @endif
                                 </p>
                             </div>
-                            <span class="text-sm font-semibold text-amber-600 shrink-0">{{ number_format($alt->overall_health_score, 1) }}</span>
+                            <div class="text-right shrink-0">
+                                <span class="text-sm font-semibold text-amber-600">{{ number_format($alt->overall_health_score, 1) }}</span>
+                                @if($spark)
+                                    <div class="mt-1 flex justify-end">
+                                        <x-health-sparkline :points="$spark" :trend="$trend" />
+                                    </div>
+                                @endif
+                            </div>
                         </div>
                         <p class="mt-3 text-sm text-slate-600 dark:text-slate-400 line-clamp-2">{{ $alt->description }}</p>
                         <div class="mt-4 flex flex-wrap gap-2">
