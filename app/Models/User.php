@@ -5,6 +5,7 @@ namespace App\Models;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -15,6 +16,8 @@ class User extends Authenticatable implements FilamentUser
     public const ROLE_ADMIN = 'admin';
 
     public const ROLE_EDITOR = 'editor';
+
+    public const ROLE_MEMBER = 'member';
 
     protected $fillable = [
         'name',
@@ -37,10 +40,25 @@ class User extends Authenticatable implements FilamentUser
         ];
     }
 
+    public function favorites(): HasMany
+    {
+        return $this->hasMany(FavoriteAlternative::class);
+    }
+
+    public function savedDomains(): HasMany
+    {
+        return $this->hasMany(SavedDomain::class);
+    }
+
     public function canAccessPanel(Panel $panel): bool
     {
+        // Public members must not enter Filament admin
+        if (($this->role ?? '') === self::ROLE_MEMBER) {
+            return false;
+        }
+
         return in_array($this->role, [self::ROLE_ADMIN, self::ROLE_EDITOR], true)
-            || $this->role === null; // legacy users without role column filled
+            || $this->role === null;
     }
 
     public function isAdmin(): bool
@@ -50,7 +68,12 @@ class User extends Authenticatable implements FilamentUser
 
     public function isEditor(): bool
     {
-        return ($this->role ?? self::ROLE_ADMIN) === self::ROLE_EDITOR;
+        return ($this->role ?? '') === self::ROLE_EDITOR;
+    }
+
+    public function isMember(): bool
+    {
+        return ($this->role ?? '') === self::ROLE_MEMBER;
     }
 
     public function canManageUsers(): bool
