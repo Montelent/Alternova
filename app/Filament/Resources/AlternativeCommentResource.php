@@ -8,6 +8,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Schema;
 
 class AlternativeCommentResource extends Resource
@@ -84,14 +85,16 @@ class AlternativeCommentResource extends Resource
             ->filters([
                 Tables\Filters\Filter::make('pending')
                     ->label('Pending approval')
-                    ->query(fn ($q) => $q->where('is_approved', false)->where('is_hidden', false))
+                    ->query(fn (Builder $query): Builder => $query
+                        ->where('is_approved', false)
+                        ->where('is_hidden', false))
                     ->default(),
                 Tables\Filters\Filter::make('replies')
                     ->label('Replies only')
-                    ->query(fn ($q) => $q->whereNotNull('parent_id')),
+                    ->query(fn (Builder $query): Builder => $query->whereNotNull('parent_id')),
                 Tables\Filters\Filter::make('top_level')
                     ->label('Top-level only')
-                    ->query(fn ($q) => $q->whereNull('parent_id')),
+                    ->query(fn (Builder $query): Builder => $query->whereNull('parent_id')),
                 Tables\Filters\TernaryFilter::make('is_approved')->label('Approved'),
             ])
             ->actions([
