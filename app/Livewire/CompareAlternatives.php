@@ -20,7 +20,6 @@ class CompareAlternatives extends Component
 
     public function mount(): void
     {
-        // Support ?tools=slug1,slug2 as an alternate share format
         $tools = request()->query('tools');
         if (is_string($tools) && $tools !== '' && $this->leftSlug === '' && $this->rightSlug === '') {
             $parts = array_values(array_filter(array_map('trim', explode(',', $tools))));
@@ -32,7 +31,6 @@ class CompareAlternatives extends Component
             }
         }
 
-        // Hydrate from session basket if URL empty
         if ($this->leftSlug === '' && $this->rightSlug === '') {
             $basket = app(CompareBasket::class)->all();
             if (isset($basket[0])) {
@@ -108,7 +106,7 @@ class CompareAlternatives extends Component
                 .': health '.number_format($left->overall_health_score, 1).' vs '.number_format($right->overall_health_score, 1)
                 .', license, GitHub metrics, and self-host difficulty.';
             try {
-                $ogImage = app(OgImageService::class)->alternativeUrl($left);
+                $ogImage = app(OgImageService::class)->compareUrl($left->slug, $right->slug);
             } catch (\Throwable) {
             }
         }

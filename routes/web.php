@@ -51,6 +51,10 @@ Route::get('/og/alternative/{slug}', [OgImageController::class, 'alternative'])
 Route::get('/og/tool/{slug}', [OgImageController::class, 'tool'])
     ->where('slug', '.*')
     ->name('og.tool');
+Route::get('/og/compare/{a}/{b}', [OgImageController::class, 'compare'])
+    ->where('a', '[A-Za-z0-9\-_]+')
+    ->where('b', '[A-Za-z0-9\-_.]+')
+    ->name('og.compare');
 
 Route::get('/whats-new', WhatsNewController::class)->name('whats-new');
 Route::get('/favorites', FavoritesPage::class)->name('favorites');

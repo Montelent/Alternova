@@ -30,6 +30,14 @@ class OgImageService
         return url('/og/tool/'.$tool->slug.'.png');
     }
 
+    public function compareUrl(string $slugA, string $slugB): string
+    {
+        $pair = [$slugA, $slugB];
+        sort($pair);
+
+        return url('/og/compare/'.$pair[0].'/'.$pair[1].'.png');
+    }
+
     public function pathForAlternative(string $slug): string
     {
         return storage_path('app/og/alternative-'.$slug.'.png');
@@ -38,6 +46,14 @@ class OgImageService
     public function pathForTool(string $slug): string
     {
         return storage_path('app/og/tool-'.$slug.'.png');
+    }
+
+    public function pathForCompare(string $slugA, string $slugB): string
+    {
+        $pair = [$slugA, $slugB];
+        sort($pair);
+
+        return storage_path('app/og/compare-'.$pair[0].'-vs-'.$pair[1].'.png');
     }
 
     public function ensureDir(): void
@@ -53,9 +69,6 @@ class OgImageService
         return extension_loaded('gd') && function_exists('imagecreatetruecolor');
     }
 
-    /**
-     * Build or refresh cached PNG for an alternative.
-     */
     public function renderAlternative(OpenSourceAlternative $alt, bool $force = false): string
     {
         $this->ensureDir();
@@ -124,21 +137,160 @@ class OgImageService
         return $path;
     }
 
+    public function renderCompare(OpenSourceAlternative $left, OpenSourceAlternative $right, bool $force = false): string
+    {
+        $this->ensureDir();
+        $path = $this->pathForCompare($left->slug, $right->slug);
+
+        $stamp = max(
+            $left->updated_at?->getTimestamp() ?? 0,
+            $right->updated_at?->getTimestamp() ?? 0
+        );
+
+        if (! $force && is_file($path) && filemtime($path) >= $stamp) {
+            return $path;
+        }
+
+        if (! $this->gdAvailable()) {
+            throw new \RuntimeException('GD extension is not available');
+        }
+
+        // Stable visual order matches URL alphabetical sort
+        $pair = [$left, $right];
+        usort($pair, fn ($a, $b) => strcmp($a->slug, $b->slug));
+        [$a, $b] = $pair;
+
+        $this->paintCompare($path, $a, $b);
+
+        return $path;
+    }
+
+    protected function paintCompare(string $path, OpenSourceAlternative $left, OpenSourceAlternative $right): void
+    {
+        $w = self::WIDTH;
+        $h = self::HEIGHT;
+        $im = imagecreatetruecolor($w, $h);
+
+        $bg = imagecolorallocate($im, 15, 23, 42);
+        imagefilledrectangle($im, 0, 0, $w, $h, $bg);
+
+        $accent = imagecolorallocate($im, 79, 70, 229);
+        imagefilledrectangle($im, 0, 0, $w, 8, $accent);
+
+        // Two soft orbs
+        $orbL = imagecolorallocatealpha($im, 99, 102, 241, 105);
+        $orbR = imagecolorallocatealpha($im, 16, 185, 129, 110);
+        imagefilledellipse($im, 280, 200, 380, 380, $orbL);
+        imagefilledellipse($im, 920, 420, 420, 420, $orbR);
+
+        // Center divider
+        $div = imagecolorallocatealpha($im, 148, 163, 184, 90);
+        imagefilledrectangle($im, 598, 120, 602, 520, $div);
+
+        $white = imagecolorallocate($im, 255, 255, 255);
+        $muted = imagecolorallocate($im, 148, 163, 184);
+        $brand = imagecolorallocate($im, 165, 180, 252);
+        $green = imagecolorallocate($im, 110, 231, 183);
+
+        $font = $this->fontPath();
+        $useTtf = $font !== null && function_exists('imagettftext');
+
+        if ($useTtf) {
+            imagettftext($im, 20, 0, 72, 70, $brand, $font, 'Alternova');
+            imagettftext($im, 18, 0, 72, 110, $muted, $font, 'Side-by-side comparison');
+        } else {
+            imagestring($im, 5, 72, 40, 'Alternova', $brand);
+            imagestring($im, 3, 72, 70, 'Side-by-side comparison', $muted);
+        }
+
+        // VS badge center
+        if ($useTtf) {
+            imagettftext($im, 28, 0, 568, 330, $white, $font, 'VS');
+        } else {
+            imagestring($im, 5, 575, 300, 'VS', $white);
+        }
+
+        $this->paintCompareColumn($im, $left, 72, $useTtf, $font, $white, $muted, $green, $brand);
+        $this->paintCompareColumn($im, $right, 640, $useTtf, $font, $white, $muted, $green, $brand);
+
+        $host = parse_url((string) config('app.url'), PHP_URL_HOST) ?: 'alternova';
+        if ($useTtf) {
+            imagettftext($im, 16, 0, 72, 600, $muted, $font, $host.'  ·  Compare open-source tools');
+        } else {
+            imagestring($im, 2, 72, 580, $host.' · Compare', $muted);
+        }
+
+        imagepng($im, $path, 6);
+        imagedestroy($im);
+    }
+
+    protected function paintCompareColumn(
+        $im,
+        OpenSourceAlternative $alt,
+        int $x,
+        bool $useTtf,
+        ?string $font,
+        $white,
+        $muted,
+        $green,
+        $brand
+    ): void {
+        $nameLines = $this->wrap($alt->name, 16);
+        $y = 200;
+        foreach ($nameLines as $i => $line) {
+            if ($i >= 3) {
+                break;
+            }
+            if ($useTtf) {
+                imagettftext($im, 36, 0, $x, $y + ($i * 48), $white, $font, $line);
+            } else {
+                imagestring($im, 5, $x, $y - 30 + ($i * 24), $line, $white);
+            }
+        }
+
+        $score = number_format((float) $alt->overall_health_score, 1);
+        $stars = $alt->repoMetric?->github_stars;
+        $metaY = $y + (min(count($nameLines), 3) * 48) + 36;
+
+        $scoreLine = 'Health '.$score.'/100';
+        if ($useTtf) {
+            imagettftext($im, 22, 0, $x, $metaY, $green, $font, $scoreLine);
+        } else {
+            imagestring($im, 4, $x, $metaY - 20, $scoreLine, $green);
+        }
+
+        $bits = [];
+        if ($alt->license_type) {
+            $bits[] = $alt->license_type;
+        }
+        if ($stars) {
+            $bits[] = '★ '.number_format((int) $stars);
+        }
+        if ($alt->primary_language) {
+            $bits[] = $alt->primary_language;
+        }
+        $meta = implode('  ·  ', $bits);
+        if ($meta !== '') {
+            if ($useTtf) {
+                imagettftext($im, 16, 0, $x, $metaY + 40, $muted, $font, $this->wrap($meta, 28)[0]);
+            } else {
+                imagestring($im, 2, $x, $metaY + 20, substr($meta, 0, 40), $muted);
+            }
+        }
+    }
+
     protected function paint(string $path, string $title, string $subtitle, string $meta, ?string $badge): void
     {
         $w = self::WIDTH;
         $h = self::HEIGHT;
         $im = imagecreatetruecolor($w, $h);
 
-        // Background gradient-ish: dark slate
-        $bg = imagecolorallocate($im, 15, 23, 42); // slate-950
+        $bg = imagecolorallocate($im, 15, 23, 42);
         imagefilledrectangle($im, 0, 0, $w, $h, $bg);
 
-        // Accent bar top
-        $accent = imagecolorallocate($im, 79, 70, 229); // indigo-600
+        $accent = imagecolorallocate($im, 79, 70, 229);
         imagefilledrectangle($im, 0, 0, $w, 8, $accent);
 
-        // Soft orb
         $orb = imagecolorallocatealpha($im, 99, 102, 241, 100);
         imagefilledellipse($im, 980, 120, 420, 420, $orb);
 
@@ -150,7 +302,6 @@ class OgImageService
         $font = $this->fontPath();
         $useTtf = $font !== null && function_exists('imagettftext');
 
-        // Brand mark
         if ($useTtf) {
             imagettftext($im, 22, 0, 72, 80, $brand, $font, 'Alternova');
         } else {
@@ -166,7 +317,6 @@ class OgImageService
             }
         }
 
-        // Title (wrap roughly)
         $titleLines = $this->wrap($title, 28);
         $y = $badge ? 210 : 180;
         foreach ($titleLines as $i => $line) {
@@ -201,7 +351,6 @@ class OgImageService
             }
         }
 
-        // Footer domain
         $host = parse_url((string) config('app.url'), PHP_URL_HOST) ?: 'alternova';
         if ($useTtf) {
             imagettftext($im, 16, 0, 72, 600, $muted, $font, $host);
