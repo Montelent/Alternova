@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\HealthHistoryService;
 use App\Services\SeoManager;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -84,14 +85,16 @@ class OpenSourceAlternative extends Model
         return $this->hasMany(AlternativeVote::class);
     }
 
+    public function healthSnapshots(): HasMany
+    {
+        return $this->hasMany(HealthScoreSnapshot::class);
+    }
+
     public function getRouteKeyName(): string
     {
         return 'slug';
     }
 
-    /**
-     * Active paid / sponsored placement (not expired).
-     */
     public function hasActiveSponsorship(): bool
     {
         if (! $this->is_sponsored) {
@@ -126,6 +129,17 @@ class OpenSourceAlternative extends Model
 
         if ($record) {
             return $record;
+        }
+
+        try {
+            $redirect = ScreenshotRedirect::query()->where('old_slug', $value)->first();
+            if ($redirect) {
+                return static::query()
+                    ->where('slug', $redirect->new_slug)
+                    ->where('is_published', true)
+                    ->first();
+            }
+        } catch (\Throwable) {
         }
 
         try {
@@ -209,6 +223,12 @@ class OpenSourceAlternative extends Model
         $score = round(min($starsScore + $forksScore + $issuesScore + $recencyScore, 100), 2);
 
         $this->forceFill(['overall_health_score' => $score])->save();
+
+        try {
+            $this->setRelation('repoMetric', $metric);
+            app(HealthHistoryService::class)->record($this, $score);
+        } catch (\Throwable) {
+        }
 
         return $score;
     }
