@@ -16,7 +16,7 @@ class DomainCheckService
     public function check(string $domain): array
     {
         $domain = strtolower(trim($domain));
-        $cacheKey = 'domain_check:' . $domain;
+        $cacheKey = 'domain_check:'.$domain;
 
         return Cache::remember($cacheKey, now()->addHours(24), function () use ($domain) {
             $hasDns = $this->hasDnsRecords($domain);
@@ -60,19 +60,18 @@ class DomainCheckService
     }
 
     /**
-     * Build registrar affiliate / search links for a domain.
+     * Tracked registrar links (go through /go/{provider} for analytics).
      *
      * @return array<string, string>
      */
     public function affiliateLinks(string $domain): array
     {
         $domain = strtolower(trim($domain));
-        $encoded = rawurlencode($domain);
 
         return [
-            'namecheap' => 'https://www.namecheap.com/domains/registration/results/?domain=' . $encoded,
-            'porkbun' => 'https://porkbun.com/checkout/search?q=' . $encoded,
-            'godaddy' => 'https://www.godaddy.com/domainsearch/find?domainToCheck=' . $encoded,
+            'namecheap' => url('/go/namecheap?domain='.rawurlencode($domain)),
+            'porkbun' => url('/go/porkbun?domain='.rawurlencode($domain)),
+            'godaddy' => url('/go/godaddy?domain='.rawurlencode($domain)),
         ];
     }
 
@@ -81,7 +80,7 @@ class DomainCheckService
         try {
             $types = ['A', 'AAAA', 'NS', 'CNAME', 'MX'];
             foreach ($types as $type) {
-                $records = @dns_get_record($domain, constant('DNS_' . $type));
+                $records = @dns_get_record($domain, constant('DNS_'.$type));
                 if (! empty($records)) {
                     return true;
                 }
@@ -92,7 +91,7 @@ class DomainCheckService
                 return true;
             }
         } catch (\Throwable $e) {
-            Log::debug('DNS check error for ' . $domain . ': ' . $e->getMessage());
+            Log::debug('DNS check error for '.$domain.': '.$e->getMessage());
         }
 
         return false;
@@ -108,7 +107,7 @@ class DomainCheckService
 
         foreach ($endpoints as $base) {
             try {
-                $url = rtrim($base, '/') . '/domain/' . $domain;
+                $url = rtrim($base, '/').'/domain/'.$domain;
                 $response = Http::timeout(4)
                     ->connectTimeout(3)
                     ->withHeaders(['Accept' => 'application/rdap+json, application/json'])
@@ -129,7 +128,7 @@ class DomainCheckService
                     }
                 }
             } catch (\Throwable $e) {
-                Log::debug('RDAP check failed for ' . $domain . ': ' . $e->getMessage());
+                Log::debug('RDAP check failed for '.$domain.': '.$e->getMessage());
             }
         }
 
