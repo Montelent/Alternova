@@ -8,9 +8,11 @@ use App\Models\ProprietaryTool;
 use App\Models\SiteSetting;
 use App\Services\AlternativeCsvImporter;
 use App\Services\DemoDataSeeder;
+use App\Services\JsonCatalogRestorer;
 use App\Services\LinkHealthService;
 use App\Support\Installer;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Toggle;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
@@ -55,6 +57,8 @@ class SystemTools extends Page implements HasForms
     {
         $this->form->fill([
             'csv' => "proprietary_name,alternative_name,repo_url,website_url,description,license_type,difficulty,language,published,featured\n",
+            'restore_json' => '',
+            'overwrite_settings' => false,
         ]);
 
         try {
@@ -70,8 +74,16 @@ class SystemTools extends Page implements HasForms
             ->schema([
                 Textarea::make('csv')
                     ->label('CSV content')
-                    ->rows(10)
+                    ->rows(8)
                     ->helperText('Headers: proprietary_name, alternative_name, repo_url, website_url, description, license_type, difficulty, language, published, featured'),
+                Textarea::make('restore_json')
+                    ->label('JSON backup content')
+                    ->rows(8)
+                    ->helperText('Paste the contents of an Alternova JSON backup file exported from this page.'),
+                Toggle::make('overwrite_settings')
+                    ->label('Also restore site settings from backup')
+                    ->helperText('Off = only tools/alternatives/redirects. On = also overwrite Ad, Mail, SEO keys from the file.')
+                    ->default(false),
             ])
             ->statePath('data');
     }
@@ -118,6 +130,27 @@ class SystemTools extends Page implements HasForms
                 }
             }
 
+            if (Schema::hasTable('open_source_alternatives')) {
+                if (! Schema::hasColumn('open_source_alternatives', 'is_sponsored')) {
+                    Schema::table('open_source_alternatives', function (Blueprint $t) {
+                        $t->boolean('is_sponsored')->default(false);
+                    });
+                    $added[] = 'open_source_alternatives.is_sponsored';
+                }
+                if (! Schema::hasColumn('open_source_alternatives', 'sponsored_until')) {
+                    Schema::table('open_source_alternatives', function (Blueprint $t) {
+                        $t->timestamp('sponsored_until')->nullable();
+                    });
+                    $added[] = 'open_source_alternatives.sponsored_until';
+                }
+                if (! Schema::hasColumn('open_source_alternatives', 'sponsor_label')) {
+                    Schema::table('open_source_alternatives', function (Blueprint $t) {
+                        $t->string('sponsor_label', 80)->nullable();
+                    });
+                    $added[] = 'open_source_alternatives.sponsor_label';
+                }
+            }
+
             if (! Schema::hasTable('admin_activity_logs')) {
                 Schema::create('admin_activity_logs', function (Blueprint $table) {
                     $table->id();
@@ -159,7 +192,7 @@ class SystemTools extends Page implements HasForms
             }
 
             $this->lastOutput = $added === []
-                ? 'All SEO columns and support tables already exist. Nothing to repair.'
+                ? 'All columns and support tables already exist. Nothing to repair.'
                 : 'Added: '.implode(', ', $added);
 
             Notification::make()
@@ -202,6 +235,18 @@ class SystemTools extends Page implements HasForms
         } catch (\Throwable $e) {
             $this->lastOutput = $e->getMessage();
             Notification::make()->title('Dry run failed')->body($e->getMessage())->danger()->send();
+        }
+    }
+
+    public function expireSponsored(): void
+    {
+        try {
+            Artisan::call('alternova:expire-sponsored');
+            $this->lastOutput = Artisan::output();
+            Notification::make()->title('Sponsored expiry run')->body(trim($this->lastOutput))->success()->send();
+        } catch (\Throwable $e) {
+            $this->lastOutput = $e->getMessage();
+            Notification::make()->title('Expire failed')->body($e->getMessage())->danger()->send();
         }
     }
 
@@ -295,6 +340,28 @@ class SystemTools extends Page implements HasForms
         $result = app(AlternativeCsvImporter::class)->importFromString($csv);
         $this->lastOutput = "Imported {$result['imported']}, skipped {$result['skipped']}.\n".implode("\n", $result['errors']);
         Notification::make()->title('CSV import')->body("Imported {$result['imported']} row(s).")->success()->send();
+    }
+
+    public function restoreJsonBackup(): void
+    {
+        $raw = (string) ($this->form->getState()['restore_json'] ?? '');
+        $overwrite = (bool) ($this->form->getState()['overwrite_settings'] ?? false);
+
+        $payload = json_decode($raw, true);
+        if (! is_array($payload)) {
+            Notification::make()->title('Invalid JSON')->body('Paste a valid Alternova backup file.')->danger()->send();
+
+            return;
+        }
+
+        try {
+            $result = app(JsonCatalogRestorer::class)->restore($payload, $overwrite);
+            $this->lastOutput = $result['message'];
+            Notification::make()->title('Backup restored')->body($result['message'])->success()->send();
+        } catch (\Throwable $e) {
+            $this->lastOutput = $e->getMessage();
+            Notification::make()->title('Restore failed')->body($e->getMessage())->danger()->send();
+        }
     }
 
     public function exportCatalog(): StreamedResponse
