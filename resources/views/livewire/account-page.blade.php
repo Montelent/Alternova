@@ -62,6 +62,66 @@
         </section>
     </div>
 
+    <section class="mb-12 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
+        <h2 class="text-lg font-semibold mb-1">API keys</h2>
+        <p class="text-sm text-slate-500 mb-4">
+            Authenticated requests get <strong>600 req/min</strong> (anonymous: 60).
+            Send <code class="text-xs bg-slate-100 dark:bg-slate-800 px-1 rounded">Authorization: Bearer YOUR_KEY</code>
+            or <code class="text-xs bg-slate-100 dark:bg-slate-800 px-1 rounded">X-Api-Key</code>.
+        </p>
+
+        @if($apiKeyMessage)
+            <p class="mb-3 text-sm text-emerald-600">{{ $apiKeyMessage }}</p>
+        @endif
+
+        @if($newPlainKey)
+            <div class="mb-4 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700 p-4">
+                <p class="text-xs font-semibold text-amber-800 dark:text-amber-200 mb-2">Copy this key now — it will not be shown again</p>
+                <code class="block break-all text-sm font-mono text-slate-900 dark:text-white">{{ $newPlainKey }}</code>
+            </div>
+        @endif
+
+        <form wire:submit="createApiKey" class="flex flex-col sm:flex-row gap-3 mb-6">
+            <input type="text" wire:model="apiKeyName" placeholder="Key label"
+                class="flex-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+            <button type="submit" class="rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold px-4 py-2 text-sm transition shrink-0">
+                Create key
+            </button>
+        </form>
+        @error('apiKeyName') <p class="mb-3 text-xs text-rose-600">{{ $message }}</p> @enderror
+
+        @if($apiKeys->isEmpty())
+            <p class="text-sm text-slate-500">No keys yet.</p>
+        @else
+            <ul class="space-y-3">
+                @foreach($apiKeys as $key)
+                    <li class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-xl border border-slate-200 dark:border-slate-800 px-4 py-3">
+                        <div>
+                            <p class="font-medium text-sm">{{ $key->name }}</p>
+                            <p class="text-xs text-slate-500 font-mono">{{ $key->key_prefix }}… · {{ $key->request_count }} requests
+                                @if($key->last_used_at) · last {{ $key->last_used_at->diffForHumans() }} @endif
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            @if($key->revoked_at)
+                                <span class="text-xs text-rose-500 font-medium">Revoked</span>
+                            @else
+                                <span class="text-xs text-emerald-600 font-medium">Active</span>
+                                <button type="button" wire:click="revokeApiKey({{ $key->id }})"
+                                    wire:confirm="Revoke this API key? Apps using it will stop working."
+                                    class="text-xs text-slate-400 hover:text-rose-500">Revoke</button>
+                            @endif
+                        </div>
+                    </li>
+                @endforeach
+            </ul>
+        @endif
+
+        <p class="mt-4 text-xs text-slate-400">
+            Example: <code>curl -H "Authorization: Bearer alt_…" {{ url('/api/alternatives') }}</code>
+        </p>
+    </section>
+
     <section class="mb-12">
         <div class="flex items-center justify-between mb-4">
             <h2 class="text-xl font-semibold">Favorites</h2>

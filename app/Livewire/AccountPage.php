@@ -2,10 +2,12 @@
 
 namespace App\Livewire;
 
+use App\Models\ApiKey;
 use App\Services\FavoriteService;
 use App\Services\SavedDomainService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rules\Password;
 use Livewire\Component;
 
@@ -24,6 +26,12 @@ class AccountPage extends Component
     public string $profileMessage = '';
 
     public string $passwordMessage = '';
+
+    public string $apiKeyName = 'Default';
+
+    public string $apiKeyMessage = '';
+
+    public ?string $newPlainKey = null;
 
     public function mount(): void
     {
@@ -80,6 +88,50 @@ class AccountPage extends Component
         $this->profileMessage = '';
     }
 
+    public function createApiKey(): void
+    {
+        if (! Schema::hasTable('api_keys')) {
+            $this->apiKeyMessage = 'Run migrations to enable API keys.';
+
+            return;
+        }
+
+        $this->validate([
+            'apiKeyName' => 'required|string|max:80',
+        ]);
+
+        $user = Auth::user();
+        $activeCount = ApiKey::query()
+            ->where('user_id', $user->id)
+            ->whereNull('revoked_at')
+            ->count();
+
+        if ($activeCount >= 5) {
+            $this->apiKeyMessage = 'Maximum of 5 active keys. Revoke one first.';
+
+            return;
+        }
+
+        $issued = ApiKey::issue($user, $this->apiKeyName);
+        $this->newPlainKey = $issued['plain'];
+        $this->apiKeyMessage = 'Key created — copy it now. It will not be shown again.';
+        $this->apiKeyName = 'Default';
+    }
+
+    public function revokeApiKey(int $id): void
+    {
+        $key = ApiKey::query()
+            ->where('user_id', Auth::id())
+            ->where('id', $id)
+            ->first();
+
+        if ($key && $key->isActive()) {
+            $key->revoke();
+            $this->apiKeyMessage = 'Key revoked.';
+            $this->newPlainKey = null;
+        }
+    }
+
     public function removeFavorite(int $id): void
     {
         $alt = \App\Models\OpenSourceAlternative::query()->find($id);
@@ -100,13 +152,25 @@ class AccountPage extends Component
     {
         $user = Auth::user();
 
+        $apiKeys = collect();
+        try {
+            if (Schema::hasTable('api_keys')) {
+                $apiKeys = ApiKey::query()
+                    ->where('user_id', $user->id)
+                    ->orderByDesc('created_at')
+                    ->get();
+            }
+        } catch (\Throwable) {
+        }
+
         return view('livewire.account-page', [
             'user' => $user,
             'favorites' => app(FavoriteService::class)->list(),
             'domains' => app(SavedDomainService::class)->list(),
+            'apiKeys' => $apiKeys,
         ])->layout('layouts.app', [
             'title' => 'Your account | Alternova',
-            'description' => 'Manage profile, password, favorites, and saved domains.',
+            'description' => 'Manage profile, password, API keys, favorites, and saved domains.',
             'robots' => 'noindex,follow',
         ]);
     }

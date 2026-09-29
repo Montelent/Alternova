@@ -84,7 +84,7 @@ Route::get('/feed', [FeedController::class, 'rss'])->name('feed.rss');
 Route::get('/feed/rss', [FeedController::class, 'rss']);
 Route::get('/feed/atom', [FeedController::class, 'atom'])->name('feed.atom');
 
-Route::prefix('api')->middleware('throttle:60,1')->group(function () {
+Route::prefix('api')->middleware(['api.key', 'api.throttle'])->group(function () {
     Route::get('/alternatives', [AlternativeApiController::class, 'index'])->name('api.alternatives.index');
     Route::get('/alternatives/{slug}', [AlternativeApiController::class, 'show'])->name('api.alternatives.show');
     Route::get('/suggest', SearchSuggestController::class)->name('api.suggest');
