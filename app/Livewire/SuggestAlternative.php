@@ -2,7 +2,11 @@
 
 namespace App\Livewire;
 
+use App\Mail\NewSubmissionMail;
 use App\Models\AlternativeSubmission;
+use App\Models\SiteSetting;
+use App\Models\User;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -84,12 +88,14 @@ class SuggestAlternative extends Component
 
         $token = Str::random(40);
 
-        AlternativeSubmission::create([
+        $submission = AlternativeSubmission::create([
             ...$data,
             'status' => 'pending',
             'tracking_token' => $token,
             'ip_address' => request()->ip(),
         ]);
+
+        $this->notifyAdmins($submission);
 
         $this->trackingToken = $token;
         $this->trackingUrl = route('submissions.status', $token);
@@ -107,6 +113,31 @@ class SuggestAlternative extends Component
         ]);
 
         $this->submitted = true;
+    }
+
+    protected function notifyAdmins(AlternativeSubmission $submission): void
+    {
+        try {
+            $to = SiteSetting::get('mail_from_address')
+                ?: config('mail.from.address');
+
+            // Prefer first admin user email
+            $adminEmail = User::query()
+                ->where(function ($q) {
+                    $q->where('role', 'admin')->orWhere('is_admin', true);
+                })
+                ->value('email');
+
+            $recipient = $adminEmail ?: $to;
+
+            if (! $recipient || ! filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+                return;
+            }
+
+            Mail::to($recipient)->send(new NewSubmissionMail($submission));
+        } catch (\Throwable) {
+            // Mail not configured — ignore
+        }
     }
 
     public function render()

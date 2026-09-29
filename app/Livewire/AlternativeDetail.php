@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\OpenSourceAlternative;
+use App\Models\SlugRedirect;
 use App\Services\CompareBasket;
 use App\Services\FavoriteService;
 use App\Services\RecentlyViewedService;
@@ -31,11 +32,49 @@ class AlternativeDetail extends Component
 
     public ?string $compareUrl = null;
 
-    public function mount(OpenSourceAlternative $alternative): void
+    public function mount(string $alternative): void
     {
-        abort_unless($alternative->is_published, 404);
+        $requestedSlug = $alternative;
 
-        $this->alternative = $alternative->load(['proprietaryTool', 'repoMetric', 'tags']);
+        $record = OpenSourceAlternative::query()
+            ->where('slug', $requestedSlug)
+            ->where('is_published', true)
+            ->first();
+
+        if (! $record) {
+            try {
+                $redirect = SlugRedirect::query()
+                    ->where('old_slug', $requestedSlug)
+                    ->where(function ($q) {
+                        $q->where('model_type', 'alternative')->orWhereNull('model_type');
+                    })
+                    ->first();
+
+                if ($redirect) {
+                    $target = OpenSourceAlternative::query()
+                        ->where('slug', $redirect->new_slug)
+                        ->where('is_published', true)
+                        ->first();
+
+                    if ($target) {
+                        $this->redirect(route('alternatives.show', $target), navigate: false);
+
+                        // Force HTTP 301 for SEO
+                        abort(redirect()->to(route('alternatives.show', $target), 301));
+                    }
+                }
+            } catch (\Throwable) {
+            }
+
+            abort(404);
+        }
+
+        // If binding somehow returned via old path with different slug, still 301
+        if ($record->slug !== $requestedSlug) {
+            abort(redirect()->to(route('alternatives.show', $record), 301));
+        }
+
+        $this->alternative = $record->load(['proprietaryTool', 'repoMetric', 'tags']);
         $this->votesCount = (int) ($this->alternative->votes_count ?? 0);
 
         try {
@@ -127,7 +166,6 @@ class AlternativeDetail extends Component
         $description = $seo->alternativeDescription($alt);
         $canonical = $alt->canonical_url ?: route('alternatives.show', $alt);
 
-        // Same proprietary product first
         $related = OpenSourceAlternative::query()
             ->with(['repoMetric'])
             ->where('is_published', true)
@@ -141,7 +179,6 @@ class AlternativeDetail extends Component
             ->limit(6)
             ->get();
 
-        // Fill remaining slots with same category tags
         if ($related->count() < 6) {
             $categoryNames = $alt->tags->where('type', 'category')->pluck('name')->all();
             if ($categoryNames !== []) {
