@@ -14,7 +14,10 @@ use App\Http\Controllers\PageController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\SubmissionStatusController;
 use App\Http\Controllers\WhatsNewController;
+use App\Livewire\AccountPage;
 use App\Livewire\AlternativeDetail;
+use App\Livewire\Auth\Login;
+use App\Livewire\Auth\Register;
 use App\Livewire\CompareAlternatives;
 use App\Livewire\ContactForm;
 use App\Livewire\DomainCombinator;
@@ -49,6 +52,10 @@ Route::get('/og/tool/{slug}', [OgImageController::class, 'tool'])
 
 Route::get('/whats-new', WhatsNewController::class)->name('whats-new');
 Route::get('/favorites', FavoritesPage::class)->name('favorites');
+
+Route::get('/login', Login::class)->name('login')->middleware('guest');
+Route::get('/register', Register::class)->name('register')->middleware('guest');
+Route::get('/account', AccountPage::class)->name('account');
 
 Route::get('/badge/{slug}/health.svg', [BadgeController::class, 'health'])->name('badge.health');
 

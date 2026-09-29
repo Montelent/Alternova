@@ -7,6 +7,7 @@ use App\Models\SavedDomain;
 use App\Services\DomainCheckService;
 use App\Services\DomainCombinatorService;
 use App\Services\SeoManager;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -66,9 +67,17 @@ class DomainCombinator extends Component
     public function loadSaved(): void
     {
         try {
-            $this->saved = SavedDomain::query()
-                ->where('session_id', $this->sessionKey())
-                ->orderByDesc('created_at')
+            $q = SavedDomain::query();
+            if (Auth::id()) {
+                $q->where(function ($inner) {
+                    $inner->where('user_id', Auth::id())
+                        ->orWhere('session_id', $this->sessionKey());
+                });
+            } else {
+                $q->where('session_id', $this->sessionKey());
+            }
+
+            $this->saved = $q->orderByDesc('created_at')
                 ->limit(100)
                 ->get()
                 ->map(fn (SavedDomain $d) => [
@@ -76,6 +85,8 @@ class DomainCombinator extends Component
                     'score' => $d->brandability,
                     'status' => $d->status,
                 ])
+                ->unique('domain')
+                ->values()
                 ->all();
         } catch (\Throwable) {
             $this->saved = [];
@@ -85,17 +96,25 @@ class DomainCombinator extends Component
     public function toggleSave(string $domain, int $score = 0, string $status = ''): void
     {
         $sid = $this->sessionKey();
+        $uid = Auth::id();
 
-        $existing = SavedDomain::query()
-            ->where('session_id', $sid)
-            ->where('domain', $domain)
-            ->first();
+        $q = SavedDomain::query()->where('domain', $domain);
+        if ($uid) {
+            $q->where(function ($inner) use ($uid, $sid) {
+                $inner->where('user_id', $uid)->orWhere('session_id', $sid);
+            });
+        } else {
+            $q->where('session_id', $sid);
+        }
+
+        $existing = $q->first();
 
         if ($existing) {
             $existing->delete();
         } else {
             SavedDomain::create([
                 'session_id' => $sid,
+                'user_id' => $uid,
                 'domain' => $domain,
                 'brandability' => $score ?: null,
                 'status' => $status ?: null,
@@ -107,7 +126,16 @@ class DomainCombinator extends Component
 
     public function clearSaved(): void
     {
-        SavedDomain::query()->where('session_id', $this->sessionKey())->delete();
+        $q = SavedDomain::query();
+        if (Auth::id()) {
+            $q->where(function ($inner) {
+                $inner->where('user_id', Auth::id())
+                    ->orWhere('session_id', $this->sessionKey());
+            });
+        } else {
+            $q->where('session_id', $this->sessionKey());
+        }
+        $q->delete();
         $this->saved = [];
     }
 

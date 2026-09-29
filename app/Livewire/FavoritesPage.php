@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Services\FavoriteService;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 class FavoritesPage extends Component
@@ -23,12 +24,16 @@ class FavoritesPage extends Component
     public function render()
     {
         $favorites = app(FavoriteService::class)->list();
+        $synced = Auth::check();
 
         return view('livewire.favorites-page', [
             'favorites' => $favorites,
+            'synced' => $synced,
         ])->layout('layouts.app', [
             'title' => 'Your favorites | Alternova',
-            'description' => 'Open-source alternatives you saved on this device.',
+            'description' => $synced
+                ? 'Open-source alternatives saved to your Alternova account.'
+                : 'Open-source alternatives saved on this device. Sign in to sync across devices.',
             'robots' => 'noindex,follow',
         ]);
     }

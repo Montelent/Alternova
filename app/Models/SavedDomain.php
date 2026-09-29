@@ -11,7 +11,12 @@ class SavedDomain extends Model
         'user_id',
         'session_id',
         'domain',
+        'brandability',
         'status',
+    ];
+
+    protected $casts = [
+        'brandability' => 'integer',
     ];
 
     public function user(): BelongsTo
