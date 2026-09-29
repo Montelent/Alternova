@@ -20,7 +20,19 @@
             theme: {
                 extend: {
                     colors: {
-                        brand: { 50:'#eef2ff',100:'#e0e7ff',500:'#6366f1',600:'#4f46e5',700:'#4338ca',900:'#312e81' }
+                        brand: {
+                            50:  '#eef2ff',
+                            100: '#e0e7ff',
+                            200: '#c7d2fe',
+                            300: '#a5b4fc',
+                            400: '#818cf8',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            800: '#3730a3',
+                            900: '#312e81',
+                            950: '#1e1b4b',
+                        }
                     },
                     fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
                 }
@@ -32,8 +44,8 @@
 <body class="font-sans bg-slate-950 text-white antialiased">
     <header class="fixed inset-x-0 top-0 z-50 border-b border-white/5 bg-slate-950/80 backdrop-blur-xl">
         <div class="mx-auto max-w-6xl px-4 sm:px-6 h-16 flex items-center justify-between">
-            <a href="/" class="flex items-center gap-2 font-bold text-lg tracking-tight">
-                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-sm">A</span>
+            <a href="/" class="flex items-center gap-2 font-bold text-lg tracking-tight text-white">
+                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-sm text-white">A</span>
                 Alternova
             </a>
             <nav class="hidden sm:flex items-center gap-6 text-sm text-slate-300">
@@ -42,7 +54,7 @@
                 <a href="{{ route('suggest') }}" class="hover:text-white transition">Suggest</a>
                 <a href="{{ route('about') }}" class="hover:text-white transition">About</a>
             </nav>
-            <a href="{{ route('finder') }}" class="rounded-full bg-brand-600 hover:bg-brand-500 px-4 py-2 text-sm font-medium transition">
+            <a href="{{ route('finder') }}" class="rounded-full bg-brand-600 hover:bg-brand-500 px-4 py-2 text-sm font-medium text-white transition">
                 Get started
             </a>
         </div>
@@ -56,19 +68,19 @@
                 <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                 Open source · Self-hostable · Brandable
             </div>
-            <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.1]">
+            <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.1] text-white">
                 Find better tools.<br>
-                <span class="bg-gradient-to-r from-brand-500 to-violet-400 bg-clip-text text-transparent">Name them well.</span>
+                <span class="text-brand-300">Name them well.</span>
             </h1>
             <p class="mt-6 text-lg text-slate-400 max-w-2xl mx-auto leading-relaxed">
                 Discover high-quality open-source alternatives to proprietary software,
                 and generate brandable domain ideas with live availability checks.
             </p>
             <div class="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-                <a href="{{ route('finder') }}" class="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 hover:bg-brand-500 px-6 py-3.5 text-sm font-semibold shadow-lg shadow-brand-600/25 transition">
+                <a href="{{ route('finder') }}" class="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 hover:bg-brand-500 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-brand-600/25 transition">
                     Browse alternatives
                 </a>
-                <a href="{{ route('domains') }}" class="inline-flex items-center justify-center rounded-xl border border-white/15 hover:border-white/30 bg-white/5 px-6 py-3.5 text-sm font-semibold transition">
+                <a href="{{ route('domains') }}" class="inline-flex items-center justify-center rounded-xl border border-white/15 hover:border-white/30 bg-white/5 px-6 py-3.5 text-sm font-semibold text-white transition">
                     Generate domains
                 </a>
             </div>
@@ -80,10 +92,10 @@
         <div class="mx-auto max-w-6xl px-4 sm:px-6">
             <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10">
                 <div>
-                    <p class="text-sm font-semibold uppercase tracking-wider text-brand-500 mb-2">Editor’s picks</p>
-                    <h2 class="text-2xl sm:text-3xl font-bold tracking-tight">Featured alternatives</h2>
+                    <p class="text-sm font-semibold uppercase tracking-wider text-brand-400 mb-2">Editor’s picks</p>
+                    <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-white">Featured alternatives</h2>
                 </div>
-                <a href="{{ route('finder') }}" class="text-sm font-medium text-brand-500 hover:text-brand-400 shrink-0">View all →</a>
+                <a href="{{ route('finder') }}" class="text-sm font-medium text-brand-300 hover:text-brand-200 shrink-0">View all →</a>
             </div>
             <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 @foreach($featured as $alt)
@@ -100,9 +112,9 @@
             <div class="flex items-end justify-between gap-4 mb-10">
                 <div>
                     <p class="text-sm font-semibold uppercase tracking-wider text-emerald-400 mb-2">Fresh</p>
-                    <h2 class="text-2xl sm:text-3xl font-bold tracking-tight">Recently added</h2>
+                    <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-white">Recently added</h2>
                 </div>
-                <a href="{{ route('finder', ['sort' => 'newest']) }}" class="text-sm font-medium text-brand-500 hover:text-brand-400">Newest →</a>
+                <a href="{{ route('finder', ['sort' => 'newest']) }}" class="text-sm font-medium text-brand-300 hover:text-brand-200">Newest →</a>
             </div>
             <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 @foreach($recent as $alt)
@@ -119,9 +131,9 @@
             <div class="flex items-end justify-between gap-4 mb-10">
                 <div>
                     <p class="text-sm font-semibold uppercase tracking-wider text-amber-400 mb-2">Community</p>
-                    <h2 class="text-2xl sm:text-3xl font-bold tracking-tight">Most voted</h2>
+                    <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-white">Most voted</h2>
                 </div>
-                <a href="{{ route('finder', ['sort' => 'votes']) }}" class="text-sm font-medium text-brand-500 hover:text-brand-400">By votes →</a>
+                <a href="{{ route('finder', ['sort' => 'votes']) }}" class="text-sm font-medium text-brand-300 hover:text-brand-200">By votes →</a>
             </div>
             <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 @foreach($popular as $alt)
@@ -136,14 +148,14 @@
     <section class="py-16 border-t border-white/5">
         <div class="mx-auto max-w-6xl px-4 sm:px-6">
             <div class="mb-10">
-                <p class="text-sm font-semibold uppercase tracking-wider text-violet-400 mb-2">Browse by product</p>
-                <h2 class="text-2xl sm:text-3xl font-bold tracking-tight">Proprietary tools</h2>
+                <p class="text-sm font-semibold uppercase tracking-wider text-violet-300 mb-2">Browse by product</p>
+                <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-white">Proprietary tools</h2>
                 <p class="mt-2 text-slate-400 text-sm">See every open-source option we list for a given product.</p>
             </div>
             <div class="flex flex-wrap gap-3">
                 @foreach($tools as $tool)
                     <a href="{{ route('tools.show', $tool) }}"
-                        class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 hover:border-brand-500/50 hover:bg-brand-600/10 transition">
+                        class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 hover:border-brand-400 hover:bg-brand-600/10 transition">
                         {{ $tool->name }}
                         <span class="text-xs text-slate-500">{{ $tool->alternatives_count }}</span>
                     </a>
@@ -160,19 +172,19 @@
     <section class="py-20 border-t border-white/5">
         <div class="mx-auto max-w-6xl px-4 sm:px-6">
             <div class="text-center mb-14">
-                <h2 class="text-3xl font-bold tracking-tight">Two tools. One platform.</h2>
+                <h2 class="text-3xl font-bold tracking-tight text-white">Two tools. One platform.</h2>
                 <p class="mt-3 text-slate-400">Everything you need to go open-source and launch with a great name.</p>
             </div>
             <div class="grid md:grid-cols-2 gap-6">
-                <a href="{{ route('finder') }}" class="group relative rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.07] to-transparent p-8 hover:border-brand-500/40 transition">
-                    <h3 class="text-xl font-semibold group-hover:text-brand-500 transition">Open Source Finder</h3>
+                <a href="{{ route('finder') }}" class="group relative rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.07] to-transparent p-8 hover:border-brand-400 transition">
+                    <h3 class="text-xl font-semibold text-white group-hover:text-brand-300 transition">Open Source Finder</h3>
                     <p class="mt-2 text-slate-400 text-sm leading-relaxed">Search self-hostable alternatives with health scores, licenses, and deploy links.</p>
-                    <span class="mt-6 inline-flex text-sm font-medium text-brand-500">Explore →</span>
+                    <span class="mt-6 inline-flex text-sm font-medium text-brand-300">Explore →</span>
                 </a>
-                <a href="{{ route('domains') }}" class="group relative rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.07] to-transparent p-8 hover:border-violet-500/40 transition">
-                    <h3 class="text-xl font-semibold group-hover:text-violet-400 transition">Domain Combinator</h3>
+                <a href="{{ route('domains') }}" class="group relative rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.07] to-transparent p-8 hover:border-violet-400 transition">
+                    <h3 class="text-xl font-semibold text-white group-hover:text-violet-300 transition">Domain Combinator</h3>
                     <p class="mt-2 text-slate-400 text-sm leading-relaxed">Generate brandable domains, score them, and check availability.</p>
-                    <span class="mt-6 inline-flex text-sm font-medium text-violet-400">Generate →</span>
+                    <span class="mt-6 inline-flex text-sm font-medium text-violet-300">Generate →</span>
                 </a>
             </div>
         </div>
