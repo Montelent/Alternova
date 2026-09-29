@@ -124,8 +124,30 @@ class OpenSourceAlternativeResource extends Resource
 
                 Forms\Components\Section::make('Publishing')->schema([
                     Forms\Components\Toggle::make('is_published')->label('Published (visible on site)')->default(false),
-                    Forms\Components\Toggle::make('is_featured')->label('Featured')->default(false),
+                    Forms\Components\Toggle::make('is_featured')->label('Editor featured')->default(false),
                 ])->columns(2),
+
+                Forms\Components\Section::make('Sponsored placement')
+                    ->description('Paid / partner spotlight. Shows a Sponsored badge and ranks above organic featured on the homepage until the end date. Auto-expires daily at 00:30.')
+                    ->schema([
+                        Forms\Components\Toggle::make('is_sponsored')
+                            ->label('Sponsored')
+                            ->live()
+                            ->default(false),
+                        Forms\Components\DateTimePicker::make('sponsored_until')
+                            ->label('Sponsored until')
+                            ->native(false)
+                            ->helperText('Leave empty for no expiry. After this time, sponsorship turns off automatically.')
+                            ->visible(fn (Get $get) => (bool) $get('is_sponsored')),
+                        Forms\Components\TextInput::make('sponsor_label')
+                            ->label('Badge label')
+                            ->placeholder('Sponsored')
+                            ->maxLength(40)
+                            ->helperText('Shown on cards (e.g. Partner, Sponsored).')
+                            ->visible(fn (Get $get) => (bool) $get('is_sponsored')),
+                    ])
+                    ->columns(2)
+                    ->collapsed(),
 
                 Forms\Components\Section::make('Technical')->schema([
                     Forms\Components\Select::make('license_type')
@@ -197,12 +219,15 @@ class OpenSourceAlternativeResource extends Resource
                 Tables\Columns\TextColumn::make('repoMetric.github_stars')->label('Stars')->sortable()->toggleable(),
                 Tables\Columns\IconColumn::make('is_published')->boolean()->label('Published'),
                 Tables\Columns\IconColumn::make('is_featured')->boolean()->label('Featured')->toggleable(),
+                Tables\Columns\IconColumn::make('is_sponsored')->boolean()->label('Sponsored')->toggleable(),
+                Tables\Columns\TextColumn::make('sponsored_until')->dateTime()->label('Sponsored until')->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\IconColumn::make('repo_reachable')->boolean()->label('Repo OK')->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\IconColumn::make('website_reachable')->boolean()->label('Site OK')->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 Tables\Filters\TernaryFilter::make('is_published'),
                 Tables\Filters\TernaryFilter::make('is_featured'),
+                Tables\Filters\TernaryFilter::make('is_sponsored'),
                 Tables\Filters\Filter::make('broken_links')
                     ->label('Broken links only')
                     ->query(fn (Builder $q) => $q->where(function (Builder $inner) {

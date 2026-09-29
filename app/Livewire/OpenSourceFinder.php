@@ -6,6 +6,7 @@ use App\Models\OpenSourceAlternative;
 use App\Models\ProprietaryTool;
 use App\Services\SeoManager;
 use App\Support\CategoryCatalog;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -114,6 +115,15 @@ class OpenSourceFinder extends Component
 
         if ($this->toolSlug !== '') {
             $query->whereHas('proprietaryTool', fn ($q) => $q->where('slug', $this->toolSlug));
+        }
+
+        // Boost active sponsorships to the top for default / health sorts
+        $hasSponsored = Schema::hasColumn('open_source_alternatives', 'is_sponsored');
+        if ($hasSponsored && in_array($this->sort, ['health', 'votes'], true)) {
+            $query->orderByRaw(
+                'CASE WHEN is_sponsored = 1 AND (sponsored_until IS NULL OR sponsored_until > ?) THEN 0 ELSE 1 END',
+                [now()]
+            );
         }
 
         $query = match ($this->sort) {
