@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -20,30 +21,44 @@ return new class extends Migration
                 $table->timestamps();
 
                 // Short name — MySQL identifier limit is 64 chars
-                $table->index(['open_source_alternative_id', 'recorded_at'], 'hss_alt_recorded_idx');
+                $table->index(
+                    ['open_source_alternative_id', 'recorded_at'],
+                    'hss_alt_recorded_idx'
+                );
             });
 
             return;
         }
 
-        // Table may exist from a failed earlier run without the composite index
-        Schema::table('health_score_snapshots', function (Blueprint $table) {
-            $sm = Schema::getConnection()->getDoctrineSchemaManager();
-            $indexes = [];
+        // Repair: table may exist from a failed earlier run without a usable composite index
+        if (! $this->hasIndex('health_score_snapshots', 'hss_alt_recorded_idx')) {
             try {
-                $indexes = array_keys($sm->listTableIndexes('health_score_snapshots'));
+                Schema::table('health_score_snapshots', function (Blueprint $table) {
+                    $table->index(
+                        ['open_source_alternative_id', 'recorded_at'],
+                        'hss_alt_recorded_idx'
+                    );
+                });
             } catch (\Throwable) {
-                // Doctrine may be unavailable on some hosts — try adding and ignore duplicate
+                // Index may already exist under another name — safe to continue
             }
+        }
+    }
 
-            if (! in_array('hss_alt_recorded_idx', $indexes, true)
-                && ! in_array('health_score_snapshots_open_source_alternative_id_recorded_at_index', $indexes, true)) {
-                try {
-                    $table->index(['open_source_alternative_id', 'recorded_at'], 'hss_alt_recorded_idx');
-                } catch (\Throwable) {
-                }
-            }
-        });
+    protected function hasIndex(string $table, string $indexName): bool
+    {
+        try {
+            $db = Schema::getConnection()->getDatabaseName();
+            $row = DB::selectOne(
+                'SELECT COUNT(*) AS c FROM information_schema.statistics
+                 WHERE table_schema = ? AND table_name = ? AND index_name = ?',
+                [$db, $table, $indexName]
+            );
+
+            return ((int) ($row->c ?? 0)) > 0;
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     public function down(): void
