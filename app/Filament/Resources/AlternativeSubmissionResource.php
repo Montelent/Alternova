@@ -4,6 +4,8 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\AlternativeSubmissionResource\Pages;
 use App\Jobs\SyncGitHubMetricsJob;
+use App\Mail\SubmissionReviewedMail;
+use App\Models\AdminActivityLog;
 use App\Models\AlternativeSubmission;
 use App\Models\OpenSourceAlternative;
 use App\Models\ProprietaryTool;
@@ -14,6 +16,8 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -28,6 +32,13 @@ class AlternativeSubmissionResource extends Resource
     protected static ?string $navigationLabel = 'Submissions';
 
     protected static ?int $navigationSort = 3;
+
+    protected static ?string $recordTitleAttribute = 'alternative_name';
+
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['alternative_name', 'proprietary_name', 'repo_url', 'submitter_email'];
+    }
 
     public static function getNavigationBadge(): ?string
     {
@@ -101,6 +112,8 @@ class AlternativeSubmissionResource extends Resource
                     ->color('success')
                     ->visible(fn (AlternativeSubmission $record) => $record->status === 'pending')
                     ->requiresConfirmation()
+                    ->modalHeading('Approve and publish?')
+                    ->modalDescription('Creates the proprietary tool if needed, publishes the alternative, and syncs GitHub metrics.')
                     ->action(function (AlternativeSubmission $record) {
                         static::approveSubmission($record);
                     }),
@@ -115,18 +128,63 @@ class AlternativeSubmissionResource extends Resource
                             'reviewed_by' => auth()->id(),
                             'reviewed_at' => now(),
                         ]);
+                        static::notifySubmitter($record);
+                        AdminActivityLog::record('rejected', null, [], $record->alternative_name);
                         Notification::make()->title('Submission rejected')->success()->send();
                     }),
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\BulkAction::make('approveSelected')
+                        ->label('Approve & create')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->action(function (Collection $records) {
+                            $ok = 0;
+                            foreach ($records as $record) {
+                                if ($record->status !== 'pending') {
+                                    continue;
+                                }
+                                try {
+                                    static::approveSubmission($record, quiet: true);
+                                    $ok++;
+                                } catch (\Throwable) {
+                                }
+                            }
+                            Notification::make()
+                                ->title("Approved {$ok} submission(s)")
+                                ->success()
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
+                    Tables\Actions\BulkAction::make('rejectSelected')
+                        ->label('Reject')
+                        ->icon('heroicon-o-x-circle')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->action(function (Collection $records) {
+                            foreach ($records as $record) {
+                                if ($record->status !== 'pending') {
+                                    continue;
+                                }
+                                $record->update([
+                                    'status' => 'rejected',
+                                    'reviewed_by' => auth()->id(),
+                                    'reviewed_at' => now(),
+                                ]);
+                                static::notifySubmitter($record);
+                            }
+                            Notification::make()->title('Selected submissions rejected')->success()->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
     }
 
-    public static function approveSubmission(AlternativeSubmission $record): void
+    public static function approveSubmission(AlternativeSubmission $record, bool $quiet = false): void
     {
         $prop = ProprietaryTool::query()->firstOrCreate(
             ['slug' => Str::slug($record->proprietary_name)],
@@ -179,8 +237,11 @@ class AlternativeSubmissionResource extends Resource
 
         try {
             SyncGitHubMetricsJob::dispatchSync($alt);
-        } catch (\Throwable $e) {
-            SyncGitHubMetricsJob::dispatch($alt);
+        } catch (\Throwable) {
+            try {
+                SyncGitHubMetricsJob::dispatch($alt);
+            } catch (\Throwable) {
+            }
         }
 
         $record->update([
@@ -190,11 +251,28 @@ class AlternativeSubmissionResource extends Resource
             'created_alternative_id' => $alt->id,
         ]);
 
-        Notification::make()
-            ->title('Approved')
-            ->body($alt->name.' was created, published, and synced from GitHub.')
-            ->success()
-            ->send();
+        static::notifySubmitter($record);
+        AdminActivityLog::record('published', $alt, ['from_submission' => $record->id]);
+
+        if (! $quiet) {
+            Notification::make()
+                ->title('Approved')
+                ->body($alt->name.' was created, published, and synced from GitHub.')
+                ->success()
+                ->send();
+        }
+    }
+
+    protected static function notifySubmitter(AlternativeSubmission $record): void
+    {
+        if (! $record->submitter_email || ! filter_var($record->submitter_email, FILTER_VALIDATE_EMAIL)) {
+            return;
+        }
+
+        try {
+            Mail::to($record->submitter_email)->send(new SubmissionReviewedMail($record));
+        } catch (\Throwable) {
+        }
     }
 
     public static function getPages(): array
