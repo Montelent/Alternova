@@ -13,9 +13,12 @@ class ProprietaryToolShow extends Component
 {
     public ProprietaryTool $tool;
 
-    public function mount(string $tool): void
+    /**
+     * Route param is {slug} — must not match property name $tool (Livewire implicit binding).
+     */
+    public function mount(string $slug): void
     {
-        $requestedSlug = $tool;
+        $requestedSlug = trim($slug);
 
         $record = ProprietaryTool::query()
             ->where('slug', $requestedSlug)
@@ -24,10 +27,13 @@ class ProprietaryToolShow extends Component
 
         if (! $record) {
             try {
-                $redirect = SlugRedirect::query()
-                    ->where('old_slug', $requestedSlug)
-                    ->where('model_type', 'tool')
-                    ->first();
+                $redirect = null;
+                if (class_exists(SlugRedirect::class)) {
+                    $redirect = SlugRedirect::query()
+                        ->where('old_slug', $requestedSlug)
+                        ->where('model_type', 'tool')
+                        ->first();
+                }
 
                 if ($redirect) {
                     $target = ProprietaryTool::query()
@@ -49,11 +55,19 @@ class ProprietaryToolShow extends Component
             abort(404);
         }
 
-        $this->tool = $record->load([
-            'publishedAlternatives' => fn ($q) => $q
-                ->with(['repoMetric', 'tags'])
-                ->orderByDesc('overall_health_score'),
-        ]);
+        try {
+            $this->tool = $record->load([
+                'publishedAlternatives' => fn ($q) => $q
+                    ->with(['repoMetric', 'tags'])
+                    ->orderByDesc('overall_health_score'),
+            ]);
+        } catch (\Throwable) {
+            $this->tool = $record->load([
+                'publishedAlternatives' => fn ($q) => $q
+                    ->with(['repoMetric'])
+                    ->orderByDesc('overall_health_score'),
+            ]);
+        }
     }
 
     public function render()
