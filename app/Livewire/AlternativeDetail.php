@@ -9,6 +9,7 @@ use App\Services\FavoriteService;
 use App\Services\RecentlyViewedService;
 use App\Services\SeoManager;
 use App\Services\VoteService;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Component;
 
@@ -46,7 +47,9 @@ class AlternativeDetail extends Component
                 $redirect = SlugRedirect::query()
                     ->where('old_slug', $requestedSlug)
                     ->where(function ($q) {
-                        $q->where('model_type', 'alternative')->orWhereNull('model_type');
+                        $q->where('model_type', 'alternative')
+                            ->orWhereNull('model_type')
+                            ->orWhere('model_type', '');
                     })
                     ->first();
 
@@ -57,21 +60,17 @@ class AlternativeDetail extends Component
                         ->first();
 
                     if ($target) {
-                        $this->redirect(route('alternatives.show', $target), navigate: false);
-
-                        // Force HTTP 301 for SEO
-                        abort(redirect()->to(route('alternatives.show', $target), 301));
+                        throw new HttpResponseException(
+                            redirect()->to(route('alternatives.show', $target), 301)
+                        );
                     }
                 }
+            } catch (HttpResponseException $e) {
+                throw $e;
             } catch (\Throwable) {
             }
 
             abort(404);
-        }
-
-        // If binding somehow returned via old path with different slug, still 301
-        if ($record->slug !== $requestedSlug) {
-            abort(redirect()->to(route('alternatives.show', $record), 301));
         }
 
         $this->alternative = $record->load(['proprietaryTool', 'repoMetric', 'tags']);

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\OpenSourceAlternativeResource\Pages;
 
 use App\Filament\Resources\OpenSourceAlternativeResource;
+use App\Models\AdminActivityLog;
 use App\Models\OpenSourceAlternative;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
@@ -30,5 +31,15 @@ class CreateOpenSourceAlternative extends CreateRecord
         }
 
         return $data;
+    }
+
+    protected function afterCreate(): void
+    {
+        $tags = $this->form->getState()['category_tags'] ?? [];
+        if (is_array($tags) && $tags !== []) {
+            $this->record->syncTagsWithType($tags, 'category');
+        }
+
+        AdminActivityLog::record('created', $this->record);
     }
 }

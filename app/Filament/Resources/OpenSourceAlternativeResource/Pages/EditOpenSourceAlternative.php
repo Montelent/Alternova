@@ -3,9 +3,12 @@
 namespace App\Filament\Resources\OpenSourceAlternativeResource\Pages;
 
 use App\Filament\Resources\OpenSourceAlternativeResource;
+use App\Models\AdminActivityLog;
 use App\Models\SlugRedirect;
+use App\Services\AlternativeMarkdownExporter;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class EditOpenSourceAlternative extends EditRecord
 {
@@ -16,9 +19,26 @@ class EditOpenSourceAlternative extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\DeleteAction::make(),
-            Actions\ForceDeleteAction::make(),
-            Actions\RestoreAction::make(),
+            Actions\Action::make('exportMarkdown')
+                ->label('Export Markdown')
+                ->icon('heroicon-o-document-text')
+                ->color('gray')
+                ->action(function (): StreamedResponse {
+                    $md = app(AlternativeMarkdownExporter::class)->export($this->record);
+                    AdminActivityLog::record('exported', $this->record, ['format' => 'markdown']);
+
+                    return response()->streamDownload(function () use ($md) {
+                        echo $md;
+                    }, $this->record->slug.'-alternova.md', [
+                        'Content-Type' => 'text/markdown; charset=UTF-8',
+                    ]);
+                }),
+            Actions\DeleteAction::make()
+                ->after(fn () => AdminActivityLog::record('deleted', $this->record)),
+            Actions\ForceDeleteAction::make()
+                ->after(fn () => AdminActivityLog::record('force_deleted', null, [], $this->record->name ?? null)),
+            Actions\RestoreAction::make()
+                ->after(fn () => AdminActivityLog::record('restored', $this->record)),
         ];
     }
 
@@ -53,9 +73,13 @@ class EditOpenSourceAlternative extends EditRecord
             try {
                 SlugRedirect::record($this->originalSlug, $newSlug, 'alternative');
             } catch (\Throwable) {
-                // table may not exist yet
             }
             $this->originalSlug = $newSlug;
         }
+
+        AdminActivityLog::record('updated', $this->record, [
+            'slug' => $this->record->slug,
+            'published' => (bool) $this->record->is_published,
+        ]);
     }
 }
