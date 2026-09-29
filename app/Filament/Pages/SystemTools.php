@@ -144,6 +144,20 @@ class SystemTools extends Page implements HasForms
                 $added[] = 'table:slug_redirects';
             }
 
+            if (! Schema::hasTable('affiliate_clicks')) {
+                Schema::create('affiliate_clicks', function (Blueprint $table) {
+                    $table->id();
+                    $table->string('provider', 40);
+                    $table->string('domain', 255)->nullable();
+                    $table->string('destination_url', 1000);
+                    $table->string('ip_address', 45)->nullable();
+                    $table->string('user_agent', 500)->nullable();
+                    $table->string('referer', 500)->nullable();
+                    $table->timestamps();
+                });
+                $added[] = 'table:affiliate_clicks';
+            }
+
             $this->lastOutput = $added === []
                 ? 'All SEO columns and support tables already exist. Nothing to repair.'
                 : 'Added: '.implode(', ', $added);
@@ -156,6 +170,38 @@ class SystemTools extends Page implements HasForms
         } catch (\Throwable $e) {
             $this->lastOutput = $e->getMessage();
             Notification::make()->title('Schema repair failed')->body($e->getMessage())->danger()->send();
+        }
+    }
+
+    public function sendWeeklyDigest(): void
+    {
+        try {
+            Artisan::call('alternova:send-digest', ['--days' => 7]);
+            $this->lastOutput = Artisan::output();
+            Notification::make()
+                ->title('Weekly digest finished')
+                ->body(trim($this->lastOutput) ?: 'Done.')
+                ->success()
+                ->send();
+        } catch (\Throwable $e) {
+            $this->lastOutput = $e->getMessage();
+            Notification::make()->title('Digest failed')->body($e->getMessage())->danger()->send();
+        }
+    }
+
+    public function sendWeeklyDigestDryRun(): void
+    {
+        try {
+            Artisan::call('alternova:send-digest', ['--days' => 7, '--dry-run' => true]);
+            $this->lastOutput = Artisan::output();
+            Notification::make()
+                ->title('Digest dry run')
+                ->body(trim($this->lastOutput) ?: 'Done.')
+                ->success()
+                ->send();
+        } catch (\Throwable $e) {
+            $this->lastOutput = $e->getMessage();
+            Notification::make()->title('Dry run failed')->body($e->getMessage())->danger()->send();
         }
     }
 
@@ -286,9 +332,6 @@ class SystemTools extends Page implements HasForms
         ]);
     }
 
-    /**
-     * Portable JSON backup of core content + settings (no passwords).
-     */
     public function exportJsonBackup(): StreamedResponse
     {
         $payload = [

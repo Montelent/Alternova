@@ -14,6 +14,24 @@
         </x-filament::section>
 
         <x-filament::section>
+            <x-slot name="heading">Newsletter digest</x-slot>
+            <x-slot name="description">Email active subscribers new/updated alternatives from the last 7 days. Needs SMTP (Mail settings).</x-slot>
+            <div class="flex flex-wrap gap-2">
+                <x-filament::button wire:click="sendWeeklyDigestDryRun" color="gray" icon="heroicon-o-eye">
+                    Dry run
+                </x-filament::button>
+                <x-filament::button
+                    wire:click="sendWeeklyDigest"
+                    color="success"
+                    icon="heroicon-o-envelope"
+                    wire:confirm="Send the weekly digest to all active subscribers now?"
+                >
+                    Send digest now
+                </x-filament::button>
+            </div>
+        </x-filament::section>
+
+        <x-filament::section>
             <x-slot name="heading">GitHub metrics</x-slot>
             <x-slot name="description">Full sync or limited batch (same as cron).</x-slot>
             <div class="flex flex-wrap gap-2">
