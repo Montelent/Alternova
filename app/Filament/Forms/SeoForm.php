@@ -16,8 +16,6 @@ use Filament\Forms\Get;
 class SeoForm
 {
     /**
-     * @param  string  $entityLabel  e.g. "alternative" or "tool"
-     * @param  string  $defaultPath  route name hint for preview URL
      * @return array<int, \Filament\Forms\Components\Component>
      */
     public static function schema(string $entityLabel = 'page', string $slugField = 'slug'): array
@@ -52,21 +50,24 @@ class SeoForm
                     TextInput::make('focus_keyword')
                         ->label('Focus keyphrase')
                         ->maxLength(120)
+                        ->live(onBlur: true)
                         ->helperText('Primary phrase you want to rank for (e.g. “notion open source alternative”). Used for editorial guidance only.')
                         ->columnSpanFull(),
 
                     Placeholder::make('keyword_check')
                         ->label('Keyphrase check')
-                        ->content(function (Get $get) {
+                        ->content(function (Get $get) use ($slugField) {
                             $kw = trim((string) $get('focus_keyword'));
                             if ($kw === '') {
                                 return 'Add a focus keyphrase to see simple checks.';
                             }
+
                             $title = strtolower((string) $get('meta_title'));
                             $desc = strtolower((string) $get('meta_description'));
                             $name = strtolower((string) $get('name'));
-                            $slug = strtolower((string) $get($slugField));
+                            $slug = strtolower((string) $get($slugField ?: 'slug'));
                             $needle = strtolower($kw);
+
                             $bits = [];
                             $bits[] = str_contains($title, $needle) || str_contains($name, $needle)
                                 ? '✓ Keyphrase appears in title/name'
