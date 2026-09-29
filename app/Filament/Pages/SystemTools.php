@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Jobs\SyncGitHubMetricsJob;
 use App\Models\OpenSourceAlternative;
+use App\Models\ProprietaryTool;
 use App\Models\SiteSetting;
 use App\Services\AlternativeCsvImporter;
 use App\Services\DemoDataSeeder;
@@ -18,6 +19,7 @@ use Filament\Pages\Page;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -86,10 +88,6 @@ class SystemTools extends Page implements HasForms
         }
     }
 
-    /**
-     * Directly add missing SEO columns without relying on migration history.
-     * Use this if saving Alternatives fails with "Unknown column focus_keyword".
-     */
     public function repairSeoSchema(): void
     {
         $added = [];
@@ -285,6 +283,51 @@ class SystemTools extends Page implements HasForms
             fclose($h);
         }, 'alternova-catalog-'.date('Y-m-d').'.csv', [
             'Content-Type' => 'text/csv',
+        ]);
+    }
+
+    /**
+     * Portable JSON backup of core content + settings (no passwords).
+     */
+    public function exportJsonBackup(): StreamedResponse
+    {
+        $payload = [
+            'exported_at' => now()->toIso8601String(),
+            'app' => config('app.name'),
+            'settings' => [],
+            'proprietary_tools' => [],
+            'open_source_alternatives' => [],
+            'slug_redirects' => [],
+        ];
+
+        try {
+            $payload['settings'] = SiteSetting::query()->pluck('value', 'key')->toArray();
+        } catch (\Throwable) {
+        }
+
+        try {
+            $payload['proprietary_tools'] = ProprietaryTool::query()->get()->toArray();
+        } catch (\Throwable) {
+        }
+
+        try {
+            $payload['open_source_alternatives'] = OpenSourceAlternative::query()->get()->toArray();
+        } catch (\Throwable) {
+        }
+
+        try {
+            if (Schema::hasTable('slug_redirects')) {
+                $payload['slug_redirects'] = DB::table('slug_redirects')->get()->toArray();
+            }
+        } catch (\Throwable) {
+        }
+
+        $json = json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        return response()->streamDownload(function () use ($json) {
+            echo $json;
+        }, 'alternova-backup-'.date('Y-m-d-His').'.json', [
+            'Content-Type' => 'application/json',
         ]);
     }
 

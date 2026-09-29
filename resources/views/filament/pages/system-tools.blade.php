@@ -54,11 +54,16 @@
         </x-filament::section>
 
         <x-filament::section>
-            <x-slot name="heading">Export catalog</x-slot>
-            <x-slot name="description">Download all alternatives as CSV.</x-slot>
-            <x-filament::button wire:click="exportCatalog" color="gray" icon="heroicon-o-arrow-down-tray">
-                Download CSV
-            </x-filament::button>
+            <x-slot name="heading">Export / backup</x-slot>
+            <x-slot name="description">CSV catalog or full JSON backup (tools, alternatives, settings, redirects).</x-slot>
+            <div class="flex flex-wrap gap-2">
+                <x-filament::button wire:click="exportCatalog" color="gray" icon="heroicon-o-arrow-down-tray">
+                    Download CSV
+                </x-filament::button>
+                <x-filament::button wire:click="exportJsonBackup" color="primary" icon="heroicon-o-archive-box-arrow-down">
+                    Download JSON backup
+                </x-filament::button>
+            </div>
         </x-filament::section>
 
         <x-filament::section>
