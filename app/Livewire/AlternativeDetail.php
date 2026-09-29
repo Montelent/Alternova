@@ -127,6 +127,7 @@ class AlternativeDetail extends Component
         $description = $seo->alternativeDescription($alt);
         $canonical = $alt->canonical_url ?: route('alternatives.show', $alt);
 
+        // Same proprietary product first
         $related = OpenSourceAlternative::query()
             ->with(['repoMetric'])
             ->where('is_published', true)
@@ -139,6 +140,23 @@ class AlternativeDetail extends Component
             ->orderByDesc('overall_health_score')
             ->limit(6)
             ->get();
+
+        // Fill remaining slots with same category tags
+        if ($related->count() < 6) {
+            $categoryNames = $alt->tags->where('type', 'category')->pluck('name')->all();
+            if ($categoryNames !== []) {
+                $more = OpenSourceAlternative::query()
+                    ->with(['repoMetric'])
+                    ->where('is_published', true)
+                    ->where('id', '!=', $alt->id)
+                    ->whereNotIn('id', $related->pluck('id'))
+                    ->withAnyTags($categoryNames, 'category')
+                    ->orderByDesc('overall_health_score')
+                    ->limit(6 - $related->count())
+                    ->get();
+                $related = $related->concat($more)->values();
+            }
+        }
 
         $recent = app(RecentlyViewedService::class)->list($alt->id);
         $badgeUrl = url('/badge/'.$alt->slug.'/health.svg');

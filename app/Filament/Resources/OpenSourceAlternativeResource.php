@@ -18,7 +18,9 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Str;
 
 class OpenSourceAlternativeResource extends Resource
@@ -179,15 +181,25 @@ class OpenSourceAlternativeResource extends Resource
                 Tables\Columns\TextColumn::make('repoMetric.github_stars')->label('Stars')->sortable()->toggleable(),
                 Tables\Columns\IconColumn::make('is_published')->boolean()->label('Published'),
                 Tables\Columns\IconColumn::make('is_featured')->boolean()->label('Featured')->toggleable(),
+                Tables\Columns\IconColumn::make('repo_reachable')->boolean()->label('Repo OK')->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\IconColumn::make('website_reachable')->boolean()->label('Site OK')->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 Tables\Filters\TernaryFilter::make('is_published'),
                 Tables\Filters\TernaryFilter::make('is_featured'),
+                Tables\Filters\Filter::make('broken_links')
+                    ->label('Broken links only')
+                    ->query(fn (Builder $q) => $q->where(function (Builder $inner) {
+                        $inner->where('repo_reachable', false)
+                            ->orWhere('website_reachable', false);
+                    })),
+                Tables\Filters\TrashedFilter::make(),
             ])
             ->actions([
                 Tables\Actions\Action::make('syncMetrics')
                     ->label('Sync GitHub')
                     ->icon('heroicon-o-arrow-path')
+                    ->visible(fn (OpenSourceAlternative $r) => ! $r->trashed())
                     ->action(function (OpenSourceAlternative $record) {
                         try {
                             SyncGitHubMetricsJob::dispatchSync($record);
@@ -202,12 +214,15 @@ class OpenSourceAlternativeResource extends Resource
                 Tables\Actions\Action::make('checkLinks')
                     ->label('Check links')
                     ->icon('heroicon-o-link')
+                    ->visible(fn (OpenSourceAlternative $r) => ! $r->trashed())
                     ->action(function (OpenSourceAlternative $record) {
                         app(LinkHealthService::class)->checkAlternative($record);
                         Notification::make()->title('Link check done')->success()->send();
                     }),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
+                Tables\Actions\RestoreAction::make(),
+                Tables\Actions\ForceDeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -260,7 +275,17 @@ class OpenSourceAlternativeResource extends Resource
                         })
                         ->deselectRecordsAfterCompletion(),
                     Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\RestoreBulkAction::make(),
+                    Tables\Actions\ForceDeleteBulkAction::make(),
                 ]),
+            ]);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->withoutGlobalScopes([
+                SoftDeletingScope::class,
             ]);
     }
 
