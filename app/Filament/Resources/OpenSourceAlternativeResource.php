@@ -33,6 +33,22 @@ class OpenSourceAlternativeResource extends Resource
 
     protected static ?int $navigationSort = 2;
 
+    protected static ?string $recordTitleAttribute = 'name';
+
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['name', 'slug', 'repo_url', 'description', 'license_type', 'primary_language', 'focus_keyword'];
+    }
+
+    public static function getGlobalSearchResultDetails($record): array
+    {
+        return array_filter([
+            'Proprietary' => $record->proprietaryTool?->name,
+            'Health' => $record->overall_health_score,
+            'Published' => $record->is_published ? 'Yes' : 'Draft',
+        ]);
+    }
+
     public static function form(Form $form): Form
     {
         $categoryOptions = array_combine(CategoryCatalog::names(), CategoryCatalog::names());
