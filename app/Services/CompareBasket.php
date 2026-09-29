@@ -14,6 +14,23 @@ class CompareBasket
         return array_values(array_filter(session()->get($this->key, [])));
     }
 
+    public function set(array $slugs): array
+    {
+        $clean = [];
+        foreach ($slugs as $slug) {
+            $slug = trim((string) $slug);
+            if ($slug !== '' && ! in_array($slug, $clean, true)) {
+                $clean[] = $slug;
+            }
+            if (count($clean) >= 2) {
+                break;
+            }
+        }
+        session()->put($this->key, $clean);
+
+        return $this->state();
+    }
+
     public function add(string $slug): array
     {
         $slug = trim($slug);
@@ -27,7 +44,6 @@ class CompareBasket
         }
 
         if (count($items) >= 2) {
-            // Replace second slot
             $items[1] = $slug;
         } else {
             $items[] = $slug;
@@ -63,7 +79,19 @@ class CompareBasket
             return null;
         }
 
-        return route('alternatives.compare', ['a' => $items[0], 'b' => $items[1]]);
+        return self::urlFor($items[0], $items[1]);
+    }
+
+    public static function urlFor(string $a, string $b): string
+    {
+        // Stable order for shareable canonicals (alphabetical by slug)
+        $pair = [$a, $b];
+        sort($pair);
+
+        return route('alternatives.compare', [
+            'a' => $pair[0],
+            'b' => $pair[1],
+        ]);
     }
 
     /**
@@ -78,7 +106,7 @@ class CompareBasket
             'count' => count($slugs),
             'message' => $message,
             'url' => count($slugs) >= 2
-                ? route('alternatives.compare', ['a' => $slugs[0], 'b' => $slugs[1]])
+                ? self::urlFor($slugs[0], $slugs[1])
                 : null,
         ];
     }
