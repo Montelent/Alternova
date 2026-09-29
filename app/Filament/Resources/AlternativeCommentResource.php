@@ -68,6 +68,15 @@ class AlternativeCommentResource extends Resource
                 Tables\Columns\TextColumn::make('alternative.name')->label('Alternative')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('author_name')->label('Author')->searchable(),
                 Tables\Columns\TextColumn::make('body')->limit(60)->wrap(),
+                Tables\Columns\TextColumn::make('parent_id')
+                    ->label('Type')
+                    ->formatStateUsing(fn ($state) => $state ? 'Reply' : 'Top-level')
+                    ->badge()
+                    ->color(fn ($state) => $state ? 'info' : 'gray'),
+                Tables\Columns\TextColumn::make('parent.author_name')
+                    ->label('In reply to')
+                    ->placeholder('—')
+                    ->toggleable(),
                 Tables\Columns\IconColumn::make('is_approved')->boolean()->label('Approved'),
                 Tables\Columns\IconColumn::make('is_hidden')->boolean()->label('Hidden'),
                 Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
@@ -77,6 +86,12 @@ class AlternativeCommentResource extends Resource
                     ->label('Pending approval')
                     ->query(fn ($q) => $q->where('is_approved', false)->where('is_hidden', false))
                     ->default(),
+                Tables\Filters\Filter::make('replies')
+                    ->label('Replies only')
+                    ->query(fn ($q) => $q->whereNotNull('parent_id')),
+                Tables\Filters\Filter::make('top_level')
+                    ->label('Top-level only')
+                    ->query(fn ($q) => $q->whereNull('parent_id')),
                 Tables\Filters\TernaryFilter::make('is_approved')->label('Approved'),
             ])
             ->actions([
