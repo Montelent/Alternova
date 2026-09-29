@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AffiliateRedirectController;
 use App\Http\Controllers\Api\AlternativeApiController;
 use App\Http\Controllers\Api\SearchSuggestController;
 use App\Http\Controllers\BadgeController;
@@ -44,6 +45,11 @@ Route::get('/favorites', FavoritesPage::class)->name('favorites');
 Route::get('/badge/{slug}/health.svg', [BadgeController::class, 'health'])->name('badge.health');
 
 Route::get('/domains', DomainCombinator::class)->name('domains');
+Route::get('/go/{provider}', AffiliateRedirectController::class)
+    ->whereIn('provider', ['namecheap', 'porkbun', 'godaddy'])
+    ->middleware('throttle:60,1')
+    ->name('affiliate.go');
+
 Route::get('/suggest', SuggestAlternative::class)->name('suggest');
 Route::get('/submissions/{token}', SubmissionStatusController::class)->name('submissions.status');
 Route::get('/contact', ContactForm::class)->name('contact');

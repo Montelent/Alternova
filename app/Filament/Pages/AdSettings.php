@@ -40,6 +40,9 @@ class AdSettings extends Page implements HasForms
             'adsense_slot_in_article' => SiteSetting::get('adsense_slot_in_article', (string) config('ads.adsense.slots.in_article')),
             'adsense_slot_sidebar' => SiteSetting::get('adsense_slot_sidebar', (string) config('ads.adsense.slots.sidebar')),
             'adsense_slot_footer' => SiteSetting::get('adsense_slot_footer', (string) config('ads.adsense.slots.footer')),
+            'affiliate_namecheap' => SiteSetting::get('affiliate_namecheap', ''),
+            'affiliate_porkbun' => SiteSetting::get('affiliate_porkbun', ''),
+            'affiliate_godaddy' => SiteSetting::get('affiliate_godaddy', ''),
         ]);
     }
 
@@ -82,6 +85,22 @@ class AdSettings extends Page implements HasForms
                             ->placeholder('1234567890'),
                     ])
                     ->columns(1),
+
+                Section::make('Domain registrar affiliates')
+                    ->description('Optional tracking IDs appended when users click Namecheap / Porkbun / GoDaddy from the domain tool. Clicks are logged under Engagement → Affiliate clicks.')
+                    ->schema([
+                        TextInput::make('affiliate_namecheap')
+                            ->label('Namecheap affiliate / aff code')
+                            ->maxLength(80),
+                        TextInput::make('affiliate_porkbun')
+                            ->label('Porkbun coupon / partner code')
+                            ->maxLength(80),
+                        TextInput::make('affiliate_godaddy')
+                            ->label('GoDaddy isc / track code')
+                            ->maxLength(80),
+                    ])
+                    ->columns(1)
+                    ->collapsed(),
             ])
             ->statePath('data');
     }
@@ -98,6 +117,9 @@ class AdSettings extends Page implements HasForms
             'adsense_slot_in_article' => trim((string) ($state['adsense_slot_in_article'] ?? '')),
             'adsense_slot_sidebar' => trim((string) ($state['adsense_slot_sidebar'] ?? '')),
             'adsense_slot_footer' => trim((string) ($state['adsense_slot_footer'] ?? '')),
+            'affiliate_namecheap' => trim((string) ($state['affiliate_namecheap'] ?? '')),
+            'affiliate_porkbun' => trim((string) ($state['affiliate_porkbun'] ?? '')),
+            'affiliate_godaddy' => trim((string) ($state['affiliate_godaddy'] ?? '')),
         ]);
 
         Notification::make()

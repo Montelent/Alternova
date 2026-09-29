@@ -9,3 +9,4 @@ use Illuminate\Support\Facades\Schedule;
 
 Schedule::command('alternova:sync-metrics --limit=25')->dailyAt('03:15');
 Schedule::command('alternova:check-links --limit=40')->weeklyOn(1, '04:00');
+Schedule::command('alternova:send-digest --days=7')->weeklyOn(1, '09:00');
