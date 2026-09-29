@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\SeoManager;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -31,6 +32,9 @@ class OpenSourceAlternative extends Model
         'votes_count',
         'is_published',
         'is_featured',
+        'is_sponsored',
+        'sponsored_until',
+        'sponsor_label',
         'meta_title',
         'meta_description',
         'focus_keyword',
@@ -55,6 +59,8 @@ class OpenSourceAlternative extends Model
         'votes_count' => 'integer',
         'is_published' => 'boolean',
         'is_featured' => 'boolean',
+        'is_sponsored' => 'boolean',
+        'sponsored_until' => 'datetime',
         'pros' => 'array',
         'cons' => 'array',
         'gallery_urls' => 'array',
@@ -81,6 +87,32 @@ class OpenSourceAlternative extends Model
     public function getRouteKeyName(): string
     {
         return 'slug';
+    }
+
+    /**
+     * Active paid / sponsored placement (not expired).
+     */
+    public function hasActiveSponsorship(): bool
+    {
+        if (! $this->is_sponsored) {
+            return false;
+        }
+
+        if ($this->sponsored_until === null) {
+            return true;
+        }
+
+        return $this->sponsored_until->isFuture();
+    }
+
+    public function scopeActivelySponsored(Builder $query): Builder
+    {
+        return $query
+            ->where('is_sponsored', true)
+            ->where(function (Builder $q) {
+                $q->whereNull('sponsored_until')
+                    ->orWhere('sponsored_until', '>', now());
+            });
     }
 
     public function resolveRouteBinding($value, $field = null)

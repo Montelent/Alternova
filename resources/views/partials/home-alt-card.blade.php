@@ -1,7 +1,18 @@
 <a href="{{ route('alternatives.show', $alt) }}"
-    class="group rounded-2xl border border-white/10 bg-white/[0.03] p-6 hover:border-brand-500/40 hover:bg-white/[0.05] transition">
+    class="group rounded-2xl border border-white/10 bg-white/[0.03] p-6 hover:border-brand-500/40 hover:bg-white/[0.05] transition {{ method_exists($alt, 'hasActiveSponsorship') && $alt->hasActiveSponsorship() ? 'ring-1 ring-amber-400/30' : '' }}">
     <div class="flex items-start justify-between gap-3">
         <div>
+            <div class="flex flex-wrap items-center gap-2 mb-1">
+                @if(method_exists($alt, 'hasActiveSponsorship') && $alt->hasActiveSponsorship())
+                    <span class="rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5">
+                        {{ $alt->sponsor_label ?: 'Sponsored' }}
+                    </span>
+                @elseif($alt->is_featured)
+                    <span class="rounded-full bg-brand-600/20 text-brand-300 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5">
+                        Featured
+                    </span>
+                @endif
+            </div>
             <h3 class="text-lg font-semibold text-white group-hover:text-brand-500 transition">{{ $alt->name }}</h3>
             <p class="mt-1 text-sm text-slate-500">
                 vs
