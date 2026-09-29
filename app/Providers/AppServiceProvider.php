@@ -2,9 +2,11 @@
 
 namespace App\Providers;
 
+use App\Models\AlternativeComment;
 use App\Models\AlternativeSubmission;
 use App\Models\ContactMessage;
 use App\Models\OpenSourceAlternative;
+use App\Observers\AlternativeCommentObserver;
 use App\Observers\AlternativeSubmissionObserver;
 use App\Observers\ContactMessageObserver;
 use App\Observers\OpenSourceAlternativeObserver;
@@ -33,5 +35,6 @@ class AppServiceProvider extends ServiceProvider
         ContactMessage::observe(ContactMessageObserver::class);
         AlternativeSubmission::observe(AlternativeSubmissionObserver::class);
         OpenSourceAlternative::observe(OpenSourceAlternativeObserver::class);
+        AlternativeComment::observe(AlternativeCommentObserver::class);
     }
 }

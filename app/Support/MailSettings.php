@@ -64,6 +64,7 @@ class MailSettings
         return match ($type) {
             'contact' => (bool) config('alternova.mail.alert_contact', true),
             'submission' => (bool) config('alternova.mail.alert_submission', true),
+            'comment' => SiteSetting::getBool('mail_alert_comment', true),
             default => false,
         };
     }
