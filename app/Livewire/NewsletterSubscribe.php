@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\NewsletterSubscriber;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Livewire\Component;
 
 class NewsletterSubscribe extends Component
@@ -50,6 +51,8 @@ class NewsletterSubscribe extends Component
 
         $existing = NewsletterSubscriber::query()->where('email', $email)->first();
 
+        $token = Str::random(48);
+
         if ($existing && $existing->status === 'active') {
             $this->success = true;
             $this->message = 'You are already subscribed. Thanks!';
@@ -59,25 +62,33 @@ class NewsletterSubscribe extends Component
         }
 
         if ($existing) {
-            $existing->update([
+            $data = [
                 'status' => 'active',
                 'subscribed_at' => now(),
                 'unsubscribed_at' => null,
                 'source' => $this->source,
                 'ip_address' => request()->ip(),
-            ]);
+            ];
+            if (Schema::hasColumn('newsletter_subscribers', 'unsubscribe_token') && empty($existing->unsubscribe_token)) {
+                $data['unsubscribe_token'] = $token;
+            }
+            $existing->update($data);
         } else {
-            NewsletterSubscriber::create([
+            $data = [
                 'email' => $email,
                 'status' => 'active',
                 'source' => $this->source,
                 'ip_address' => request()->ip(),
                 'subscribed_at' => now(),
-            ]);
+            ];
+            if (Schema::hasColumn('newsletter_subscribers', 'unsubscribe_token')) {
+                $data['unsubscribe_token'] = $token;
+            }
+            NewsletterSubscriber::create($data);
         }
 
         $this->success = true;
-        $this->message = 'Subscribed — we will only email occasional product updates.';
+        $this->message = 'Subscribed — occasional product updates only (weekly digest when there is news).';
         $this->email = '';
     }
 

@@ -10,18 +10,27 @@ class NewsletterController extends Controller
 {
     public function unsubscribe(Request $request): View
     {
+        $token = trim((string) $request->query('token', ''));
         $email = strtolower(trim((string) $request->query('email', '')));
 
-        if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $sub = null;
+
+        if ($token !== '') {
+            $sub = NewsletterSubscriber::query()->where('unsubscribe_token', $token)->first();
+        }
+
+        if (! $sub && $email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $sub = NewsletterSubscriber::query()->where('email', $email)->first();
+        }
+
+        if (! $sub) {
             return view('pages.newsletter-unsubscribed', [
                 'ok' => false,
-                'message' => 'Invalid or missing email address.',
+                'message' => 'Invalid or missing unsubscribe link.',
             ]);
         }
 
-        $sub = NewsletterSubscriber::query()->where('email', $email)->first();
-
-        if ($sub && $sub->status === 'active') {
+        if ($sub->status === 'active') {
             $sub->update([
                 'status' => 'unsubscribed',
                 'unsubscribed_at' => now(),
@@ -31,7 +40,7 @@ class NewsletterController extends Controller
         return view('pages.newsletter-unsubscribed', [
             'ok' => true,
             'message' => 'You have been unsubscribed from Alternova product updates.',
-            'email' => $email,
+            'email' => $sub->email,
         ]);
     }
 }

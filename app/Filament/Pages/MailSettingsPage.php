@@ -15,6 +15,7 @@ use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Mail;
 
 class MailSettingsPage extends Page implements HasForms
@@ -44,7 +45,10 @@ class MailSettingsPage extends Page implements HasForms
             'mail_admin_email' => SiteSetting::get('mail_admin_email', ''),
             'mail_alert_contact' => SiteSetting::getBool('mail_alert_contact', true),
             'mail_alert_submission' => SiteSetting::getBool('mail_alert_submission', true),
+            'mail_alert_comment' => SiteSetting::getBool('mail_alert_comment', true),
             'mail_contact_autoreply' => SiteSetting::getBool('mail_contact_autoreply', false),
+            'mail_digest_enabled' => SiteSetting::getBool('mail_digest_enabled', true),
+            'mail_digest_include_featured' => SiteSetting::getBool('mail_digest_include_featured', true),
             'mail_smtp_host' => SiteSetting::get('mail_smtp_host', ''),
             'mail_smtp_port' => SiteSetting::get('mail_smtp_port', '587'),
             'mail_smtp_username' => SiteSetting::get('mail_smtp_username', ''),
@@ -77,7 +81,7 @@ class MailSettingsPage extends Page implements HasForms
                         TextInput::make('mail_admin_email')
                             ->label('Admin alert inbox')
                             ->email()
-                            ->helperText('Receives contact form and submission alerts.')
+                            ->helperText('Receives contact form, submission, and comment alerts.')
                             ->required(),
                     ])
                     ->columns(2),
@@ -90,9 +94,26 @@ class MailSettingsPage extends Page implements HasForms
                         Toggle::make('mail_alert_submission')
                             ->label('Email me on new alternative submissions')
                             ->inline(false),
+                        Toggle::make('mail_alert_comment')
+                            ->label('Email me on new comments')
+                            ->inline(false),
                         Toggle::make('mail_contact_autoreply')
                             ->label('Send auto-reply to contact form submitters')
                             ->helperText('Visitor receives a short “we got your message” email.')
+                            ->inline(false),
+                    ])
+                    ->columns(1),
+
+                Section::make('Weekly newsletter digest')
+                    ->description('Scheduled Mondays 09:00 (requires Hostinger cron: php artisan schedule:run). Also runnable from System tools.')
+                    ->schema([
+                        Toggle::make('mail_digest_enabled')
+                            ->label('Send weekly digest to subscribers')
+                            ->helperText('Off = schedule and manual runs skip sending (unless force/ignore flags).')
+                            ->inline(false),
+                        Toggle::make('mail_digest_include_featured')
+                            ->label('If nothing new, include featured alternatives')
+                            ->helperText('Avoids empty weeks when the catalog was quiet.')
                             ->inline(false),
                     ])
                     ->columns(1),
@@ -145,7 +166,10 @@ class MailSettingsPage extends Page implements HasForms
             'mail_admin_email' => trim((string) ($state['mail_admin_email'] ?? '')),
             'mail_alert_contact' => ! empty($state['mail_alert_contact']),
             'mail_alert_submission' => ! empty($state['mail_alert_submission']),
+            'mail_alert_comment' => ! empty($state['mail_alert_comment']),
             'mail_contact_autoreply' => ! empty($state['mail_contact_autoreply']),
+            'mail_digest_enabled' => ! empty($state['mail_digest_enabled']),
+            'mail_digest_include_featured' => ! empty($state['mail_digest_include_featured']),
             'mail_smtp_host' => trim((string) ($state['mail_smtp_host'] ?? '')),
             'mail_smtp_port' => trim((string) ($state['mail_smtp_port'] ?? '587')),
             'mail_smtp_username' => trim((string) ($state['mail_smtp_username'] ?? '')),
@@ -180,6 +204,26 @@ class MailSettingsPage extends Page implements HasForms
                 ->send();
         } catch (\Throwable $e) {
             Notification::make()->title('Test email failed')->body($e->getMessage())->danger()->send();
+        }
+    }
+
+    public function sendDigestNow(): void
+    {
+        $this->save();
+
+        try {
+            Artisan::call('alternova:send-digest', [
+                '--days' => 7,
+                '--force' => true,
+                '--ignore-toggle' => true,
+            ]);
+            Notification::make()
+                ->title('Digest run finished')
+                ->body(trim(Artisan::output()) ?: 'Done.')
+                ->success()
+                ->send();
+        } catch (\Throwable $e) {
+            Notification::make()->title('Digest failed')->body($e->getMessage())->danger()->send();
         }
     }
 }
