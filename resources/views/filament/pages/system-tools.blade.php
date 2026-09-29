@@ -2,10 +2,15 @@
     <div class="grid gap-6 md:grid-cols-2">
         <x-filament::section>
             <x-slot name="heading">Database</x-slot>
-            <x-slot name="description">Apply pending schema changes (safe to re-run).</x-slot>
-            <x-filament::button wire:click="runMigrations" color="primary" icon="heroicon-o-circle-stack">
-                Run migrations
-            </x-filament::button>
+            <x-slot name="description">Apply pending schema changes. If SEO save fails with “Unknown column focus_keyword”, use Repair SEO schema.</x-slot>
+            <div class="flex flex-wrap gap-2">
+                <x-filament::button wire:click="runMigrations" color="primary" icon="heroicon-o-circle-stack">
+                    Run migrations
+                </x-filament::button>
+                <x-filament::button wire:click="repairSeoSchema" color="warning" icon="heroicon-o-wrench">
+                    Repair SEO schema
+                </x-filament::button>
+            </div>
         </x-filament::section>
 
         <x-filament::section>
