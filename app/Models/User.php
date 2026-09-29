@@ -52,6 +52,11 @@ class User extends Authenticatable implements FilamentUser, CanResetPasswordCont
         return $this->hasMany(SavedDomain::class);
     }
 
+    public function apiKeys(): HasMany
+    {
+        return $this->hasMany(ApiKey::class);
+    }
+
     public function canAccessPanel(Panel $panel): bool
     {
         if (($this->role ?? '') === self::ROLE_MEMBER) {
