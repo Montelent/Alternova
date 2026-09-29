@@ -15,9 +15,11 @@ use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SystemTools extends Page implements HasForms
@@ -81,6 +83,81 @@ class SystemTools extends Page implements HasForms
         } catch (\Throwable $e) {
             $this->lastOutput = $e->getMessage();
             Notification::make()->title('Migration failed')->body($e->getMessage())->danger()->send();
+        }
+    }
+
+    /**
+     * Directly add missing SEO columns without relying on migration history.
+     * Use this if saving Alternatives fails with "Unknown column focus_keyword".
+     */
+    public function repairSeoSchema(): void
+    {
+        $added = [];
+
+        try {
+            foreach (['open_source_alternatives', 'proprietary_tools'] as $table) {
+                if (! Schema::hasTable($table)) {
+                    continue;
+                }
+
+                $map = [
+                    'focus_keyword' => fn (Blueprint $t) => $t->string('focus_keyword', 120)->nullable(),
+                    'robots_meta' => fn (Blueprint $t) => $t->string('robots_meta', 80)->nullable(),
+                    'canonical_url' => fn (Blueprint $t) => $t->string('canonical_url', 500)->nullable(),
+                    'og_title' => fn (Blueprint $t) => $t->string('og_title', 120)->nullable(),
+                    'og_description' => fn (Blueprint $t) => $t->string('og_description', 200)->nullable(),
+                    'og_image_url' => fn (Blueprint $t) => $t->string('og_image_url', 500)->nullable(),
+                ];
+
+                foreach ($map as $col => $definition) {
+                    if (Schema::hasColumn($table, $col)) {
+                        continue;
+                    }
+                    Schema::table($table, function (Blueprint $blueprint) use ($definition) {
+                        $definition($blueprint);
+                    });
+                    $added[] = "{$table}.{$col}";
+                }
+            }
+
+            if (! Schema::hasTable('admin_activity_logs')) {
+                Schema::create('admin_activity_logs', function (Blueprint $table) {
+                    $table->id();
+                    $table->unsignedBigInteger('user_id')->nullable();
+                    $table->string('action', 80);
+                    $table->string('subject_type', 120)->nullable();
+                    $table->unsignedBigInteger('subject_id')->nullable();
+                    $table->string('subject_label', 255)->nullable();
+                    $table->json('properties')->nullable();
+                    $table->string('ip_address', 45)->nullable();
+                    $table->timestamps();
+                });
+                $added[] = 'table:admin_activity_logs';
+            }
+
+            if (! Schema::hasTable('slug_redirects')) {
+                Schema::create('slug_redirects', function (Blueprint $table) {
+                    $table->id();
+                    $table->string('old_slug', 190);
+                    $table->string('new_slug', 190);
+                    $table->string('model_type', 80)->default('alternative');
+                    $table->timestamps();
+                });
+                $added[] = 'table:slug_redirects';
+            }
+
+            $this->lastOutput = $added === []
+                ? 'All SEO columns and support tables already exist. Nothing to repair.'
+                : 'Added: '.implode(', ', $added);
+
+            Notification::make()
+                ->title('Schema repair complete')
+                ->body($this->lastOutput)
+                ->success()
+                ->send();
+        } catch (\Throwable $e) {
+            $this->lastOutput = $e->getMessage();
+            Notification::make()->title('Schema repair failed')->body($e->getMessage())->danger()->send();
         }
     }
 
