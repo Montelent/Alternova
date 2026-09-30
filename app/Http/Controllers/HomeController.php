@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Collection;
 use App\Models\OpenSourceAlternative;
 use App\Models\ProprietaryTool;
 use Illuminate\Support\Facades\Schema;
@@ -13,7 +14,6 @@ class HomeController extends Controller
     {
         $hasSponsored = Schema::hasColumn('open_source_alternatives', 'is_sponsored');
 
-        // Prefer active sponsorships, then organic featured, then top health
         $featuredQuery = OpenSourceAlternative::query()
             ->with(['proprietaryTool', 'repoMetric'])
             ->where('is_published', true);
@@ -31,7 +31,6 @@ class HomeController extends Controller
 
         $featured = $featuredQuery->limit(6)->get();
 
-        // If ordered list is empty of “interesting” items, fall back to health ranking
         if ($featured->isEmpty() || (! $hasSponsored && $featured->where('is_featured', true)->isEmpty())) {
             $featured = OpenSourceAlternative::query()
                 ->with(['proprietaryTool', 'repoMetric'])
@@ -65,12 +64,37 @@ class HomeController extends Controller
             ->limit(12)
             ->get();
 
+        $collections = collect();
+        try {
+            if (Schema::hasTable('collections')) {
+                $collections = Collection::query()
+                    ->where('is_published', true)
+                    ->where('is_featured', true)
+                    ->withCount('items')
+                    ->orderBy('sort_order')
+                    ->orderBy('name')
+                    ->limit(6)
+                    ->get();
+
+                if ($collections->isEmpty()) {
+                    $collections = Collection::query()
+                        ->where('is_published', true)
+                        ->withCount('items')
+                        ->orderBy('sort_order')
+                        ->orderByDesc('updated_at')
+                        ->limit(4)
+                        ->get();
+                }
+            }
+        } catch (\Throwable) {
+        }
+
         $stats = [
             'alternatives' => OpenSourceAlternative::query()->where('is_published', true)->count(),
             'tools' => ProprietaryTool::query()->where('is_published', true)->count(),
             'featured' => OpenSourceAlternative::query()->where('is_published', true)->where('is_featured', true)->count(),
         ];
 
-        return view('welcome', compact('featured', 'recent', 'popular', 'tools', 'stats'));
+        return view('welcome', compact('featured', 'recent', 'popular', 'tools', 'collections', 'stats'));
     }
 }

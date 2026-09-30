@@ -16,6 +16,9 @@ class CompareAlternatives extends Component
     #[Url(as: 'b', history: true, keep: true)]
     public string $rightSlug = '';
 
+    #[Url(as: 'c', history: true, keep: true)]
+    public string $thirdSlug = '';
+
     public string $shareCopied = '';
 
     public function mount(): void
@@ -29,15 +32,21 @@ class CompareAlternatives extends Component
             if (isset($parts[1])) {
                 $this->rightSlug = $parts[1];
             }
+            if (isset($parts[2])) {
+                $this->thirdSlug = $parts[2];
+            }
         }
 
-        if ($this->leftSlug === '' && $this->rightSlug === '') {
+        if ($this->leftSlug === '' && $this->rightSlug === '' && $this->thirdSlug === '') {
             $basket = app(CompareBasket::class)->all();
             if (isset($basket[0])) {
                 $this->leftSlug = $basket[0];
             }
             if (isset($basket[1])) {
                 $this->rightSlug = $basket[1];
+            }
+            if (isset($basket[2])) {
+                $this->thirdSlug = $basket[2];
             }
         }
 
@@ -56,9 +65,15 @@ class CompareAlternatives extends Component
         $this->syncBasket();
     }
 
+    public function updatedThirdSlug(): void
+    {
+        $this->shareCopied = '';
+        $this->syncBasket();
+    }
+
     protected function syncBasket(): void
     {
-        $slugs = array_values(array_filter([$this->leftSlug, $this->rightSlug]));
+        $slugs = array_values(array_filter([$this->leftSlug, $this->rightSlug, $this->thirdSlug]));
         if ($slugs !== []) {
             app(CompareBasket::class)->set($slugs);
         }
@@ -78,36 +93,42 @@ class CompareAlternatives extends Component
 
     public function shareUrl(): ?string
     {
-        if ($this->leftSlug === '' || $this->rightSlug === '') {
+        $slugs = array_values(array_filter([$this->leftSlug, $this->rightSlug, $this->thirdSlug]));
+        if (count($slugs) < 2) {
             return null;
         }
 
-        return CompareBasket::urlFor($this->leftSlug, $this->rightSlug);
+        return CompareBasket::urlFor(...$slugs);
     }
 
     public function render()
     {
         $left = $this->resolve($this->leftSlug);
         $right = $this->resolve($this->rightSlug);
+        $third = $this->resolve($this->thirdSlug);
 
         $options = OpenSourceAlternative::query()
             ->where('is_published', true)
             ->orderBy('name')
             ->get(['id', 'name', 'slug']);
 
+        $sides = array_values(array_filter([$left, $right, $third]));
+
         $title = 'Compare open-source alternatives | Alternova';
-        $description = 'Compare self-hostable open-source tools side by side — license, health score, stars, and difficulty.';
+        $description = 'Compare up to three self-hostable open-source tools — license, health score, stars, and difficulty.';
         $ogImage = null;
         $shareUrl = $this->shareUrl();
 
-        if ($left && $right) {
-            $title = $left->name.' vs '.$right->name.' — Compare | Alternova';
-            $description = 'Side-by-side comparison of '.$left->name.' and '.$right->name
-                .': health '.number_format($left->overall_health_score, 1).' vs '.number_format($right->overall_health_score, 1)
-                .', license, GitHub metrics, and self-host difficulty.';
-            try {
-                $ogImage = app(OgImageService::class)->compareUrl($left->slug, $right->slug);
-            } catch (\Throwable) {
+        if (count($sides) >= 2) {
+            $names = collect($sides)->pluck('name')->implode(' vs ');
+            $title = $names.' — Compare | Alternova';
+            $description = 'Side-by-side comparison of '.$names
+                .': health, license, GitHub metrics, and self-host difficulty.';
+            if ($left && $right) {
+                try {
+                    $ogImage = app(OgImageService::class)->compareUrl($left->slug, $right->slug);
+                } catch (\Throwable) {
+                }
             }
         }
 
@@ -116,10 +137,12 @@ class CompareAlternatives extends Component
         return view('livewire.compare-alternatives', [
             'left' => $left,
             'right' => $right,
+            'third' => $third,
+            'sides' => $sides,
             'options' => $options,
-            'rows' => $this->comparisonRows($left, $right),
+            'rows' => $this->comparisonRows($sides),
             'shareUrl' => $shareUrl,
-            'schema' => $this->buildSchema($left, $right, $canonical),
+            'schema' => $this->buildSchema($sides, $canonical),
         ])->layout('layouts.app', [
             'title' => $title,
             'description' => $description,
@@ -144,127 +167,115 @@ class CompareAlternatives extends Component
             ->first();
     }
 
-    protected function buildSchema(?OpenSourceAlternative $left, ?OpenSourceAlternative $right, string $canonical): ?array
+    protected function buildSchema(array $sides, string $canonical): ?array
     {
-        if (! $left || ! $right) {
+        if (count($sides) < 2) {
             return null;
         }
 
         return [
             '@context' => 'https://schema.org',
             '@type' => 'WebPage',
-            'name' => $left->name.' vs '.$right->name,
-            'description' => 'Comparison of '.$left->name.' and '.$right->name,
+            'name' => collect($sides)->pluck('name')->implode(' vs '),
+            'description' => 'Comparison of open-source alternatives',
             'url' => $canonical,
             'mainEntity' => [
                 '@type' => 'ItemList',
-                'itemListElement' => [
-                    [
+                'itemListElement' => collect($sides)->values()->map(function ($alt, $i) {
+                    return [
                         '@type' => 'ListItem',
-                        'position' => 1,
-                        'name' => $left->name,
-                        'url' => route('alternatives.show', $left),
-                    ],
-                    [
-                        '@type' => 'ListItem',
-                        'position' => 2,
-                        'name' => $right->name,
-                        'url' => route('alternatives.show', $right),
-                    ],
-                ],
+                        'position' => $i + 1,
+                        'name' => $alt->name,
+                        'url' => route('alternatives.show', $alt),
+                    ];
+                })->all(),
             ],
         ];
     }
 
     /**
-     * @return list<array{label: string, left: string, right: string, winner: ?string}>
+     * @param  list<OpenSourceAlternative>  $sides
+     * @return list<array{label: string, values: list<string>, winners: list<bool>}>
      */
-    protected function comparisonRows(?OpenSourceAlternative $left, ?OpenSourceAlternative $right): array
+    protected function comparisonRows(array $sides): array
     {
-        if (! $left || ! $right) {
+        if (count($sides) < 2) {
             return [];
         }
 
-        $lStars = (int) ($left->repoMetric?->github_stars ?? 0);
-        $rStars = (int) ($right->repoMetric?->github_stars ?? 0);
-        $lForks = (int) ($left->repoMetric?->github_forks ?? 0);
-        $rForks = (int) ($right->repoMetric?->github_forks ?? 0);
-        $lIssues = (int) ($left->repoMetric?->open_issues ?? 0);
-        $rIssues = (int) ($right->repoMetric?->open_issues ?? 0);
-
-        return [
+        $metrics = [
             [
                 'label' => 'Replaces',
-                'left' => $left->proprietaryTool?->name ?? '—',
-                'right' => $right->proprietaryTool?->name ?? '—',
-                'winner' => null,
+                'values' => array_map(fn ($a) => $a->proprietaryTool?->name ?? '—', $sides),
+                'mode' => null,
             ],
             [
                 'label' => 'License',
-                'left' => $left->license_type ?? '—',
-                'right' => $right->license_type ?? '—',
-                'winner' => null,
+                'values' => array_map(fn ($a) => $a->license_type ?? '—', $sides),
+                'mode' => null,
             ],
             [
                 'label' => 'Primary language',
-                'left' => $left->primary_language ?? '—',
-                'right' => $right->primary_language ?? '—',
-                'winner' => null,
+                'values' => array_map(fn ($a) => $a->primary_language ?? '—', $sides),
+                'mode' => null,
             ],
             [
                 'label' => 'Health score',
-                'left' => number_format($left->overall_health_score, 1).'/100',
-                'right' => number_format($right->overall_health_score, 1).'/100',
-                'winner' => $this->winnerHigher($left->overall_health_score, $right->overall_health_score),
+                'values' => array_map(fn ($a) => number_format($a->overall_health_score, 1).'/100', $sides),
+                'nums' => array_map(fn ($a) => (float) $a->overall_health_score, $sides),
+                'mode' => 'higher',
             ],
             [
                 'label' => 'GitHub stars',
-                'left' => number_format($lStars),
-                'right' => number_format($rStars),
-                'winner' => $this->winnerHigher($lStars, $rStars),
+                'values' => array_map(fn ($a) => number_format((int) ($a->repoMetric?->github_stars ?? 0)), $sides),
+                'nums' => array_map(fn ($a) => (int) ($a->repoMetric?->github_stars ?? 0), $sides),
+                'mode' => 'higher',
             ],
             [
                 'label' => 'Forks',
-                'left' => number_format($lForks),
-                'right' => number_format($rForks),
-                'winner' => $this->winnerHigher($lForks, $rForks),
+                'values' => array_map(fn ($a) => number_format((int) ($a->repoMetric?->github_forks ?? 0)), $sides),
+                'nums' => array_map(fn ($a) => (int) ($a->repoMetric?->github_forks ?? 0), $sides),
+                'mode' => 'higher',
             ],
             [
                 'label' => 'Open issues',
-                'left' => number_format($lIssues),
-                'right' => number_format($rIssues),
-                'winner' => $this->winnerLower($lIssues, $rIssues),
+                'values' => array_map(fn ($a) => number_format((int) ($a->repoMetric?->open_issues ?? 0)), $sides),
+                'nums' => array_map(fn ($a) => (int) ($a->repoMetric?->open_issues ?? 0), $sides),
+                'mode' => 'lower',
             ],
             [
                 'label' => 'Self-host difficulty',
-                'left' => $left->self_host_difficulty.'/5',
-                'right' => $right->self_host_difficulty.'/5',
-                'winner' => $this->winnerLower($left->self_host_difficulty, $right->self_host_difficulty),
+                'values' => array_map(fn ($a) => $a->self_host_difficulty.'/5', $sides),
+                'nums' => array_map(fn ($a) => (int) $a->self_host_difficulty, $sides),
+                'mode' => 'lower',
             ],
             [
                 'label' => 'Website',
-                'left' => $left->website_url ? 'Yes' : '—',
-                'right' => $right->website_url ? 'Yes' : '—',
-                'winner' => null,
+                'values' => array_map(fn ($a) => $a->website_url ? 'Yes' : '—', $sides),
+                'mode' => null,
             ],
         ];
-    }
 
-    protected function winnerHigher(float|int $a, float|int $b): ?string
-    {
-        if ($a == $b) {
-            return 'tie';
+        $rows = [];
+        foreach ($metrics as $m) {
+            $winners = array_fill(0, count($sides), false);
+            if (($m['mode'] ?? null) && isset($m['nums'])) {
+                $nums = $m['nums'];
+                $best = $m['mode'] === 'higher' ? max($nums) : min($nums);
+                $allSame = count(array_unique($nums)) === 1;
+                if (! $allSame) {
+                    foreach ($nums as $i => $n) {
+                        $winners[$i] = $n == $best;
+                    }
+                }
+            }
+            $rows[] = [
+                'label' => $m['label'],
+                'values' => $m['values'],
+                'winners' => $winners,
+            ];
         }
 
-        return $a > $b ? 'left' : 'right';
-    }
-
-    protected function winnerLower(float|int $a, float|int $b): ?string
-    {
-        if ($a == $b) {
-            return 'tie';
-        }
-
-        return $a < $b ? 'left' : 'right';
+        return $rows;
     }
 }

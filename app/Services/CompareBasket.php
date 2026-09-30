@@ -6,6 +6,8 @@ class CompareBasket
 {
     protected string $key = 'alternova_compare';
 
+    public const MAX = 3;
+
     /**
      * @return list<string>
      */
@@ -22,7 +24,7 @@ class CompareBasket
             if ($slug !== '' && ! in_array($slug, $clean, true)) {
                 $clean[] = $slug;
             }
-            if (count($clean) >= 2) {
+            if (count($clean) >= self::MAX) {
                 break;
             }
         }
@@ -43,15 +45,21 @@ class CompareBasket
             return $this->state('Already in compare list');
         }
 
-        if (count($items) >= 2) {
-            $items[1] = $slug;
+        if (count($items) >= self::MAX) {
+            $items[self::MAX - 1] = $slug;
         } else {
             $items[] = $slug;
         }
 
         session()->put($this->key, $items);
 
-        return $this->state(count($items) === 2 ? 'Ready to compare' : 'Added — pick one more');
+        $count = count($items);
+        $message = match (true) {
+            $count >= 2 => 'Ready to compare',
+            default => 'Added — pick one more',
+        };
+
+        return $this->state($message);
     }
 
     public function remove(string $slug): array
@@ -79,19 +87,26 @@ class CompareBasket
             return null;
         }
 
-        return self::urlFor($items[0], $items[1]);
+        return self::urlFor(...array_slice($items, 0, self::MAX));
     }
 
-    public static function urlFor(string $a, string $b): string
+    public static function urlFor(string ...$slugs): string
     {
-        // Stable order for shareable canonicals (alphabetical by slug)
-        $pair = [$a, $b];
-        sort($pair);
+        $slugs = array_values(array_filter($slugs));
+        sort($slugs);
 
-        return route('alternatives.compare', [
-            'a' => $pair[0],
-            'b' => $pair[1],
-        ]);
+        $params = [];
+        if (isset($slugs[0])) {
+            $params['a'] = $slugs[0];
+        }
+        if (isset($slugs[1])) {
+            $params['b'] = $slugs[1];
+        }
+        if (isset($slugs[2])) {
+            $params['c'] = $slugs[2];
+        }
+
+        return route('alternatives.compare', $params);
     }
 
     /**
@@ -106,7 +121,7 @@ class CompareBasket
             'count' => count($slugs),
             'message' => $message,
             'url' => count($slugs) >= 2
-                ? self::urlFor($slugs[0], $slugs[1])
+                ? self::urlFor(...$slugs)
                 : null,
         ];
     }
