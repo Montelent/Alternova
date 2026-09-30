@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Services\HealthHistoryService;
 use App\Services\SeoManager;
+use App\Services\WatchlistService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -88,6 +89,11 @@ class OpenSourceAlternative extends Model
     public function healthSnapshots(): HasMany
     {
         return $this->hasMany(HealthScoreSnapshot::class);
+    }
+
+    public function watches(): HasMany
+    {
+        return $this->hasMany(WatchedAlternative::class);
     }
 
     public function getRouteKeyName(): string
@@ -186,6 +192,8 @@ class OpenSourceAlternative extends Model
             ->where('open_source_alternative_id', $this->id)
             ->first();
 
+        $previous = (float) ($this->overall_health_score ?? 0);
+
         if (! $metric) {
             $this->forceFill(['overall_health_score' => 0])->save();
 
@@ -216,6 +224,13 @@ class OpenSourceAlternative extends Model
         try {
             $this->setRelation('repoMetric', $metric);
             app(HealthHistoryService::class)->record($this, $score);
+        } catch (\Throwable) {
+        }
+
+        try {
+            if ($previous > 0) {
+                app(WatchlistService::class)->notifyHealthDrop($this, $previous, $score);
+            }
         } catch (\Throwable) {
         }
 

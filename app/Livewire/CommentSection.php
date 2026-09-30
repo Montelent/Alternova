@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\AlternativeComment;
+use App\Services\CommentNotificationService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
@@ -111,7 +112,7 @@ class CommentSection extends Component
 
         $approved = Auth::check();
 
-        AlternativeComment::create([
+        $comment = AlternativeComment::create([
             'open_source_alternative_id' => $this->alternativeId,
             'user_id' => Auth::id(),
             'parent_id' => $parentId,
@@ -122,6 +123,13 @@ class CommentSection extends Component
             'is_hidden' => false,
             'ip_address' => request()->ip(),
         ]);
+
+        if ($approved && $parentId) {
+            try {
+                app(CommentNotificationService::class)->notifyReplyIfNeeded($comment);
+            } catch (\Throwable) {
+            }
+        }
 
         $this->body = '';
         $wasReply = (bool) $this->replyToId;

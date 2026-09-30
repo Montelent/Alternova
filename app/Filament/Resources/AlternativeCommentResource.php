@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\AlternativeCommentResource\Pages;
 use App\Models\AlternativeComment;
+use App\Services\CommentNotificationService;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -103,7 +104,14 @@ class AlternativeCommentResource extends Resource
                     ->color('success')
                     ->visible(fn (AlternativeComment $r) => ! $r->is_approved || $r->is_hidden)
                     ->action(function (AlternativeComment $record) {
+                        $wasPending = ! $record->is_approved;
                         $record->approve();
+                        if ($wasPending && $record->parent_id) {
+                            try {
+                                app(CommentNotificationService::class)->notifyReplyIfNeeded($record->fresh());
+                            } catch (\Throwable) {
+                            }
+                        }
                         Notification::make()->title('Comment approved')->success()->send();
                     }),
                 Tables\Actions\Action::make('hide')
@@ -125,7 +133,14 @@ class AlternativeCommentResource extends Resource
                         ->color('success')
                         ->action(function ($records) {
                             foreach ($records as $r) {
+                                $wasPending = ! $r->is_approved;
                                 $r->approve();
+                                if ($wasPending && $r->parent_id) {
+                                    try {
+                                        app(CommentNotificationService::class)->notifyReplyIfNeeded($r->fresh());
+                                    } catch (\Throwable) {
+                                    }
+                                }
                             }
                             Notification::make()->title('Comments approved')->success()->send();
                         }),
