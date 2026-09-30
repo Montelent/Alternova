@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\Collection;
+use App\Services\OgImageService;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Component;
 
@@ -44,6 +45,12 @@ class CollectionShow extends Component
         $description = $collection->seoDescription();
         $canonical = route('collections.show', $collection->slug);
 
+        $ogImage = null;
+        try {
+            $ogImage = app(OgImageService::class)->collectionUrl($collection);
+        } catch (\Throwable) {
+        }
+
         $schema = [
             '@context' => 'https://schema.org',
             '@type' => 'CollectionPage',
@@ -77,7 +84,7 @@ class CollectionShow extends Component
             'ogType' => 'website',
             'ogTitle' => $title,
             'ogDescription' => $description,
-            'ogImage' => $collection->cover_image_url,
+            'ogImage' => $ogImage,
         ]);
     }
 }

@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Collection;
 use App\Models\OpenSourceAlternative;
 use App\Models\ProprietaryTool;
 use App\Services\OgImageService;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Schema;
 
 class OgImageController extends Controller
 {
@@ -49,6 +51,29 @@ class OgImageController extends Controller
             ]);
         } catch (\Throwable) {
             return $this->svgFallback($tool->name, 'Open-source alternatives');
+        }
+    }
+
+    public function collection(string $slug, OgImageService $og): Response
+    {
+        $slug = preg_replace('/\.png$/i', '', $slug) ?? $slug;
+
+        abort_unless(Schema::hasTable('collections'), 404);
+
+        $collection = Collection::query()
+            ->where('slug', $slug)
+            ->where('is_published', true)
+            ->firstOrFail();
+
+        try {
+            $path = $og->renderCollection($collection);
+
+            return response()->file($path, [
+                'Content-Type' => 'image/png',
+                'Cache-Control' => 'public, max-age=86400',
+            ]);
+        } catch (\Throwable) {
+            return $this->svgFallback($collection->name, 'Curated collection');
         }
     }
 

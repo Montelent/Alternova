@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Collection;
 use App\Models\OpenSourceAlternative;
 use App\Models\ProprietaryTool;
 use Illuminate\Support\Facades\File;
@@ -30,6 +31,15 @@ class OgImageService
         return url('/og/tool/'.$tool->slug.'.png');
     }
 
+    public function collectionUrl(Collection $collection): string
+    {
+        if (! empty($collection->cover_image_url)) {
+            return $collection->cover_image_url;
+        }
+
+        return url('/og/collection/'.$collection->slug.'.png');
+    }
+
     public function compareUrl(string $slugA, string $slugB): string
     {
         $pair = [$slugA, $slugB];
@@ -46,6 +56,11 @@ class OgImageService
     public function pathForTool(string $slug): string
     {
         return storage_path('app/og/tool-'.$slug.'.png');
+    }
+
+    public function pathForCollection(string $slug): string
+    {
+        return storage_path('app/og/collection-'.$slug.'.png');
     }
 
     public function pathForCompare(string $slugA, string $slugB): string
@@ -137,6 +152,34 @@ class OgImageService
         return $path;
     }
 
+    public function renderCollection(Collection $collection, bool $force = false): string
+    {
+        $this->ensureDir();
+        $path = $this->pathForCollection($collection->slug);
+
+        if (! $force && is_file($path) && filemtime($path) >= $collection->updated_at?->getTimestamp()) {
+            return $path;
+        }
+
+        if (! $this->gdAvailable()) {
+            throw new \RuntimeException('GD extension is not available');
+        }
+
+        $count = $collection->items()->count();
+        $subtitle = $count.' curated open-source alternative'.($count === 1 ? '' : 's');
+        $meta = 'Collection · Alternova';
+
+        $this->paint(
+            $path,
+            $collection->name,
+            $subtitle,
+            $meta,
+            $collection->is_featured ? 'Featured' : null
+        );
+
+        return $path;
+    }
+
     public function renderCompare(OpenSourceAlternative $left, OpenSourceAlternative $right, bool $force = false): string
     {
         $this->ensureDir();
@@ -155,7 +198,6 @@ class OgImageService
             throw new \RuntimeException('GD extension is not available');
         }
 
-        // Stable visual order matches URL alphabetical sort
         $pair = [$left, $right];
         usort($pair, fn ($a, $b) => strcmp($a->slug, $b->slug));
         [$a, $b] = $pair;
@@ -177,13 +219,11 @@ class OgImageService
         $accent = imagecolorallocate($im, 79, 70, 229);
         imagefilledrectangle($im, 0, 0, $w, 8, $accent);
 
-        // Two soft orbs
         $orbL = imagecolorallocatealpha($im, 99, 102, 241, 105);
         $orbR = imagecolorallocatealpha($im, 16, 185, 129, 110);
         imagefilledellipse($im, 280, 200, 380, 380, $orbL);
         imagefilledellipse($im, 920, 420, 420, 420, $orbR);
 
-        // Center divider
         $div = imagecolorallocatealpha($im, 148, 163, 184, 90);
         imagefilledrectangle($im, 598, 120, 602, 520, $div);
 
@@ -198,15 +238,10 @@ class OgImageService
         if ($useTtf) {
             imagettftext($im, 20, 0, 72, 70, $brand, $font, 'Alternova');
             imagettftext($im, 18, 0, 72, 110, $muted, $font, 'Side-by-side comparison');
+            imagettftext($im, 28, 0, 568, 330, $white, $font, 'VS');
         } else {
             imagestring($im, 5, 72, 40, 'Alternova', $brand);
             imagestring($im, 3, 72, 70, 'Side-by-side comparison', $muted);
-        }
-
-        // VS badge center
-        if ($useTtf) {
-            imagettftext($im, 28, 0, 568, 330, $white, $font, 'VS');
-        } else {
             imagestring($im, 5, 575, 300, 'VS', $white);
         }
 
@@ -362,9 +397,7 @@ class OgImageService
         imagedestroy($im);
     }
 
-    /**
-     * @return list<string>
-     */
+    /** @return list<string> */
     protected function wrap(string $text, int $maxChars): array
     {
         $text = trim(preg_replace('/\s+/', ' ', $text) ?? '');
