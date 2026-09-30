@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Collection;
 use App\Models\OpenSourceAlternative;
 use App\Models\ProprietaryTool;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Schema;
 
 class SitemapController extends Controller
 {
@@ -16,6 +18,7 @@ class SitemapController extends Controller
             ['loc' => $base.'/', 'changefreq' => 'daily', 'priority' => '1.0'],
             ['loc' => $base.'/alternatives', 'changefreq' => 'daily', 'priority' => '0.9'],
             ['loc' => $base.'/leaderboard', 'changefreq' => 'daily', 'priority' => '0.8'],
+            ['loc' => $base.'/collections', 'changefreq' => 'weekly', 'priority' => '0.8'],
             ['loc' => $base.'/whats-new', 'changefreq' => 'daily', 'priority' => '0.7'],
             ['loc' => $base.'/alternatives/compare', 'changefreq' => 'weekly', 'priority' => '0.6'],
             ['loc' => $base.'/domains', 'changefreq' => 'weekly', 'priority' => '0.8'],
@@ -26,6 +29,25 @@ class SitemapController extends Controller
             ['loc' => $base.'/disclosure', 'changefreq' => 'yearly', 'priority' => '0.3'],
             ['loc' => $base.'/suggest', 'changefreq' => 'monthly', 'priority' => '0.5'],
         ];
+
+        try {
+            if (Schema::hasTable('collections')) {
+                $collections = Collection::query()
+                    ->where('is_published', true)
+                    ->orderByDesc('updated_at')
+                    ->get(['slug', 'updated_at']);
+
+                foreach ($collections as $c) {
+                    $urls[] = [
+                        'loc' => $base.'/collections/'.$c->slug,
+                        'lastmod' => optional($c->updated_at)->toAtomString(),
+                        'changefreq' => 'weekly',
+                        'priority' => '0.75',
+                    ];
+                }
+            }
+        } catch (\Throwable) {
+        }
 
         $tools = ProprietaryTool::query()
             ->where('is_published', true)

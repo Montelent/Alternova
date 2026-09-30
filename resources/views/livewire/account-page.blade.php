@@ -119,8 +119,15 @@
     </section>
 
     <section class="mb-12">
-        <h2 class="text-xl font-semibold mb-1">Watchlist</h2>
-        <p class="text-sm text-slate-500 mb-4">Email alerts when health drops by 5+ points after a metrics sync.</p>
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div>
+                <h2 class="text-xl font-semibold">Watchlist</h2>
+                <p class="text-sm text-slate-500">Email alerts when health drops by 5+ points after a metrics sync.</p>
+            </div>
+            @if($watched->isNotEmpty())
+                <a href="{{ route('account.export.watchlist') }}" class="text-sm font-medium text-brand-600 dark:text-brand-300 hover:underline">Export CSV</a>
+            @endif
+        </div>
         @if($watched->isEmpty())
             <p class="text-sm text-slate-500">No watches yet. Open an alternative and click <strong>Watch</strong>.</p>
         @else
@@ -139,9 +146,14 @@
     </section>
 
     <section class="mb-12">
-        <div class="flex items-center justify-between mb-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h2 class="text-xl font-semibold">Favorites</h2>
-            <a href="{{ route('favorites') }}" class="text-sm text-brand-600 hover:underline">Full list</a>
+            <div class="flex items-center gap-4 text-sm">
+                @if($favorites->isNotEmpty())
+                    <a href="{{ route('account.export.favorites') }}" class="font-medium text-brand-600 dark:text-brand-300 hover:underline">Export CSV</a>
+                @endif
+                <a href="{{ route('favorites') }}" class="text-brand-600 hover:underline">Full list</a>
+            </div>
         </div>
         @if($favorites->isEmpty())
             <p class="text-sm text-slate-500">No favorites yet. Star alternatives while browsing.</p>

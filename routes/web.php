@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccountExportController;
 use App\Http\Controllers\AffiliateRedirectController;
 use App\Http\Controllers\Api\AlternativeApiController;
 use App\Http\Controllers\Api\SearchSuggestController;
@@ -20,6 +21,8 @@ use App\Livewire\Auth\ForgotPassword;
 use App\Livewire\Auth\Login;
 use App\Livewire\Auth\Register;
 use App\Livewire\Auth\ResetPassword;
+use App\Livewire\CollectionIndex;
+use App\Livewire\CollectionShow;
 use App\Livewire\CompareAlternatives;
 use App\Livewire\ContactForm;
 use App\Livewire\DomainCombinator;
@@ -42,6 +45,8 @@ Route::get('/', HomeController::class)->name('home');
 Route::get('/alternatives', OpenSourceFinder::class)->name('finder');
 Route::get('/alternatives/compare', CompareAlternatives::class)->name('alternatives.compare');
 Route::get('/leaderboard', Leaderboard::class)->name('leaderboard');
+Route::get('/collections', CollectionIndex::class)->name('collections.index');
+Route::get('/collections/{slug}', CollectionShow::class)->name('collections.show');
 // Param {slug} must not match Eloquent property $alternative (Livewire implicit binding 404)
 Route::get('/alternatives/{slug}', AlternativeDetail::class)->name('alternatives.show');
 
@@ -68,6 +73,12 @@ Route::get('/register', Register::class)->name('register')->middleware('guest');
 Route::get('/forgot-password', ForgotPassword::class)->name('password.request')->middleware('guest');
 Route::get('/reset-password/{token}', ResetPassword::class)->name('password.reset')->middleware('guest');
 Route::get('/account', AccountPage::class)->name('account');
+Route::get('/account/export/favorites', [AccountExportController::class, 'favorites'])
+    ->middleware('auth')
+    ->name('account.export.favorites');
+Route::get('/account/export/watchlist', [AccountExportController::class, 'watchlist'])
+    ->middleware('auth')
+    ->name('account.export.watchlist');
 
 Route::get('/badge/{slug}/health.svg', [BadgeController::class, 'health'])->name('badge.health');
 
