@@ -52,13 +52,11 @@
     @livewireStyles
     <style>
         [x-cloak]{display:none!important}
-        /* Readable form controls in dark mode */
         .dark input:not([type=checkbox]):not([type=radio]),
         .dark select,
         .dark textarea {
             color-scheme: dark;
         }
-        /* Pagination (default Laravel tailwind) */
         .dark nav[role="navigation"] span,
         .dark nav[role="navigation"] a {
             border-color: rgb(51 65 85) !important;
@@ -78,8 +76,12 @@
                         class="px-3 py-1.5 rounded-lg {{ request()->routeIs('finder','alternatives.show','tools.show') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                         Alternatives
                     </a>
+                    <a href="{{ route('leaderboard') }}"
+                        class="hidden sm:inline px-3 py-1.5 rounded-lg {{ request()->routeIs('leaderboard') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
+                        Rankings
+                    </a>
                     <a href="{{ route('whats-new') }}"
-                        class="hidden sm:inline px-3 py-1.5 rounded-lg {{ request()->routeIs('whats-new') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
+                        class="hidden md:inline px-3 py-1.5 rounded-lg {{ request()->routeIs('whats-new') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                         What's new
                     </a>
                     <a href="{{ route('domains') }}"
@@ -140,6 +142,7 @@
                         <p class="font-semibold text-slate-900 dark:text-white mb-3">Product</p>
                         <ul class="space-y-2 text-slate-500 dark:text-slate-400">
                             <li><a href="{{ route('finder') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Alternatives</a></li>
+                            <li><a href="{{ route('leaderboard') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Rankings</a></li>
                             <li><a href="{{ route('whats-new') }}" class="hover:text-slate-800 dark:hover:text-slate-200">What's new</a></li>
                             <li><a href="{{ route('favorites') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Favorites</a></li>
                             <li><a href="{{ route('domains') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Domains</a></li>
