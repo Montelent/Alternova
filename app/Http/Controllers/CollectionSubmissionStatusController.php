@@ -16,7 +16,7 @@ class CollectionSubmissionStatusController extends Controller
             ->where('tracking_token', $token)
             ->firstOrFail();
 
-        return view('collection-submission-status', [
+        return view('pages.collection-submission-status', [
             'submission' => $submission,
         ]);
     }
