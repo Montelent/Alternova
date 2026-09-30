@@ -116,10 +116,26 @@
                 @endforeach
             </ul>
         @endif
+    </section>
 
-        <p class="mt-4 text-xs text-slate-400">
-            Example: <code>curl -H "Authorization: Bearer alt_…" {{ url('/api/alternatives') }}</code>
-        </p>
+    <section class="mb-12">
+        <h2 class="text-xl font-semibold mb-1">Watchlist</h2>
+        <p class="text-sm text-slate-500 mb-4">Email alerts when health drops by 5+ points after a metrics sync.</p>
+        @if($watched->isEmpty())
+            <p class="text-sm text-slate-500">No watches yet. Open an alternative and click <strong>Watch</strong>.</p>
+        @else
+            <ul class="space-y-3">
+                @foreach($watched as $alt)
+                    <li class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 dark:border-slate-800 px-4 py-3">
+                        <div class="min-w-0">
+                            <a href="{{ route('alternatives.show', $alt) }}" class="font-medium hover:text-brand-600">{{ $alt->name }}</a>
+                            <p class="text-xs text-slate-500">Health {{ number_format($alt->overall_health_score, 1) }}</p>
+                        </div>
+                        <button type="button" wire:click="removeWatch({{ $alt->id }})" class="text-xs text-slate-400 hover:text-rose-500 shrink-0">Unwatch</button>
+                    </li>
+                @endforeach
+            </ul>
+        @endif
     </section>
 
     <section class="mb-12">
