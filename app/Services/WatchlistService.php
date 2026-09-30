@@ -96,9 +96,6 @@ class WatchlistService
             ->delete();
     }
 
-    /**
-     * Notify watchers when health drops by at least $threshold points.
-     */
     public function notifyHealthDrop(OpenSourceAlternative $alt, float $previousScore, float $newScore, float $threshold = 5.0): void
     {
         if (! $this->ready()) {
@@ -116,16 +113,38 @@ class WatchlistService
             ->with('user')
             ->get();
 
+        $url = url('/alternatives/'.$alt->slug);
+
         foreach ($watches as $watch) {
             $user = $watch->user;
-            if (! $user || ! $user->email) {
+            if (! $user) {
                 continue;
             }
 
-            // Avoid spamming the same score drop repeatedly within 7 days
             if ($watch->last_notified_at && $watch->last_notified_at->gt(now()->subDays(7))
                 && $watch->last_notified_score !== null
                 && abs((float) $watch->last_notified_score - $newScore) < 1) {
+                continue;
+            }
+
+            try {
+                app(UserNotificationService::class)->create(
+                    $user,
+                    'health_drop',
+                    $alt->name.' health dropped',
+                    'Score moved from '.number_format($previousScore, 1).' to '.number_format($newScore, 1).' (−'.number_format($drop, 1).').',
+                    $url,
+                    [
+                        'alternative_id' => $alt->id,
+                        'previous' => $previousScore,
+                        'new' => $newScore,
+                    ]
+                );
+            } catch (\Throwable $e) {
+                Log::warning('In-app health notify failed: '.$e->getMessage());
+            }
+
+            if (! $user->email) {
                 continue;
             }
 
