@@ -50,6 +50,7 @@
             </a>
             <nav class="hidden sm:flex items-center gap-6 text-sm text-slate-300">
                 <a href="{{ route('finder') }}" class="hover:text-white transition">Alternatives</a>
+                <a href="{{ route('collections.index') }}" class="hover:text-white transition">Collections</a>
                 <a href="{{ route('domains') }}" class="hover:text-white transition">Domains</a>
                 <a href="{{ route('suggest') }}" class="hover:text-white transition">Suggest</a>
                 <a href="{{ route('about') }}" class="hover:text-white transition">About</a>
@@ -86,6 +87,35 @@
             </div>
         </div>
     </section>
+
+    @if(isset($collections) && $collections->isNotEmpty())
+    <section class="py-16 border-t border-white/5" id="collections">
+        <div class="mx-auto max-w-6xl px-4 sm:px-6">
+            <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10">
+                <div>
+                    <p class="text-sm font-semibold uppercase tracking-wider text-violet-300 mb-2">Curated lists</p>
+                    <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-white">Featured collections</h2>
+                </div>
+                <a href="{{ route('collections.index') }}" class="text-sm font-medium text-brand-300 hover:text-brand-200 shrink-0">All collections →</a>
+            </div>
+            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                @foreach($collections as $c)
+                    <a href="{{ route('collections.show', $c->slug) }}"
+                        class="group rounded-2xl border border-white/10 bg-white/[0.04] p-6 hover:border-brand-400/50 transition">
+                        <div class="flex items-start justify-between gap-2">
+                            <h3 class="font-semibold text-white group-hover:text-brand-300 transition">{{ $c->name }}</h3>
+                            <span class="text-xs text-slate-500 shrink-0">{{ $c->items_count }} tools</span>
+                        </div>
+                        @if($c->description)
+                            <p class="mt-2 text-sm text-slate-400 line-clamp-2">{{ $c->description }}</p>
+                        @endif
+                        <span class="mt-4 inline-block text-sm font-medium text-brand-300">View →</span>
+                    </a>
+                @endforeach
+            </div>
+        </div>
+    </section>
+    @endif
 
     @if(isset($featured) && $featured->isNotEmpty())
     <section class="py-16 border-t border-white/5" id="featured">
@@ -216,6 +246,7 @@
             <span>© {{ date('Y') }} Alternova</span>
             <div class="flex flex-wrap justify-center gap-5">
                 <a href="{{ route('finder') }}" class="hover:text-slate-300">Alternatives</a>
+                <a href="{{ route('collections.index') }}" class="hover:text-slate-300">Collections</a>
                 <a href="{{ route('domains') }}" class="hover:text-slate-300">Domains</a>
                 <a href="{{ route('disclosure') }}" class="hover:text-slate-300">Disclosure</a>
                 <a href="{{ route('privacy') }}" class="hover:text-slate-300">Privacy</a>

@@ -97,6 +97,18 @@
                         <svg x-show="dark" x-cloak class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
                     </button>
                     @auth
+                        @php
+                            $unreadNotifs = 0;
+                            try {
+                                $unreadNotifs = app(\App\Services\UserNotificationService::class)->unreadCount(auth()->user());
+                            } catch (\Throwable) {}
+                        @endphp
+                        <a href="{{ route('notifications') }}" class="relative px-2 py-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800" title="Notifications">
+                            <span class="text-sm">🔔</span>
+                            @if($unreadNotifs > 0)
+                                <span class="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white px-1">{{ $unreadNotifs > 9 ? '9+' : $unreadNotifs }}</span>
+                            @endif
+                        </a>
                         <a href="{{ route('account') }}" class="px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs sm:text-sm">
                             Account
                         </a>
@@ -157,6 +169,7 @@
                         <ul class="space-y-2 text-slate-500 dark:text-slate-400">
                             @auth
                                 <li><a href="{{ route('account') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Your account</a></li>
+                                <li><a href="{{ route('notifications') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Notifications</a></li>
                             @else
                                 <li><a href="{{ route('login') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Sign in</a></li>
                                 <li><a href="{{ route('register') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Create account</a></li>
