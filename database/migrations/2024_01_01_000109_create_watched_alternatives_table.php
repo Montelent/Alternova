@@ -1,0 +1,33 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        if (Schema::hasTable('watched_alternatives')) {
+            return;
+        }
+
+        Schema::create('watched_alternatives', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('open_source_alternative_id')->constrained('open_source_alternatives')->cascadeOnDelete();
+            $table->boolean('notify_health_drop')->default(true);
+            $table->decimal('last_notified_score', 5, 2)->nullable();
+            $table->timestamp('last_notified_at')->nullable();
+            $table->timestamps();
+
+            $table->unique(['user_id', 'open_source_alternative_id'], 'watch_user_alt_uq');
+            $table->index('open_source_alternative_id', 'watch_alt_idx');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('watched_alternatives');
+    }
+};
