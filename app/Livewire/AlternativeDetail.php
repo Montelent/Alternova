@@ -11,7 +11,9 @@ use App\Services\OgImageService;
 use App\Services\RecentlyViewedService;
 use App\Services\SeoManager;
 use App\Services\VoteService;
+use App\Services\WatchlistService;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Component;
 
@@ -28,6 +30,10 @@ class AlternativeDetail extends Component
     public bool $isFavorited = false;
 
     public string $favoriteMessage = '';
+
+    public bool $isWatching = false;
+
+    public string $watchMessage = '';
 
     public bool $inCompare = false;
 
@@ -85,7 +91,6 @@ class AlternativeDetail extends Component
         try {
             $this->alternative = $record->load(['proprietaryTool', 'repoMetric', 'tags']);
         } catch (\Throwable) {
-            // Tags table may be missing — still show the page
             $this->alternative = $record->load(['proprietaryTool', 'repoMetric']);
         }
 
@@ -107,6 +112,12 @@ class AlternativeDetail extends Component
             $this->isFavorited = app(FavoriteService::class)->has($this->alternative);
         } catch (\Throwable) {
             $this->isFavorited = false;
+        }
+
+        try {
+            $this->isWatching = app(WatchlistService::class)->isWatching($this->alternative);
+        } catch (\Throwable) {
+            $this->isWatching = false;
         }
 
         $this->refreshCompareState();
@@ -176,6 +187,25 @@ class AlternativeDetail extends Component
             $this->favoriteMessage = $result['message'];
         } catch (\Throwable) {
             $this->favoriteMessage = 'Could not update favorites. Run migrations first.';
+        }
+    }
+
+    public function toggleWatch(): void
+    {
+        if (! Auth::check()) {
+            $this->watchMessage = 'Sign in to watch alternatives and get health-drop emails.';
+
+            return;
+        }
+
+        try {
+            $watching = app(WatchlistService::class)->toggle($this->alternative);
+            $this->isWatching = $watching;
+            $this->watchMessage = $watching
+                ? 'Watching — we email you if health drops by 5+ points.'
+                : 'Removed from watchlist.';
+        } catch (\Throwable) {
+            $this->watchMessage = 'Watchlist unavailable. Run migrations first.';
         }
     }
 
@@ -258,6 +288,7 @@ class AlternativeDetail extends Component
             'healthSeries' => $healthSeries,
             'healthPoints' => $healthPoints,
             'healthTrend' => $healthTrend,
+            'isLoggedIn' => Auth::check(),
         ])->layout('layouts.app', [
             'title' => $title,
             'description' => $description,

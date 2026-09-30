@@ -24,6 +24,7 @@ use App\Livewire\CompareAlternatives;
 use App\Livewire\ContactForm;
 use App\Livewire\DomainCombinator;
 use App\Livewire\FavoritesPage;
+use App\Livewire\Leaderboard;
 use App\Livewire\OpenSourceFinder;
 use App\Livewire\ProprietaryToolShow;
 use App\Livewire\SuggestAlternative;
@@ -40,6 +41,7 @@ Route::get('/', HomeController::class)->name('home');
 
 Route::get('/alternatives', OpenSourceFinder::class)->name('finder');
 Route::get('/alternatives/compare', CompareAlternatives::class)->name('alternatives.compare');
+Route::get('/leaderboard', Leaderboard::class)->name('leaderboard');
 // Param {slug} must not match Eloquent property $alternative (Livewire implicit binding 404)
 Route::get('/alternatives/{slug}', AlternativeDetail::class)->name('alternatives.show');
 
