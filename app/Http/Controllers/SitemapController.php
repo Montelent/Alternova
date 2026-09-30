@@ -18,16 +18,18 @@ class SitemapController extends Controller
             ['loc' => $base.'/', 'changefreq' => 'daily', 'priority' => '1.0'],
             ['loc' => $base.'/alternatives', 'changefreq' => 'daily', 'priority' => '0.9'],
             ['loc' => $base.'/leaderboard', 'changefreq' => 'daily', 'priority' => '0.8'],
+            ['loc' => $base.'/trending', 'changefreq' => 'daily', 'priority' => '0.8'],
             ['loc' => $base.'/collections', 'changefreq' => 'weekly', 'priority' => '0.8'],
             ['loc' => $base.'/whats-new', 'changefreq' => 'daily', 'priority' => '0.7'],
             ['loc' => $base.'/alternatives/compare', 'changefreq' => 'weekly', 'priority' => '0.6'],
             ['loc' => $base.'/domains', 'changefreq' => 'weekly', 'priority' => '0.8'],
+            ['loc' => $base.'/suggest', 'changefreq' => 'monthly', 'priority' => '0.5'],
+            ['loc' => $base.'/suggest/collection', 'changefreq' => 'monthly', 'priority' => '0.5'],
             ['loc' => $base.'/about', 'changefreq' => 'monthly', 'priority' => '0.5'],
             ['loc' => $base.'/contact', 'changefreq' => 'monthly', 'priority' => '0.4'],
             ['loc' => $base.'/privacy', 'changefreq' => 'yearly', 'priority' => '0.3'],
             ['loc' => $base.'/terms', 'changefreq' => 'yearly', 'priority' => '0.3'],
             ['loc' => $base.'/disclosure', 'changefreq' => 'yearly', 'priority' => '0.3'],
-            ['loc' => $base.'/suggest', 'changefreq' => 'monthly', 'priority' => '0.5'],
         ];
 
         try {

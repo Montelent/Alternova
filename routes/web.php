@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AlternativeApiController;
 use App\Http\Controllers\Api\ProsConsApiController;
 use App\Http\Controllers\Api\SearchSuggestController;
 use App\Http\Controllers\BadgeController;
+use App\Http\Controllers\CollectionSubmissionStatusController;
 use App\Http\Controllers\EmbedController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HomeController;
@@ -33,6 +34,8 @@ use App\Livewire\NotificationsPage;
 use App\Livewire\OpenSourceFinder;
 use App\Livewire\ProprietaryToolShow;
 use App\Livewire\SuggestAlternative;
+use App\Livewire\SuggestCollection;
+use App\Livewire\TrendingPage;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['web', 'not.installed'])->prefix('install')->group(function () {
@@ -47,6 +50,7 @@ Route::get('/', HomeController::class)->name('home');
 Route::get('/alternatives', OpenSourceFinder::class)->name('finder');
 Route::get('/alternatives/compare', CompareAlternatives::class)->name('alternatives.compare');
 Route::get('/leaderboard', Leaderboard::class)->name('leaderboard');
+Route::get('/trending', TrendingPage::class)->name('trending');
 Route::get('/collections', CollectionIndex::class)->name('collections.index');
 Route::get('/collections/{slug}', CollectionShow::class)->name('collections.show');
 Route::get('/alternatives/{slug}', AlternativeDetail::class)->name('alternatives.show');
@@ -93,7 +97,9 @@ Route::get('/go/{provider}', AffiliateRedirectController::class)
     ->name('affiliate.go');
 
 Route::get('/suggest', SuggestAlternative::class)->name('suggest');
+Route::get('/suggest/collection', SuggestCollection::class)->name('suggest.collection');
 Route::get('/submissions/{token}', SubmissionStatusController::class)->name('submissions.status');
+Route::get('/collection-submissions/{token}', CollectionSubmissionStatusController::class)->name('collection-submissions.status');
 Route::get('/contact', ContactForm::class)->name('contact');
 
 Route::get('/newsletter/unsubscribe', [NewsletterController::class, 'unsubscribe'])->name('newsletter.unsubscribe');
