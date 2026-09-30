@@ -28,6 +28,7 @@ use App\Livewire\ContactForm;
 use App\Livewire\DomainCombinator;
 use App\Livewire\FavoritesPage;
 use App\Livewire\Leaderboard;
+use App\Livewire\NotificationsPage;
 use App\Livewire\OpenSourceFinder;
 use App\Livewire\ProprietaryToolShow;
 use App\Livewire\SuggestAlternative;
@@ -47,10 +48,8 @@ Route::get('/alternatives/compare', CompareAlternatives::class)->name('alternati
 Route::get('/leaderboard', Leaderboard::class)->name('leaderboard');
 Route::get('/collections', CollectionIndex::class)->name('collections.index');
 Route::get('/collections/{slug}', CollectionShow::class)->name('collections.show');
-// Param {slug} must not match Eloquent property $alternative (Livewire implicit binding 404)
 Route::get('/alternatives/{slug}', AlternativeDetail::class)->name('alternatives.show');
 
-// Param {slug} must not match Eloquent property $tool
 Route::get('/tools/{slug}', ProprietaryToolShow::class)->name('tools.show');
 Route::get('/embed/tools/{slug}', [EmbedController::class, 'tool'])->name('embed.tool');
 
@@ -73,6 +72,7 @@ Route::get('/register', Register::class)->name('register')->middleware('guest');
 Route::get('/forgot-password', ForgotPassword::class)->name('password.request')->middleware('guest');
 Route::get('/reset-password/{token}', ResetPassword::class)->name('password.reset')->middleware('guest');
 Route::get('/account', AccountPage::class)->name('account');
+Route::get('/notifications', NotificationsPage::class)->name('notifications');
 Route::get('/account/export/favorites', [AccountExportController::class, 'favorites'])
     ->middleware('auth')
     ->name('account.export.favorites');
