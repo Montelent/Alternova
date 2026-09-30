@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\ApiKey;
 use App\Services\FavoriteService;
 use App\Services\SavedDomainService;
+use App\Services\WatchlistService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
@@ -140,6 +141,11 @@ class AccountPage extends Component
         }
     }
 
+    public function removeWatch(int $id): void
+    {
+        app(WatchlistService::class)->unwatch($id);
+    }
+
     public function removeDomain(int $id): void
     {
         $row = \App\Models\SavedDomain::query()->find($id);
@@ -163,14 +169,21 @@ class AccountPage extends Component
         } catch (\Throwable) {
         }
 
+        $watched = collect();
+        try {
+            $watched = app(WatchlistService::class)->listFor($user);
+        } catch (\Throwable) {
+        }
+
         return view('livewire.account-page', [
             'user' => $user,
             'favorites' => app(FavoriteService::class)->list(),
+            'watched' => $watched,
             'domains' => app(SavedDomainService::class)->list(),
             'apiKeys' => $apiKeys,
         ])->layout('layouts.app', [
             'title' => 'Your account | Alternova',
-            'description' => 'Manage profile, password, API keys, favorites, and saved domains.',
+            'description' => 'Manage profile, password, API keys, favorites, watchlist, and saved domains.',
             'robots' => 'noindex,follow',
         ]);
     }

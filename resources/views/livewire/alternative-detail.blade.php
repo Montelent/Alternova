@@ -57,12 +57,16 @@
                             <button type="button" wire:click="toggleFavorite" class="rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 {{ $isFavorited ? 'text-amber-500' : '' }}">
                                 {{ $isFavorited ? '★ Saved' : '☆ Save' }}
                             </button>
+                            <button type="button" wire:click="toggleWatch" class="rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 {{ $isWatching ? 'ring-1 ring-sky-400 text-sky-700 dark:text-sky-300' : '' }}">
+                                {{ $isWatching ? '👁 Watching' : '👁 Watch' }}
+                            </button>
                             <button type="button" wire:click="toggleCompare" class="rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200">
                                 {{ $inCompare ? 'In compare' : 'Compare' }}
                             </button>
                         </div>
                         @if($voteMessage)<p class="text-xs text-slate-500 dark:text-slate-400">{{ $voteMessage }}</p>@endif
                         @if($favoriteMessage)<p class="text-xs text-slate-500 dark:text-slate-400">{{ $favoriteMessage }}</p>@endif
+                        @if($watchMessage)<p class="text-xs text-slate-500 dark:text-slate-400">{{ $watchMessage }}</p>@endif
                         @if($compareMessage)<p class="text-xs text-slate-500 dark:text-slate-400">{{ $compareMessage }} @if($compareUrl)<a href="{{ $compareUrl }}" class="text-brand-600 dark:text-brand-300">Open</a>@endif</p>@endif
                     </div>
                 </div>
