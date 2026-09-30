@@ -80,17 +80,13 @@
                         class="hidden sm:inline px-3 py-1.5 rounded-lg {{ request()->routeIs('collections.*') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                         Collections
                     </a>
-                    <a href="{{ route('leaderboard') }}"
-                        class="hidden md:inline px-3 py-1.5 rounded-lg {{ request()->routeIs('leaderboard') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
-                        Rankings
+                    <a href="{{ route('trending') }}"
+                        class="hidden md:inline px-3 py-1.5 rounded-lg {{ request()->routeIs('trending') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
+                        Trending
                     </a>
                     <a href="{{ route('domains') }}"
                         class="px-3 py-1.5 rounded-lg {{ request()->routeIs('domains') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                         Domains
-                    </a>
-                    <a href="{{ route('favorites') }}"
-                        class="hidden md:inline px-3 py-1.5 rounded-lg {{ request()->routeIs('favorites') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
-                        ★
                     </a>
                     <button type="button" @click="toggle()" class="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800" title="Toggle theme" aria-label="Toggle dark mode">
                         <svg x-show="!dark" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
@@ -155,11 +151,12 @@
                         <ul class="space-y-2 text-slate-500 dark:text-slate-400">
                             <li><a href="{{ route('finder') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Alternatives</a></li>
                             <li><a href="{{ route('collections.index') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Collections</a></li>
+                            <li><a href="{{ route('trending') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Trending</a></li>
                             <li><a href="{{ route('leaderboard') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Rankings</a></li>
                             <li><a href="{{ route('whats-new') }}" class="hover:text-slate-800 dark:hover:text-slate-200">What's new</a></li>
-                            <li><a href="{{ route('favorites') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Favorites</a></li>
                             <li><a href="{{ route('domains') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Domains</a></li>
-                            <li><a href="{{ route('suggest') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Suggest</a></li>
+                            <li><a href="{{ route('suggest') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Suggest tool</a></li>
+                            <li><a href="{{ route('suggest.collection') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Suggest collection</a></li>
                             <li><a href="{{ url('/feed') }}" class="hover:text-slate-800 dark:hover:text-slate-200">RSS</a></li>
                             <li><a href="{{ url('/api/alternatives') }}" class="hover:text-slate-800 dark:hover:text-slate-200">API</a></li>
                         </ul>
