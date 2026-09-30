@@ -59,6 +59,9 @@ Route::get('/og/alternative/{slug}', [OgImageController::class, 'alternative'])
 Route::get('/og/tool/{slug}', [OgImageController::class, 'tool'])
     ->where('slug', '.*')
     ->name('og.tool');
+Route::get('/og/collection/{slug}', [OgImageController::class, 'collection'])
+    ->where('slug', '.*')
+    ->name('og.collection');
 Route::get('/og/compare/{a}/{b}', [OgImageController::class, 'compare'])
     ->where('a', '[A-Za-z0-9\-_]+')
     ->where('b', '[A-Za-z0-9\-_.]+')
