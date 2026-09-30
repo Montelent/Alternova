@@ -96,6 +96,10 @@
 
         <x-health-chart :series="$healthSeries" :points="$healthPoints" :trend="$healthTrend" />
 
+        <div class="mb-8">
+            <livewire:pros-cons-section :alternative-id="$alternative->id" :key="'proscons-'.$alternative->id" />
+        </div>
+
         @if($alternative->docker_compose_blueprint)
             <section class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm p-6 sm:p-8 mb-8" x-data="{ copied: false }">
                 <div class="flex items-center justify-between gap-3 mb-4">
