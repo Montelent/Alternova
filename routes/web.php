@@ -3,6 +3,7 @@
 use App\Http\Controllers\AccountExportController;
 use App\Http\Controllers\AffiliateRedirectController;
 use App\Http\Controllers\Api\AlternativeApiController;
+use App\Http\Controllers\Api\ProsConsApiController;
 use App\Http\Controllers\Api\SearchSuggestController;
 use App\Http\Controllers\BadgeController;
 use App\Http\Controllers\EmbedController;
@@ -109,6 +110,10 @@ Route::get('/feed/atom', [FeedController::class, 'atom'])->name('feed.atom');
 Route::prefix('api')->middleware(['api.key', 'api.throttle'])->group(function () {
     Route::get('/alternatives', [AlternativeApiController::class, 'index'])->name('api.alternatives.index');
     Route::get('/alternatives/{slug}', [AlternativeApiController::class, 'show'])->name('api.alternatives.show');
+    Route::get('/alternatives/{slug}/pros-cons', [ProsConsApiController::class, 'index'])->name('api.proscons.index');
+    Route::post('/alternatives/{slug}/pros-cons', [ProsConsApiController::class, 'store'])
+        ->middleware('throttle:20,1')
+        ->name('api.proscons.store');
     Route::get('/suggest', SearchSuggestController::class)->name('api.suggest');
 });
 

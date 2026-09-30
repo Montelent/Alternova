@@ -49,6 +49,7 @@ class MailSettingsPage extends Page implements HasForms
             'mail_contact_autoreply' => SiteSetting::getBool('mail_contact_autoreply', false),
             'mail_digest_enabled' => SiteSetting::getBool('mail_digest_enabled', true),
             'mail_digest_include_featured' => SiteSetting::getBool('mail_digest_include_featured', true),
+            'mail_notification_digest_enabled' => SiteSetting::getBool('mail_notification_digest_enabled', true),
             'mail_smtp_host' => SiteSetting::get('mail_smtp_host', ''),
             'mail_smtp_port' => SiteSetting::get('mail_smtp_port', '587'),
             'mail_smtp_username' => SiteSetting::get('mail_smtp_username', ''),
@@ -105,7 +106,7 @@ class MailSettingsPage extends Page implements HasForms
                     ->columns(1),
 
                 Section::make('Weekly newsletter digest')
-                    ->description('Scheduled Mondays 09:00 (requires Hostinger cron: php artisan schedule:run). Also runnable from System tools.')
+                    ->description('Scheduled Mondays 09:00 (requires Hostinger cron: php artisan schedule:run).')
                     ->schema([
                         Toggle::make('mail_digest_enabled')
                             ->label('Send weekly digest to subscribers')
@@ -114,6 +115,16 @@ class MailSettingsPage extends Page implements HasForms
                         Toggle::make('mail_digest_include_featured')
                             ->label('If nothing new, include featured alternatives')
                             ->helperText('Avoids empty weeks when the catalog was quiet.')
+                            ->inline(false),
+                    ])
+                    ->columns(1),
+
+                Section::make('Member notification digest')
+                    ->description('Emails signed-in members a summary of unread in-app notifications (comment replies, health drops). Mondays 09:30.')
+                    ->schema([
+                        Toggle::make('mail_notification_digest_enabled')
+                            ->label('Send unread-notification digest emails')
+                            ->helperText('Only users with unread notifications receive mail.')
                             ->inline(false),
                     ])
                     ->columns(1),
@@ -170,6 +181,7 @@ class MailSettingsPage extends Page implements HasForms
             'mail_contact_autoreply' => ! empty($state['mail_contact_autoreply']),
             'mail_digest_enabled' => ! empty($state['mail_digest_enabled']),
             'mail_digest_include_featured' => ! empty($state['mail_digest_include_featured']),
+            'mail_notification_digest_enabled' => ! empty($state['mail_notification_digest_enabled']),
             'mail_smtp_host' => trim((string) ($state['mail_smtp_host'] ?? '')),
             'mail_smtp_port' => trim((string) ($state['mail_smtp_port'] ?? '587')),
             'mail_smtp_username' => trim((string) ($state['mail_smtp_username'] ?? '')),
@@ -224,6 +236,25 @@ class MailSettingsPage extends Page implements HasForms
                 ->send();
         } catch (\Throwable $e) {
             Notification::make()->title('Digest failed')->body($e->getMessage())->danger()->send();
+        }
+    }
+
+    public function sendNotificationDigestNow(): void
+    {
+        $this->save();
+
+        try {
+            Artisan::call('alternova:send-notification-digest', [
+                '--days' => 7,
+                '--force' => true,
+            ]);
+            Notification::make()
+                ->title('Notification digest finished')
+                ->body(trim(Artisan::output()) ?: 'Done.')
+                ->success()
+                ->send();
+        } catch (\Throwable $e) {
+            Notification::make()->title('Notification digest failed')->body($e->getMessage())->danger()->send();
         }
     }
 }

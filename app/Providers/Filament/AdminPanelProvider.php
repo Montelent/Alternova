@@ -47,6 +47,7 @@ class AdminPanelProvider extends PanelProvider
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([
                 Pages\Dashboard::class,
+                \App\Filament\Pages\EngagementAnalytics::class,
                 \App\Filament\Pages\AdSettings::class,
                 \App\Filament\Pages\MailSettingsPage::class,
                 \App\Filament\Pages\SiteSeoSettings::class,
@@ -55,6 +56,7 @@ class AdminPanelProvider extends PanelProvider
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
                 \App\Filament\Widgets\StatsOverview::class,
+                \App\Filament\Widgets\EngagementStatsWidget::class,
                 Widgets\AccountWidget::class,
             ])
             ->middleware([
