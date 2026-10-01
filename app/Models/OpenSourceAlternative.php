@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Scout\Searchable;
 use Spatie\Tags\HasTags;
 
@@ -49,6 +50,7 @@ class OpenSourceAlternative extends Model
         'editor_note',
         'changelog',
         'gallery_urls',
+        'gallery_paths',
         'pros',
         'cons',
         'repo_reachable',
@@ -67,6 +69,7 @@ class OpenSourceAlternative extends Model
         'pros' => 'array',
         'cons' => 'array',
         'gallery_urls' => 'array',
+        'gallery_paths' => 'array',
         'repo_reachable' => 'boolean',
         'website_reachable' => 'boolean',
         'links_checked_at' => 'datetime',
@@ -129,6 +132,24 @@ class OpenSourceAlternative extends Model
     public function getRouteKeyName(): string
     {
         return 'slug';
+    }
+
+    /** @return list<string> */
+    public function galleryImageUrls(): array
+    {
+        $urls = [];
+        foreach ((array) ($this->gallery_paths ?? []) as $path) {
+            if ($path) {
+                $urls[] = Storage::disk('public')->url($path);
+            }
+        }
+        foreach ((array) ($this->gallery_urls ?? []) as $url) {
+            if ($url) {
+                $urls[] = $url;
+            }
+        }
+
+        return array_values(array_unique($urls));
     }
 
     public function hasActiveSponsorship(): bool

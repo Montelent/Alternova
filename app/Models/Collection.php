@@ -6,6 +6,7 @@ use App\Services\WebhookDispatcher;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 class Collection extends Model
 {
@@ -15,6 +16,7 @@ class Collection extends Model
         'description',
         'intro_html',
         'cover_image_url',
+        'cover_path',
         'is_published',
         'is_featured',
         'sort_order',
@@ -79,6 +81,15 @@ class Collection extends Model
             ->withPivot(['position', 'note'])
             ->withTimestamps()
             ->orderByPivot('position');
+    }
+
+    public function coverUrl(): ?string
+    {
+        if ($this->cover_path) {
+            return Storage::disk('public')->url($this->cover_path);
+        }
+
+        return $this->cover_image_url ?: null;
     }
 
     public function seoTitle(): string
