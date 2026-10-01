@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Forms\Components\TinyEditor;
 use App\Filament\Forms\SeoForm;
 use App\Filament\Resources\OpenSourceAlternativeResource\Pages;
 use App\Jobs\SyncGitHubMetricsJob;
@@ -75,8 +76,9 @@ class OpenSourceAlternativeResource extends Resource
                         ->required()
                         ->helperText('https://github.com/owner/repo'),
                     Forms\Components\TextInput::make('website_url')->url(),
-                    Forms\Components\Textarea::make('description')
-                        ->rows(5)
+                    TinyEditor::make('description')
+                        ->label('Description')
+                        ->height(320)
                         ->columnSpanFull(),
                     Forms\Components\Actions::make([
                         Forms\Components\Actions\Action::make('generateDescription')
@@ -128,7 +130,7 @@ class OpenSourceAlternativeResource extends Resource
                 ])->columns(2),
 
                 Forms\Components\Section::make('Sponsored placement')
-                    ->description('Paid / partner spotlight. Shows a Sponsored badge and ranks above organic featured on the homepage until the end date. Auto-expires daily at 00:30.')
+                    ->description('Paid / partner spotlight. Shows a Sponsored badge and ranks above organic featured on the homepage until the end date.')
                     ->schema([
                         Forms\Components\Toggle::make('is_sponsored')
                             ->label('Sponsored')
@@ -137,13 +139,11 @@ class OpenSourceAlternativeResource extends Resource
                         Forms\Components\DateTimePicker::make('sponsored_until')
                             ->label('Sponsored until')
                             ->native(false)
-                            ->helperText('Leave empty for no expiry. After this time, sponsorship turns off automatically.')
                             ->visible(fn (Get $get) => (bool) $get('is_sponsored')),
                         Forms\Components\TextInput::make('sponsor_label')
                             ->label('Badge label')
                             ->placeholder('Sponsored')
                             ->maxLength(40)
-                            ->helperText('Shown on cards (e.g. Partner, Sponsored).')
                             ->visible(fn (Get $get) => (bool) $get('is_sponsored')),
                     ])
                     ->columns(2)
@@ -176,11 +176,8 @@ class OpenSourceAlternativeResource extends Resource
                     Forms\Components\Textarea::make('docker_compose_blueprint')->rows(10)->columnSpanFull(),
                     Forms\Components\TagsInput::make('pros')->columnSpanFull(),
                     Forms\Components\TagsInput::make('cons')->columnSpanFull(),
-                    Forms\Components\Textarea::make('editor_note')->rows(3)->columnSpanFull(),
-                    Forms\Components\Textarea::make('changelog')
-                        ->label('Public changelog / notes')
-                        ->rows(6)
-                        ->columnSpanFull(),
+                    TinyEditor::make('editor_note')->label('Editor note')->height(220)->columnSpanFull(),
+                    TinyEditor::make('changelog')->label('Public changelog / notes')->height(280)->columnSpanFull(),
                     Forms\Components\TagsInput::make('gallery_urls')
                         ->label('Screenshot URLs')
                         ->placeholder('https://…')
@@ -237,6 +234,11 @@ class OpenSourceAlternativeResource extends Resource
                 Tables\Filters\TrashedFilter::make(),
             ])
             ->actions([
+                Tables\Actions\Action::make('viewSite')
+                    ->label('View')
+                    ->icon('heroicon-o-arrow-top-right-on-square')
+                    ->url(fn (OpenSourceAlternative $r) => route('alternatives.show', $r->slug), shouldOpenInNewTab: true)
+                    ->visible(fn (OpenSourceAlternative $r) => $r->is_published && ! $r->trashed()),
                 Tables\Actions\Action::make('syncMetrics')
                     ->label('Sync GitHub')
                     ->icon('heroicon-o-arrow-path')

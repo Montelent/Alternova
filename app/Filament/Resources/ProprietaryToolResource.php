@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Forms\Components\TinyEditor;
 use App\Filament\Forms\SeoForm;
 use App\Filament\Resources\ProprietaryToolResource\Pages;
 use App\Models\ProprietaryTool;
@@ -52,7 +53,10 @@ class ProprietaryToolResource extends Resource
                         ->image()
                         ->directory('logos')
                         ->columnSpanFull(),
-                    Forms\Components\Textarea::make('description')->rows(4)->columnSpanFull(),
+                    TinyEditor::make('description')
+                        ->label('Description')
+                        ->height(300)
+                        ->columnSpanFull(),
                     Forms\Components\Actions::make([
                         Forms\Components\Actions\Action::make('generateDescription')
                             ->label('Generate from website')
@@ -106,6 +110,11 @@ class ProprietaryToolResource extends Resource
                 Tables\Filters\TrashedFilter::make(),
             ])
             ->actions([
+                Tables\Actions\Action::make('viewSite')
+                    ->label('View')
+                    ->icon('heroicon-o-arrow-top-right-on-square')
+                    ->url(fn (ProprietaryTool $r) => route('tools.show', $r->slug), shouldOpenInNewTab: true)
+                    ->visible(fn (ProprietaryTool $r) => $r->is_published && ! $r->trashed()),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
                 Tables\Actions\RestoreAction::make(),

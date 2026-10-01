@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Forms\Components\TinyEditor;
 use App\Filament\Resources\CollectionResource\Pages;
 use App\Models\Collection;
 use App\Models\OpenSourceAlternative;
@@ -59,11 +60,10 @@ class CollectionResource extends Resource
                     ->rows(3)
                     ->columnSpanFull()
                     ->helperText('Short blurb shown on cards and under the title.'),
-                Forms\Components\Textarea::make('intro_html')
-                    ->label('Intro (plain text / light HTML)')
-                    ->rows(6)
-                    ->columnSpanFull()
-                    ->helperText('Longer editorial intro on the collection page.'),
+                TinyEditor::make('intro_html')
+                    ->label('Intro')
+                    ->height(360)
+                    ->columnSpanFull(),
                 Forms\Components\TextInput::make('cover_image_url')
                     ->url()
                     ->columnSpanFull()
@@ -135,6 +135,11 @@ class CollectionResource extends Resource
                 Tables\Filters\TernaryFilter::make('is_featured'),
             ])
             ->actions([
+                Tables\Actions\Action::make('viewSite')
+                    ->label('View')
+                    ->icon('heroicon-o-arrow-top-right-on-square')
+                    ->url(fn (Collection $r) => route('collections.show', $r->slug), shouldOpenInNewTab: true)
+                    ->visible(fn (Collection $r) => $r->is_published),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])
