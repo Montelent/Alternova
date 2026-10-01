@@ -59,11 +59,6 @@ class SeoManager
         return SiteSetting::getBool('seo_site_noindex', false);
     }
 
-    /**
-     * Replace template tokens.
-     *
-     * @param  array<string, string|null>  $vars
-     */
     public function replace(string $template, array $vars = []): string
     {
         $defaults = [
@@ -145,7 +140,7 @@ class SeoManager
         return Str::limit(
             $alt->name.' is a free, self-hostable open-source alternative to '
             .($alt->proprietaryTool?->name ?? 'proprietary software').'. '
-            .($alt->description ?? ''),
+            .strip_tags((string) ($alt->description ?? '')),
             155
         );
     }
@@ -156,14 +151,8 @@ class SeoManager
             return $tool->meta_title;
         }
 
-        $tpl = SiteSetting::get(
-            'seo_title_tool',
-            'Open-source alternatives to %title% %sep% %sitename%'
-        );
-
-        return $this->replace((string) $tpl, [
-            '%title%' => $tool->name,
-        ]);
+        // Same pattern as opensourcealternative.to
+        return 'Open Source Alternatives to '.$tool->name;
     }
 
     public function toolDescription(ProprietaryTool $tool): string
@@ -183,7 +172,7 @@ class SeoManager
 
         return Str::limit(
             'Browse free, self-hostable open-source alternatives to '.$tool->name.'. '
-            .($tool->description ?? ''),
+            .strip_tags((string) ($tool->description ?? '')),
             155
         );
     }
@@ -213,9 +202,6 @@ class SeoManager
             ?: 'index,follow,max-image-preview:large,max-snippet:-1';
     }
 
-    /**
-     * @return array{google: string, bing: string, yandex: string, pinterest: string}
-     */
     public function verifications(): array
     {
         return [
@@ -226,11 +212,6 @@ class SeoManager
         ];
     }
 
-    /**
-     * Organization / WebSite JSON-LD extras.
-     *
-     * @return array<string, mixed>
-     */
     public function organizationSchema(): array
     {
         $logo = trim((string) SiteSetting::get('seo_org_logo', ''));
@@ -256,12 +237,6 @@ class SeoManager
         return $org;
     }
 
-    /**
-     * Build full head context for layouts.
-     *
-     * @param  array{title?: string, description?: string, canonical?: string, robots?: string, ogType?: string, ogImage?: string|null, ogTitle?: string|null, ogDescription?: string|null}  $page
-     * @return array<string, mixed>
-     */
     public function head(array $page = []): array
     {
         $title = $page['title'] ?? $this->homepageTitle();

@@ -9,10 +9,14 @@
         </nav>
 
         <header class="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-10 shadow-sm mb-10">
-            <p class="text-sm font-semibold uppercase tracking-wider text-brand-600 mb-2">Proprietary product</p>
-            <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">{{ $tool->name }}</h1>
+            <p class="text-sm font-semibold uppercase tracking-wider text-brand-600 mb-2">Alternatives to</p>
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                {{ $heading ?? ('Open Source Alternatives to '.$tool->name) }}
+            </h1>
             @if($tool->description)
-                <p class="mt-4 text-slate-600 dark:text-slate-300 leading-relaxed max-w-3xl">{{ $tool->description }}</p>
+                <div class="mt-4 text-slate-600 dark:text-slate-300 leading-relaxed max-w-3xl prose dark:prose-invert">
+                    {!! $tool->description !!}
+                </div>
             @endif
             <div class="mt-6 flex flex-wrap gap-3">
                 @if($tool->website_url)
@@ -21,13 +25,13 @@
                         Official website
                     </a>
                 @endif
-                <a href="{{ route('finder') }}" class="inline-flex rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">
-                    Browse all alternatives
+                <a href="{{ route('finder', ['tool' => $tool->slug]) }}" class="inline-flex rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">
+                    Filter in finder
                 </a>
             </div>
             @if(is_array($tool->key_features) && count($tool->key_features))
                 <div class="mt-8">
-                    <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">Key features</h2>
+                    <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">Key features of {{ $tool->name }}</h2>
                     <ul class="flex flex-wrap gap-2">
                         @foreach($tool->key_features as $feature)
                             <li class="rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium px-3 py-1">
@@ -41,8 +45,8 @@
 
         <div class="flex items-end justify-between gap-4 mb-6">
             <div>
-                <h2 class="text-2xl font-bold text-slate-900 dark:text-white">Open-source alternatives</h2>
-                <p class="mt-1 text-sm text-slate-500">{{ $alternatives->count() }} published option{{ $alternatives->count() === 1 ? '' : 's' }}</p>
+                <h2 class="text-2xl font-bold text-slate-900 dark:text-white">{{ $alternatives->count() }} open-source alternative{{ $alternatives->count() === 1 ? '' : 's' }}</h2>
+                <p class="mt-1 text-sm text-slate-500">Ranked by health score</p>
             </div>
             <a href="{{ route('alternatives.compare') }}" class="text-sm font-semibold text-brand-600 hover:underline">Compare →</a>
         </div>
@@ -63,16 +67,16 @@
                                 {{ number_format($alt->overall_health_score, 0) }}
                             </span>
                         </div>
-                        <p class="mt-2 text-sm text-slate-500 dark:text-slate-400 line-clamp-2">{{ $alt->description }}</p>
+                        <p class="mt-2 text-sm text-slate-500 dark:text-slate-400 line-clamp-2">{{ strip_tags((string) $alt->description) }}</p>
                         <div class="mt-4 flex flex-wrap gap-2 text-xs">
                             @if($alt->license_type)
                                 <span class="rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-2 py-0.5">{{ $alt->license_type }}</span>
                             @endif
+                            @if($alt->primary_language)
+                                <span class="rounded-full bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300 px-2 py-0.5">{{ $alt->primary_language }}</span>
+                            @endif
                             @if($alt->repoMetric)
                                 <span class="rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5">★ {{ number_format($alt->repoMetric->github_stars) }}</span>
-                            @endif
-                            @if($alt->votes_count)
-                                <span class="rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-0.5">{{ $alt->votes_count }} votes</span>
                             @endif
                         </div>
                     </a>

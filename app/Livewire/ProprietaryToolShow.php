@@ -26,8 +26,7 @@ class ProprietaryToolShow extends Component
             try {
                 $redirect = null;
                 if (class_exists(SlugRedirect::class)) {
-                    $redirect = S
-                    lugRedirect::query()
+                    $redirect = SlugRedirect::query()
                         ->where('old_slug', $requestedSlug)
                         ->where('model_type', 'tool')
                         ->first();
@@ -62,18 +61,17 @@ class ProprietaryToolShow extends Component
         $alternatives = $tool->linkedAlternatives();
 
         $seo = app(SeoManager::class);
-        // Match opensourcealternative.to style: "Open Source Alternatives to {Name}"
-        $title = $tool->meta_title
-            ?: ('Open Source Alternatives to '.$tool->name);
+        $heading = 'Open Source Alternatives to '.$tool->name;
+        $title = $tool->meta_title ?: $heading;
         $description = $seo->toolDescription($tool);
         $canonical = $tool->canonical_url ?: route('alternativesto.show', $tool->slug);
         $ogImage = app(OgImageService::class)->toolUrl($tool);
 
         return view('livewire.proprietary-tool-show', [
             'alternatives' => $alternatives,
+            'heading' => $heading,
         ])->layout('layouts.app', [
-            'title' => $title.
-                ' | Alternova',
+            'title' => $title.' | Alternova',
             'description' => $description,
             'canonical' => $canonical,
             'robots' => $tool->robots_meta ?: null,

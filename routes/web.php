@@ -55,18 +55,18 @@ Route::get('/collections', CollectionIndex::class)->name('collections.index');
 Route::get('/collections/{slug}', CollectionShow::class)->name('collections.show');
 Route::get('/alternatives/{slug}', AlternativeDetail::class)->name('alternatives.show');
 
-Route::get('/tools/{slug}', ProprietaryToolShow::class)->name('tools.show');
+// Canonical “alternatives to X” pages (opensourcealternative.to style)
+Route::get('/alternativesto/{slug}', ProprietaryToolShow::class)->name('alternativesto.show');
+// Legacy /tools/{slug} redirects to alternativesto
+Route::get('/tools/{slug}', function (string $slug) {
+    return redirect()->route('alternativesto.show', $slug, 301);
+})->name('tools.show');
+
 Route::get('/embed/tools/{slug}', [EmbedController::class, 'tool'])->name('embed.tool');
 
-Route::get('/og/alternative/{slug}', [OgImageController::class, 'alternative'])
-    ->where('slug', '.*')
-    ->name('og.alternative');
-Route::get('/og/tool/{slug}', [OgImageController::class, 'tool'])
-    ->where('slug', '.*')
-    ->name('og.tool');
-Route::get('/og/collection/{slug}', [OgImageController::class, 'collection'])
-    ->where('slug', '.*')
-    ->name('og.collection');
+Route::get('/og/alternative/{slug}', [OgImageController::class, 'alternative'])->where('slug', '.*')->name('og.alternative');
+Route::get('/og/tool/{slug}', [OgImageController::class, 'tool'])->where('slug', '.*')->name('og.tool');
+Route::get('/og/collection/{slug}', [OgImageController::class, 'collection'])->where('slug', '.*')->name('og.collection');
 Route::get('/og/compare/{a}/{b}', [OgImageController::class, 'compare'])
     ->where('a', '[A-Za-z0-9\-_]+')
     ->where('b', '[A-Za-z0-9\-_.]+')
@@ -81,12 +81,8 @@ Route::get('/forgot-password', ForgotPassword::class)->name('password.request')-
 Route::get('/reset-password/{token}', ResetPassword::class)->name('password.reset')->middleware('guest');
 Route::get('/account', AccountPage::class)->name('account');
 Route::get('/notifications', NotificationsPage::class)->name('notifications');
-Route::get('/account/export/favorites', [AccountExportController::class, 'favorites'])
-    ->middleware('auth')
-    ->name('account.export.favorites');
-Route::get('/account/export/watchlist', [AccountExportController::class, 'watchlist'])
-    ->middleware('auth')
-    ->name('account.export.watchlist');
+Route::get('/account/export/favorites', [AccountExportController::class, 'favorites'])->middleware('auth')->name('account.export.favorites');
+Route::get('/account/export/watchlist', [AccountExportController::class, 'watchlist'])->middleware('auth')->name('account.export.watchlist');
 
 Route::get('/badge/{slug}/health.svg', [BadgeController::class, 'health'])->name('badge.health');
 
@@ -108,9 +104,7 @@ Route::get('/about', [PageController::class, 'about'])->name('about');
 Route::get('/privacy', [PageController::class, 'privacy'])->name('privacy');
 Route::get('/terms', [PageController::class, 'terms'])->name('terms');
 Route::get('/disclosure', [PageController::class, 'disclosure'])->name('disclosure');
-Route::get('/p/{slug}', [PageController::class, 'show'])
-    ->where('slug', '[A-Za-z0-9\-_]+')
-    ->name('pages.show');
+Route::get('/p/{slug}', [PageController::class, 'show'])->where('slug', '[A-Za-z0-9\-_]+')->name('pages.show');
 
 Route::get('/feed', [FeedController::class, 'rss'])->name('feed.rss');
 Route::get('/feed/rss', [FeedController::class, 'rss']);
@@ -120,9 +114,7 @@ Route::prefix('api')->middleware(['api.key', 'api.throttle'])->group(function ()
     Route::get('/alternatives', [AlternativeApiController::class, 'index'])->name('api.alternatives.index');
     Route::get('/alternatives/{slug}', [AlternativeApiController::class, 'show'])->name('api.alternatives.show');
     Route::get('/alternatives/{slug}/pros-cons', [ProsConsApiController::class, 'index'])->name('api.proscons.index');
-    Route::post('/alternatives/{slug}/pros-cons', [ProsConsApiController::class, 'store'])
-        ->middleware('throttle:20,1')
-        ->name('api.proscons.store');
+    Route::post('/alternatives/{slug}/pros-cons', [ProsConsApiController::class, 'store'])->middleware('throttle:20,1')->name('api.proscons.store');
     Route::get('/suggest', SearchSuggestController::class)->name('api.suggest');
 });
 
