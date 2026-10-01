@@ -2,7 +2,9 @@
 
 namespace App\Livewire;
 
+use App\Models\LicenseType;
 use App\Models\OpenSourceAlternative;
+use App\Models\OssCategory;
 use App\Models\ProprietaryTool;
 use App\Services\SeoManager;
 use App\Support\CategoryCatalog;
@@ -28,6 +30,9 @@ class OpenSourceFinder extends Component
 
     #[Url]
     public array $categories = [];
+
+    #[Url]
+    public array $languages = [];
 
     #[Url(as: 'tool')]
     public string $toolSlug = '';
@@ -57,6 +62,11 @@ class OpenSourceFinder extends Component
         $this->resetPage();
     }
 
+    public function updatingLanguages(): void
+    {
+        $this->resetPage();
+    }
+
     public function updatingToolSlug(): void
     {
         $this->resetPage();
@@ -65,19 +75,36 @@ class OpenSourceFinder extends Component
     public function toggleCategory(string $name): void
     {
         if (in_array($name, $this->categories, true)) {
-            $this->categories = array_values(array_filter(
-                $this->categories,
-                fn ($c) => $c !== $name
-            ));
+            $this->categories = array_values(array_filter($this->categories, fn ($c) => $c !== $name));
         } else {
             $this->categories[] = $name;
         }
         $this->resetPage();
     }
 
+    public function toggleLicense(string $name): void
+    {
+        if (in_array($name, $this->licenses, true)) {
+            $this->licenses = array_values(array_filter($this->licenses, fn ($c) => $c !== $name));
+        } else {
+            $this->licenses[] = $name;
+        }
+        $this->resetPage();
+    }
+
+    public function toggleLanguage(string $name): void
+    {
+        if (in_array($name, $this->languages, true)) {
+            $this->languages = array_values(array_filter($this->languages, fn ($c) => $c !== $name));
+        } else {
+            $this->languages[] = $name;
+        }
+        $this->resetPage();
+    }
+
     public function clearFilters(): void
     {
-        $this->reset(['search', 'licenses', 'difficulties', 'categories', 'toolSlug']);
+        $this->reset(['search', 'licenses', 'difficulties', 'categories', 'languages', 'toolSlug']);
         $this->sort = 'health';
         $this->resetPage();
     }
@@ -86,7 +113,7 @@ class OpenSourceFinder extends Component
     public function alternatives()
     {
         $query = OpenSourceAlternative::query()
-            ->with(['proprietaryTool', 'repoMetric', 'tags'])
+            ->with(['proprietaryTool', 'proprietaryTools', 'repoMetric', 'tags'])
             ->where('is_published', true);
 
         if (strlen($this->search) >= 2) {
@@ -105,6 +132,10 @@ class OpenSourceFinder extends Component
             $query->whereIn('license_type', $this->licenses);
         }
 
+        if (! empty($this->languages)) {
+            $query->whereIn('primary_language', $this->languages);
+        }
+
         if (! empty($this->difficulties)) {
             $query->whereIn('self_host_difficulty', $this->difficulties);
         }
@@ -114,10 +145,17 @@ class OpenSourceFinder extends Component
         }
 
         if ($this->toolSlug !== '') {
-            $query->whereHas('proprietaryTool', fn ($q) => $q->where('slug', $this->toolSlug));
+            $query->where(function ($q) {
+                $q->whereHas('proprietaryTool', fn ($qq) => $qq->where('slug', $this->toolSlug));
+                try {
+                    if (Schema::hasTable('alternative_proprietary_tool')) {
+                        $q->orWhereHas('proprietaryTools', fn ($qq) => $qq->where('slug', $this->toolSlug));
+                    }
+                } catch (\Throwable) {
+                }
+            });
         }
 
-        // Boost active sponsorships to the top for default / health sorts
         $hasSponsored = Schema::hasColumn('open_source_alternatives', 'is_sponsored');
         if ($hasSponsored && in_array($this->sort, ['health', 'votes'], true)) {
             $query->orderByRaw(
@@ -141,11 +179,25 @@ class OpenSourceFinder extends Component
 
     public function render()
     {
-        $usedCategories = [];
-        try {
-            $usedCategories = Tag::query()->where('type', 'category')->orderBy('name')->pluck('name')->all();
-        } catch (\Throwable) {
+        $chipCategories = OssCategory::activeNames();
+        if ($chipCategories === []) {
+            try {
+                $chipCategories = Tag::query()->where('type', 'category')->orderBy('name')->pluck('name')->all();
+            } catch (\Throwable) {
+                $chipCategories = CategoryCatalog::names();
+            }
         }
+
+        $availableLicenses = LicenseType::activeNames();
+
+        $availableLanguages = OpenSourceAlternative::query()
+            ->where('is_published', true)
+            ->whereNotNull('primary_language')
+            ->where('primary_language', '!=', '')
+            ->distinct()
+            ->orderBy('primary_language')
+            ->pluck('primary_language')
+            ->all();
 
         $tools = ProprietaryTool::query()
             ->where('is_published', true)
@@ -157,7 +209,8 @@ class OpenSourceFinder extends Component
 
         return view('livewire.open-source-finder', [
             'alternatives' => $this->alternatives,
-            'availableLicenses' => ['MIT', 'Apache-2.0', 'AGPL-3.0', 'GPL-3.0', 'BSD-3-Clause', 'MPL-2.0', 'BSL-1.1'],
+            'availableLicenses' => $availableLicenses,
+            'availableLanguages' => $availableLanguages,
             'difficultyLabels' => [
                 1 => 'Very Easy',
                 2 => 'Easy',
@@ -165,11 +218,11 @@ class OpenSourceFinder extends Component
                 4 => 'Hard',
                 5 => 'Expert',
             ],
-            'chipCategories' => $usedCategories ?: CategoryCatalog::names(),
+            'chipCategories' => $chipCategories,
             'tools' => $tools,
         ])->layout('layouts.app', [
             'title' => $seo->pageTitle('finder', 'Open Source Alternatives Finder'),
-            'description' => 'Discover high-quality, self-hostable open-source alternatives. Filter by license, difficulty, and category.',
+            'description' => 'Discover high-quality, self-hostable open-source alternatives. Filter by category, language, and license.',
             'canonical' => route('finder'),
         ]);
     }

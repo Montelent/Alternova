@@ -7,7 +7,9 @@ use App\Filament\Forms\ImageField;
 use App\Filament\Forms\SeoForm;
 use App\Filament\Resources\OpenSourceAlternativeResource\Pages;
 use App\Jobs\SyncGitHubMetricsJob;
+use App\Models\LicenseType;
 use App\Models\OpenSourceAlternative;
+use App\Models\OssCategory;
 use App\Models\ProprietaryTool;
 use App\Services\DescriptionGeneratorService;
 use App\Services\LinkHealthService;
@@ -23,6 +25,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class OpenSourceAlternativeResource extends Resource
@@ -53,18 +56,53 @@ class OpenSourceAlternativeResource extends Resource
 
     public static function form(Form $form): Form
     {
-        $categoryOptions = array_combine(CategoryCatalog::names(), CategoryCatalog::names());
+        $categoryOptions = array_combine(
+            ($names = OssCategory::activeNames()) ?: CategoryCatalog::names(),
+            $names ?: CategoryCatalog::names()
+        );
+
+        $licenseOptions = [];
+        foreach (LicenseType::activeNames() as $lic) {
+            $licenseOptions[$lic] = $lic;
+        }
+
+        $hasPivot = false;
+        try {
+            $hasPivot = Schema::hasTable('alternative_proprietary_tool');
+        } catch (\Throwable) {
+        }
+
+        $toolFields = [];
+        if ($hasPivot) {
+            $toolFields[] = Forms\Components\Select::make('proprietaryTools')
+                ->label('Proprietary tools (up to 5)')
+                ->relationship('proprietaryTools', 'name')
+                ->multiple()
+                ->maxItems(5)
+                ->searchable()
+                ->preload()
+                ->required()
+                ->helperText('Select 1–5 products this open-source project can replace. First becomes the primary.')
+                ->columnSpanFull()
+                ->live()
+                ->afterStateUpdated(function ($state, Set $set) {
+                    $ids = is_array($state) ? array_values($state) : [];
+                    $set('proprietary_tool_id', $ids[0] ?? null);
+                });
+            $toolFields[] = Forms\Components\Hidden::make('proprietary_tool_id');
+        } else {
+            $toolFields[] = Forms\Components\Select::make('proprietary_tool_id')
+                ->label('Proprietary tool')
+                ->relationship('proprietaryTool', 'name')
+                ->required()
+                ->searchable()
+                ->preload();
+        }
 
         return $form
             ->schema([
                 Forms\Components\Section::make('Core')->schema([
-                    Forms\Components\Select::make('proprietary_tool_id')
-                        ->label('Proprietary tool')
-                        ->relationship('proprietaryTool', 'name')
-                        ->required()
-                        ->searchable()
-                        ->preload()
-                        ->live(),
+                    ...$toolFields,
                     Forms\Components\TextInput::make('name')
                         ->required()
                         ->live(onBlur: true)
@@ -122,6 +160,7 @@ class OpenSourceAlternativeResource extends Resource
                         ->multiple()
                         ->options($categoryOptions)
                         ->searchable()
+                        ->helperText('Managed under Open Source Finder → Categories.')
                         ->columnSpanFull(),
                 ])->columns(2),
 
@@ -131,38 +170,19 @@ class OpenSourceAlternativeResource extends Resource
                 ])->columns(2),
 
                 Forms\Components\Section::make('Sponsored placement')
-                    ->description('Paid / partner spotlight. Shows a Sponsored badge and ranks above organic featured on the homepage until the end date.')
                     ->schema([
-                        Forms\Components\Toggle::make('is_sponsored')
-                            ->label('Sponsored')
-                            ->live()
-                            ->default(false),
-                        Forms\Components\DateTimePicker::make('sponsored_until')
-                            ->label('Sponsored until')
-                            ->native(false)
+                        Forms\Components\Toggle::make('is_sponsored')->label('Sponsored')->live()->default(false),
+                        Forms\Components\DateTimePicker::make('sponsored_until')->native(false)
                             ->visible(fn (Get $get) => (bool) $get('is_sponsored')),
-                        Forms\Components\TextInput::make('sponsor_label')
-                            ->label('Badge label')
-                            ->placeholder('Sponsored')
-                            ->maxLength(40)
+                        Forms\Components\TextInput::make('sponsor_label')->maxLength(40)
                             ->visible(fn (Get $get) => (bool) $get('is_sponsored')),
-                    ])
-                    ->columns(2)
-                    ->collapsed(),
+                    ])->columns(2)->collapsed(),
 
                 Forms\Components\Section::make('Technical')->schema([
                     Forms\Components\Select::make('license_type')
-                        ->options([
-                            'MIT' => 'MIT',
-                            'Apache-2.0' => 'Apache-2.0',
-                            'AGPL-3.0' => 'AGPL-3.0',
-                            'GPL-3.0' => 'GPL-3.0',
-                            'BSD-3-Clause' => 'BSD-3-Clause',
-                            'MPL-2.0' => 'MPL-2.0',
-                            'BSL-1.1' => 'BSL-1.1',
-                            'Other' => 'Other',
-                        ])
-                        ->searchable(),
+                        ->options($licenseOptions)
+                        ->searchable()
+                        ->helperText('Managed under Open Source Finder → License types.'),
                     Forms\Components\Select::make('self_host_difficulty')
                         ->options([
                             1 => '1 - Very Easy',
@@ -172,7 +192,8 @@ class OpenSourceAlternativeResource extends Resource
                             5 => '5 - Expert',
                         ])
                         ->default(3),
-                    Forms\Components\TextInput::make('primary_language'),
+                    Forms\Components\TextInput::make('primary_language')
+                        ->datalist(['PHP', 'JavaScript', 'TypeScript', 'Python', 'Go', 'Rust', 'Java', 'Ruby', 'C#', 'Swift', 'Kotlin']),
                     Forms\Components\TextInput::make('overall_health_score')->numeric()->disabled(),
                     Forms\Components\Textarea::make('docker_compose_blueprint')->rows(10)->columnSpanFull(),
                     Forms\Components\TagsInput::make('pros')->columnSpanFull(),
@@ -183,7 +204,6 @@ class OpenSourceAlternativeResource extends Resource
                     Forms\Components\TagsInput::make('gallery_urls')
                         ->label('Extra screenshot URLs')
                         ->placeholder('https://…')
-                        ->helperText('Optional external image links in addition to uploads.')
                         ->columnSpanFull(),
                 ])->columns(2),
 
@@ -210,19 +230,19 @@ class OpenSourceAlternativeResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')->searchable()->sortable(),
-                Tables\Columns\TextColumn::make('proprietaryTool.name')->label('Proprietary')->toggleable(),
-                Tables\Columns\TextColumn::make('focus_keyword')->label('Keyphrase')->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('proprietaryTool.name')->label('Primary tool')->toggleable(),
+                Tables\Columns\TextColumn::make('proprietaryTools.name')
+                    ->label('All tools')
+                    ->badge()
+                    ->separator(',')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('license_type')->toggleable(),
+                Tables\Columns\TextColumn::make('primary_language')->label('Lang')->toggleable(),
                 Tables\Columns\TextColumn::make('tags.name')->label('Categories')->badge()->separator(',')->toggleable(),
                 Tables\Columns\TextColumn::make('overall_health_score')->sortable()->label('Health'),
                 Tables\Columns\TextColumn::make('votes_count')->label('Votes')->sortable()->toggleable(),
-                Tables\Columns\TextColumn::make('repoMetric.github_stars')->label('Stars')->sortable()->toggleable(),
                 Tables\Columns\IconColumn::make('is_published')->boolean()->label('Published'),
                 Tables\Columns\IconColumn::make('is_featured')->boolean()->label('Featured')->toggleable(),
-                Tables\Columns\IconColumn::make('is_sponsored')->boolean()->label('Sponsored')->toggleable(),
-                Tables\Columns\TextColumn::make('sponsored_until')->dateTime()->label('Sponsored until')->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\IconColumn::make('repo_reachable')->boolean()->label('Repo OK')->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\IconColumn::make('website_reachable')->boolean()->label('Site OK')->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 Tables\Filters\TernaryFilter::make('is_published'),
@@ -231,8 +251,7 @@ class OpenSourceAlternativeResource extends Resource
                 Tables\Filters\Filter::make('broken_links')
                     ->label('Broken links only')
                     ->query(fn (Builder $q) => $q->where(function (Builder $inner) {
-                        $inner->where('repo_reachable', false)
-                            ->orWhere('website_reachable', false);
+                        $inner->where('repo_reachable', false)->orWhere('website_reachable', false);
                     })),
                 Tables\Filters\TrashedFilter::make(),
             ])
@@ -278,47 +297,11 @@ class OpenSourceAlternativeResource extends Resource
                         ->color('success')
                         ->requiresConfirmation()
                         ->action(fn (Collection $records) => $records->each->update(['is_published' => true]))
-                        ->deselectRecordsAfterCompletion()
-                        ->successNotificationTitle('Published selected alternatives'),
+                        ->deselectRecordsAfterCompletion(),
                     Tables\Actions\BulkAction::make('unpublish')
                         ->label('Unpublish')
                         ->icon('heroicon-o-eye-slash')
-                        ->color('warning')
-                        ->requiresConfirmation()
                         ->action(fn (Collection $records) => $records->each->update(['is_published' => false]))
-                        ->deselectRecordsAfterCompletion()
-                        ->successNotificationTitle('Unpublished selected alternatives'),
-                    Tables\Actions\BulkAction::make('feature')
-                        ->label('Feature')
-                        ->icon('heroicon-o-star')
-                        ->action(fn (Collection $records) => $records->each->update(['is_featured' => true, 'is_published' => true]))
-                        ->deselectRecordsAfterCompletion()
-                        ->successNotificationTitle('Featured (and published) selected'),
-                    Tables\Actions\BulkAction::make('unfeature')
-                        ->label('Unfeature')
-                        ->icon('heroicon-o-x-mark')
-                        ->action(fn (Collection $records) => $records->each->update(['is_featured' => false]))
-                        ->deselectRecordsAfterCompletion()
-                        ->successNotificationTitle('Removed from featured'),
-                    Tables\Actions\BulkAction::make('syncSelected')
-                        ->label('Sync GitHub')
-                        ->icon('heroicon-o-arrow-path')
-                        ->action(function (Collection $records) {
-                            $ok = 0;
-                            $fail = 0;
-                            foreach ($records as $record) {
-                                try {
-                                    SyncGitHubMetricsJob::dispatchSync($record);
-                                    $ok++;
-                                } catch (\Throwable) {
-                                    $fail++;
-                                }
-                            }
-                            Notification::make()
-                                ->title("Synced {$ok}, failed {$fail}")
-                                ->success()
-                                ->send();
-                        })
                         ->deselectRecordsAfterCompletion(),
                     Tables\Actions\DeleteBulkAction::make(),
                     Tables\Actions\RestoreBulkAction::make(),
