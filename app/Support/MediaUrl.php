@@ -17,32 +17,26 @@ class MediaUrl
 
         $path = trim($path);
 
-        // Already absolute
         if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://') || str_starts_with($path, '//')) {
             return $path;
         }
 
-        // Leading /public or /storage variants
-        if (str_starts_with($path, '/uploads/') || str_starts_with($path, 'uploads/')) {
-            return asset(ltrim($path, '/'));
+        // Strip accidental public/ prefix from older saves
+        $path = preg_replace('#^public/#', '', $path) ?? $path;
+        $path = ltrim($path, '/');
+
+        if (str_starts_with($path, 'uploads/')) {
+            return url($path);
         }
 
-        if (str_starts_with($path, '/storage/') || str_starts_with($path, 'storage/')) {
-            return asset(ltrim($path, '/'));
+        if (str_starts_with($path, 'storage/')) {
+            return url($path);
         }
 
         try {
-            if (Storage::disk($disk)->exists($path)) {
-                return Storage::disk($disk)->url($path);
-            }
+            return Storage::disk($disk)->url($path);
         } catch (\Throwable) {
-        }
-
-        // Fallback: treat as relative under uploads
-        try {
-            return Storage::disk('uploads')->url($path);
-        } catch (\Throwable) {
-            return asset('uploads/'.ltrim($path, '/'));
+            return url('uploads/'.$path);
         }
     }
 }

@@ -9,7 +9,8 @@ use Filament\Forms\Components\TextInput;
 class ImageField
 {
     /**
-     * Direct file upload into public/uploads (no storage symlink required).
+     * Upload into {app}/uploads/{directory} — served at /uploads/...
+     * Uses the dedicated "uploads" disk (base_path, not public/).
      */
     public static function make(
         string $name,
@@ -37,7 +38,7 @@ class ImageField
             ->openable()
             ->previewable()
             ->imagePreviewHeight('120')
-            ->helperText('Upload from device (max 5MB). Saved under /uploads/'.$directory.'/')
+            ->helperText('Saved to /uploads/'.$directory.'/ (site root). Max 5MB.')
             ->columnSpanFull();
 
         if (! $withUrlFallback) {
@@ -78,7 +79,7 @@ class ImageField
             ->downloadable()
             ->openable()
             ->previewable()
-            ->helperText("Upload up to {$max} images (max 5MB each). Stored in /uploads/{$directory}/")
+            ->helperText("Saved to /uploads/{$directory}/. Up to {$max} images, max 5MB each.")
             ->columnSpanFull();
     }
 }

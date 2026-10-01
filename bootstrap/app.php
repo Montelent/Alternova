@@ -37,12 +37,10 @@ $app = Application::configure(basePath: $basePath)
     })->create();
 
 /*
- | Hostinger / shared hosting: document root is public_html (app root),
- | not public_html/public. Point Laravel's public path at the base path
- | so public_path('uploads') resolves to public_html/uploads.
+ | ALWAYS use the app root as the public path.
+ | Hostinger document root is public_html (where index.php lives).
+ | Even if a leftover public/ folder exists, do not use it.
  */
-if (! is_file($basePath.'/public/index.php')) {
-    $app->usePublicPath($basePath);
-}
+$app->usePublicPath($basePath);
 
 return $app;

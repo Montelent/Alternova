@@ -1,5 +1,14 @@
 <?php
 
+/*
+ | Uploads MUST live at {app}/uploads so they are web-accessible at /uploads
+ | when the document root is public_html (not public_html/public).
+ | Never use public_path() here — force base_path so a leftover public/
+ | directory cannot steal files.
+ */
+
+$base = dirname(__DIR__);
+
 return [
 
     'default' => env('FILESYSTEM_DISK', 'local'),
@@ -8,27 +17,22 @@ return [
 
         'local' => [
             'driver' => 'local',
-            'root' => storage_path('app/private'),
+            'root' => $base.'/storage/app/private',
             'serve' => true,
             'throw' => false,
         ],
 
         'public' => [
             'driver' => 'local',
-            'root' => storage_path('app/public'),
+            'root' => $base.'/storage/app/public',
             'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
             'visibility' => 'public',
             'throw' => false,
         ],
 
-        /*
-         | Direct web-accessible uploads — no symlink.
-         | With public_path() = app root on Hostinger, files live at
-         | public_html/uploads and are served at https://domain/uploads/...
-         */
         'uploads' => [
             'driver' => 'local',
-            'root' => public_path('uploads'),
+            'root' => $base.'/uploads',
             'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/uploads',
             'visibility' => 'public',
             'throw' => false,
@@ -49,7 +53,7 @@ return [
     ],
 
     'links' => [
-        public_path('storage') => storage_path('app/public'),
+        $base.'/storage' => $base.'/storage/app/public',
     ],
 
 ];
