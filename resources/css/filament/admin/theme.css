@@ -1,0 +1,55 @@
+/* Alternova admin — mobile-first polish */
+
+/* Touch-friendly targets */
+@media (max-width: 768px) {
+    .fi-sidebar-nav-item-button,
+    .fi-topbar-item-button,
+    .fi-btn {
+        min-height: 2.75rem;
+    }
+
+    .fi-ta-actions,
+    .fi-ac-actions {
+        flex-wrap: wrap;
+        gap: 0.35rem;
+    }
+
+    .fi-fo-field-wrp {
+        padding-inline: 0.25rem;
+    }
+
+    /* File upload drop zone */
+    .filepond--root {
+        font-size: 0.875rem;
+    }
+
+    .filepond--panel-root {
+        border-radius: 0.75rem;
+    }
+
+    .filepond--drop-label {
+        min-height: 6rem;
+    }
+
+    /* Tables: allow horizontal scroll without clipping page */
+    .fi-ta-content {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .fi-header-heading {
+        font-size: 1.25rem !important;
+        line-height: 1.35 !important;
+    }
+
+    .fi-page > section {
+        padding-inline: 0.75rem;
+    }
+}
+
+/* Ensure image previews scale */
+.filepond--image-preview-wrapper img,
+.fi-fo-file-upload-image-preview img {
+    max-width: 100%;
+    height: auto;
+}
