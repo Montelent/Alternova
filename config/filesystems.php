@@ -22,8 +22,9 @@ return [
         ],
 
         /*
-         | Direct web-accessible uploads (no symlink needed — ideal for Hostinger).
-         | Files live in public_html/uploads and are served at /uploads/...
+         | Direct web-accessible uploads — no symlink.
+         | With public_path() = app root on Hostinger, files live at
+         | public_html/uploads and are served at https://domain/uploads/...
          */
         'uploads' => [
             'driver' => 'local',

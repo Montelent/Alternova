@@ -21,7 +21,31 @@
                     <div class="max-w-2xl">
                         <p class="text-sm font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-300 mb-3">Open-source alternative</p>
                         <h1 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-[1.15]">{{ $heading }}</h1>
-                        <p class="mt-3 text-lg text-slate-600 dark:text-slate-300 font-medium">{{ $subheading }}</p>
+
+                        {{-- Clickable proprietary tool(s) --}}
+                        <p class="mt-3 text-lg text-slate-600 dark:text-slate-300 font-medium">
+                            The open-source alternative to
+                            @php
+                                $propTools = collect();
+                                if (isset($proprietaryTools) && $proprietaryTools->isNotEmpty()) {
+                                    $propTools = $proprietaryTools;
+                                } elseif ($proprietary) {
+                                    $propTools = collect([$proprietary]);
+                                }
+                            @endphp
+                            @forelse($propTools as $pt)
+                                <a href="{{ route('alternativesto.show', $pt->slug) }}"
+                                    class="inline-flex items-center gap-1.5 font-semibold text-brand-600 dark:text-brand-400 hover:underline underline-offset-2">
+                                    @if($pt->logo_url)
+                                        <img src="{{ $pt->logo_url }}" alt="" class="h-5 w-5 rounded object-contain" loading="lazy">
+                                    @endif
+                                    {{ $pt->name }}
+                                </a>@if(!$loop->last)<span class="text-slate-400">,</span> @endif
+                            @empty
+                                <span class="font-semibold text-slate-800 dark:text-slate-200">proprietary tools</span>
+                            @endforelse
+                        </p>
+
                         <div class="mt-5 flex flex-wrap gap-2 items-center">
                             @if($alternative->license_type)
                                 <span class="rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800 px-3 py-1 text-xs font-semibold">{{ $alternative->license_type }}</span>
@@ -36,7 +60,9 @@
                             </span>
                         </div>
                         @if($alternative->description)
-                            <p class="mt-6 text-slate-600 dark:text-slate-300 leading-relaxed">{{ $alternative->description }}</p>
+                            <div class="mt-6 text-slate-600 dark:text-slate-300 leading-relaxed prose dark:prose-invert max-w-none">
+                                {!! $alternative->description !!}
+                            </div>
                         @endif
                     </div>
                     <div class="flex flex-col sm:flex-row lg:flex-col gap-3 shrink-0">
@@ -117,7 +143,12 @@
         <section class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm p-6 sm:p-8 mb-8">
             <h2 class="text-lg font-bold text-slate-900 dark:text-white mb-3">Why {{ $alternative->name }}?</h2>
             <p class="text-slate-600 dark:text-slate-300 leading-relaxed text-sm sm:text-base">
-                <strong class="text-slate-900 dark:text-white">{{ $alternative->name }}</strong> is a self-hostable open-source alternative to <strong class="text-slate-900 dark:text-white">{{ $propName }}</strong>,
+                <strong class="text-slate-900 dark:text-white">{{ $alternative->name }}</strong> is a self-hostable open-source alternative to
+                @forelse($propTools as $pt)
+                    <a href="{{ route('alternativesto.show', $pt->slug) }}" class="font-semibold text-brand-600 dark:text-brand-400 hover:underline">{{ $pt->name }}</a>@if(!$loop->last), @endif
+                @empty
+                    <strong class="text-slate-900 dark:text-white">proprietary software</strong>
+                @endforelse,
                 with health score {{ number_format($alternative->overall_health_score, 1) }}/100
                 @if($alternative->license_type) under the {{ $alternative->license_type }} license @endif.
             </p>

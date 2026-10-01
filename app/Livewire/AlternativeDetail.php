@@ -15,6 +15,7 @@ use App\Services\WatchlistService;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Component;
 
 class AlternativeDetail extends Component
@@ -41,10 +42,6 @@ class AlternativeDetail extends Component
 
     public ?string $compareUrl = null;
 
-    /**
-     * Route param must NOT be named the same as the Eloquent property `$alternative`,
-     * or Livewire implicit model binding 404s before mount runs.
-     */
     public function mount(string $slug): void
     {
         $requestedSlug = trim($slug);
@@ -89,7 +86,11 @@ class AlternativeDetail extends Component
         }
 
         try {
-            $this->alternative = $record->load(['proprietaryTool', 'repoMetric', 'tags']);
+            $with = ['proprietaryTool', 'repoMetric', 'tags'];
+            if (Schema::hasTable('alternative_proprietary_tool')) {
+                $with[] = 'proprietaryTools';
+            }
+            $this->alternative = $record->load($with);
         } catch (\Throwable) {
             $this->alternative = $record->load(['proprietaryTool', 'repoMetric']);
         }
@@ -213,7 +214,21 @@ class AlternativeDetail extends Component
     {
         $alt = $this->alternative;
         $prop = $alt->proprietaryTool;
-        $propName = $prop?->name ?? 'proprietary tools';
+
+        $propTools = collect();
+        try {
+            if ($alt->relationLoaded('proprietaryTools') && $alt->proprietaryTools->isNotEmpty()) {
+                $propTools = $alt->proprietaryTools;
+            } elseif ($prop) {
+                $propTools = collect([$prop]);
+            }
+        } catch (\Throwable) {
+            if ($prop) {
+                $propTools = collect([$prop]);
+            }
+        }
+
+        $propName = $propTools->pluck('name')->join(', ') ?: 'proprietary tools';
         $seo = app(SeoManager::class);
 
         $title = $seo->alternativeTitle($alt);
@@ -278,6 +293,7 @@ class AlternativeDetail extends Component
         return view('livewire.alternative-detail', [
             'schemas' => $this->buildSchemas($alt, $prop, $canonical),
             'proprietary' => $prop,
+            'proprietaryTools' => $propTools,
             'metric' => $alt->repoMetric,
             'heading' => $alt->name,
             'subheading' => 'The open-source alternative to '.$propName,
@@ -307,7 +323,7 @@ class AlternativeDetail extends Component
             '@context' => 'https://schema.org',
             '@type' => 'SoftwareApplication',
             'name' => $alt->name,
-            'description' => $alt->description,
+            'description' => strip_tags((string) $alt->description),
             'url' => $canonical,
             'applicationCategory' => 'BusinessApplication',
             'operatingSystem' => 'Cross-platform',
