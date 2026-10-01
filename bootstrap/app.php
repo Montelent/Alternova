@@ -10,9 +10,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 
-$basePath = dirname(__DIR__);
-
-$app = Application::configure(basePath: $basePath)
+return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
@@ -35,12 +33,3 @@ $app = Application::configure(basePath: $basePath)
     ->withExceptions(function (Exceptions $exceptions) {
         //
     })->create();
-
-/*
- | ALWAYS use the app root as the public path.
- | Hostinger document root is public_html (where index.php lives).
- | Even if a leftover public/ folder exists, do not use it.
- */
-$app->usePublicPath($basePath);
-
-return $app;

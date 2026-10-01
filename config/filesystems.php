@@ -1,10 +1,9 @@
 <?php
 
 /*
- | Uploads MUST live at {app}/uploads so they are web-accessible at /uploads
- | when the document root is public_html (not public_html/public).
- | Never use public_path() here — force base_path so a leftover public/
- | directory cannot steal files.
+ | Uploads live at {project}/uploads and are served at /uploads/...
+ | because the document root is the project root (public_html).
+ | This does NOT require changing Laravel's public_path().
  */
 
 $base = dirname(__DIR__);
@@ -53,7 +52,7 @@ return [
     ],
 
     'links' => [
-        $base.'/storage' => $base.'/storage/app/public',
+        $base.'/public/storage' => $base.'/storage/app/public',
     ],
 
 ];

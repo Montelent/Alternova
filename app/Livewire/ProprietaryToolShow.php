@@ -5,9 +5,9 @@ namespace App\Livewire;
 use App\Models\ProprietaryTool;
 use App\Models\SlugRedirect;
 use App\Services\OgImageService;
+use App\Services\ProprietaryPageCopy;
 use App\Services\SeoManager;
 use Illuminate\Http\Exceptions\HttpResponseException;
-use Illuminate\Support\Str;
 use Livewire\Component;
 
 class ProprietaryToolShow extends Component
@@ -62,43 +62,30 @@ class ProprietaryToolShow extends Component
         $alternatives = $tool->linkedAlternatives();
         $count = $alternatives->count();
 
-        // "5 Open Source Alternatives to Salesforce"
-        $heading = $count.' Open Source Alternative'.($count === 1 ? '' : 's').' to '.$tool->name;
-
-        $seo = app(SeoManager::class);
-        $title = $tool->meta_title ?: $heading;
-        $description = $tool->meta_description
-            ?: $seo->toolDescription($tool);
-
-        // Enrich description with count when using default
-        if (! $tool->meta_description) {
-            $description = Str::limit(
-                'Discover '.$count.' free, self-hostable open-source alternative'.($count === 1 ? '' : 's').' to '.$tool->name.'. '
-                .strip_tags((string) ($tool->description ?? '')),
-                155
-            );
-        }
-
-        $canonical = $tool->canonical_url ?: route('alternativesto.show', $tool->slug);
-        $ogImage = app(OgImageService::class)->toolUrl($tool);
-
-        $notable = $alternatives->take(4)->pluck('name')->all();
-
-        $categories = [];
+        $categoryList = [];
         foreach ($alternatives as $alt) {
             if ($alt->relationLoaded('tags')) {
                 foreach ($alt->tags->where('type', 'category') as $tag) {
-                    $categories[(string) $tag->name] = true;
+                    $categoryList[(string) $tag->name] = true;
                 }
             }
         }
-        $categoryList = array_keys($categories);
+        $categoryList = array_keys($categoryList);
+
+        $copy = app(ProprietaryPageCopy::class)->build($tool, $alternatives, $categoryList);
+
+        $title = $tool->meta_title ?: $copy['heading'];
+        $description = $tool->meta_description ?: $copy['meta_description'];
+        $canonical = $tool->canonical_url ?: route('alternativesto.show', $tool->slug);
+        $ogImage = app(OgImageService::class)->toolUrl($tool);
 
         return view('livewire.proprietary-tool-show', [
             'alternatives' => $alternatives,
             'count' => $count,
-            'heading' => $heading,
-            'notable' => $notable,
+            'heading' => $copy['heading'],
+            'kicker' => $copy['kicker'],
+            'intro' => $copy['intro'],
+            'body' => $copy['body'],
             'categoryList' => $categoryList,
         ])->layout('layouts.app', [
             'title' => $title.' | Alternova',

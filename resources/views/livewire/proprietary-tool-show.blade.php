@@ -1,144 +1,137 @@
-<div class="min-h-screen bg-white dark:bg-slate-950">
-    <div class="max-w-3xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
-        {{-- Breadcrumb --}}
-        <nav class="mb-8 text-sm text-slate-500 dark:text-slate-400">
-            <a href="{{ route('home') }}" class="hover:text-brand-600">Home</a>
-            <span class="mx-1.5">/</span>
-            <a href="{{ route('finder') }}" class="hover:text-brand-600">Alternatives</a>
-            <span class="mx-1.5">/</span>
-            <span class="text-slate-800 dark:text-slate-200">{{ $tool->name }}</span>
+<div class="min-h-screen bg-slate-50 dark:bg-slate-950">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        <nav class="mb-6 text-sm text-slate-500 dark:text-slate-400">
+            <a href="{{ route('home') }}" class="hover:text-brand-600 dark:hover:text-brand-300">Home</a>
+            <span class="mx-1.5 text-slate-300 dark:text-slate-600">/</span>
+            <a href="{{ route('finder') }}" class="hover:text-brand-600 dark:hover:text-brand-300">Alternatives</a>
+            <span class="mx-1.5 text-slate-300 dark:text-slate-600">/</span>
+            <span class="text-slate-800 dark:text-slate-200 font-medium">{{ $tool->name }}</span>
         </nav>
 
-        {{-- Hero — matches opensourcealternative.to pattern --}}
-        <header class="mb-10">
-            <div class="flex items-start gap-4 mb-5">
+        {{-- Hero --}}
+        <header class="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-8 lg:p-10 shadow-sm mb-8 sm:mb-10">
+            <div class="flex flex-col sm:flex-row sm:items-start gap-5 sm:gap-6">
                 @if($tool->logo_url)
-                    <img src="{{ $tool->logo_url }}" alt="{{ $tool->name }}"
-                        class="h-14 w-14 sm:h-16 sm:w-16 rounded-xl object-contain bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1.5 shrink-0"
-                        loading="eager" width="64" height="64">
+                    <img src="{{ $tool->logo_url }}" alt="{{ $tool->name }} logo"
+                        class="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl object-contain bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2 shrink-0"
+                        width="80" height="80" loading="eager">
                 @else
-                    <div class="h-14 w-14 sm:h-16 sm:w-16 rounded-xl bg-brand-50 dark:bg-brand-950 border border-brand-100 dark:border-brand-900 flex items-center justify-center text-xl font-bold text-brand-700 dark:text-brand-300 shrink-0">
-                        {{ strtoupper(Str::substr($tool->name, 0, 1)) }}
+                    <div class="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl bg-brand-50 dark:bg-brand-950/50 border border-brand-100 dark:border-brand-900 flex items-center justify-center text-2xl font-bold text-brand-700 dark:text-brand-300 shrink-0" aria-hidden="true">
+                        {{ strtoupper(\Illuminate\Support\Str::substr($tool->name, 0, 1)) }}
                     </div>
                 @endif
-                <div class="min-w-0">
-                    <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
+
+                <div class="min-w-0 flex-1">
+                    <p class="text-xs sm:text-sm font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-400 mb-2">
+                        Alternatives directory
+                    </p>
+                    <h1 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
                         {{ $heading }}
                     </h1>
+                    <p class="mt-3 text-base sm:text-lg text-slate-600 dark:text-slate-300 font-medium">
+                        {{ $kicker }}
+                    </p>
                 </div>
             </div>
 
-            <p class="text-lg text-slate-600 dark:text-slate-300 font-medium">
-                The best
-                @if(count($categoryList))
-                    {{ implode(', ', array_slice($categoryList, 0, 3)) }}
-                @else
-                    open-source
-                @endif
-                tools similar to {{ $tool->name }}
-            </p>
+            <div class="mt-6 space-y-4 text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-relaxed max-w-3xl">
+                <p>{{ $intro }}</p>
+                <p>{{ $body }}</p>
+            </div>
 
-            @if($tool->description)
-                <div class="mt-5 text-slate-600 dark:text-slate-400 leading-relaxed prose dark:prose-invert max-w-none">
-                    {!! Str::limit(strip_tags($tool->description), 400) !!}
+            @if(is_array($tool->key_features) && count($tool->key_features))
+                <div class="mt-6">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">What {{ $tool->name }} is known for</p>
+                    <ul class="flex flex-wrap gap-2">
+                        @foreach($tool->key_features as $feature)
+                            <li class="rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium px-3 py-1">
+                                {{ is_string($feature) ? $feature : json_encode($feature) }}
+                            </li>
+                        @endforeach
+                    </ul>
                 </div>
-            @endif
-
-            @if($count > 0)
-                <p class="mt-5 text-slate-600 dark:text-slate-400 leading-relaxed">
-                    @php $top = $alternatives->first(); @endphp
-                    @if($top)
-                        <a href="{{ route('alternatives.show', $top) }}" class="font-semibold text-brand-600 dark:text-brand-400 hover:underline">{{ $top->name }}</a>
-                        stands out as a leading open-source alternative to {{ $tool->name }}.
-                    @endif
-                    @if(count($notable) > 1)
-                        Notable mentions include
-                        @foreach(array_slice($notable, 1) as $i => $name)
-                            @php $alt = $alternatives->firstWhere('name', $name); @endphp
-                            @if($alt)
-                                <a href="{{ route('alternatives.show', $alt) }}" class="font-semibold text-slate-800 dark:text-slate-200 hover:text-brand-600 dark:hover:text-brand-400 hover:underline">{{ $name }}</a>@if($i < count($notable) - 2), @elseif($i === count($notable) - 2) and @endif
-                            @endif
-                        @endforeach.
-                    @endif
-                    Explore these alternatives to find tools that match your needs — features, self-hosting, or license.
-                </p>
             @endif
 
             <div class="mt-6 flex flex-wrap gap-3">
                 @if($tool->website_url)
                     <a href="{{ $tool->website_url }}" target="_blank" rel="noopener noreferrer"
-                        class="text-sm font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 underline-offset-2 hover:underline">
-                        Official {{ $tool->name }} website →
+                        class="inline-flex items-center rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+                        Official website
                     </a>
                 @endif
+                <a href="{{ route('finder', ['tool' => $tool->slug]) }}"
+                    class="inline-flex items-center rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-500 transition">
+                    Open in finder
+                </a>
             </div>
         </header>
 
-        {{-- Full alternative write-ups (OSA.to style) --}}
-        @forelse($alternatives as $alt)
-            <article class="border-t border-slate-200 dark:border-slate-800 py-10 first:border-t-0 first:pt-0">
-                <div class="flex flex-wrap items-baseline justify-between gap-3 mb-3">
-                    <h2 class="text-2xl font-bold text-slate-900 dark:text-white">
-                        <a href="{{ route('alternatives.show', $alt) }}" class="hover:text-brand-600 dark:hover:text-brand-400 transition">
-                            {{ $alt->name }}
-                        </a>
-                        @if($alt->primary_language)
-                            <span class="text-base font-medium text-slate-400">{{ $alt->primary_language }}</span>
-                        @endif
-                    </h2>
-                    @if($alt->repoMetric && $alt->repoMetric->github_stars)
-                        <span class="inline-flex items-center gap-1 text-sm font-semibold text-slate-600 dark:text-slate-300 tabular-nums">
-                            <svg class="h-4 w-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
-                            {{ number_format($alt->repoMetric->github_stars) }}
-                        </span>
-                    @endif
-                </div>
-
-                @if($alt->description)
-                    <div class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
-                        {!! Str::markdown(strip_tags((string) $alt->description, '<p><br><strong><em><ul><ol><li><a>')) !!}
-                    </div>
-                @endif
-
-                @php
-                    $pros = is_array($alt->pros) ? $alt->pros : [];
-                @endphp
-                @if(count($pros))
-                    <ul class="space-y-1.5 mb-5 text-sm text-slate-700 dark:text-slate-300">
-                        @foreach(array_slice($pros, 0, 10) as $pro)
-                            <li class="flex gap-2">
-                                <span class="text-brand-500 font-bold shrink-0">•</span>
-                                <span><strong class="text-slate-900 dark:text-white">{{ is_string($pro) ? (str_contains($pro, ':') ? Str::before($pro, ':') : '') : '' }}</strong>
-                                @if(is_string($pro) && str_contains($pro, ':'))
-                                    : {{ Str::after($pro, ':') }}
-                                @elseif(is_string($pro))
-                                    {{ $pro }}
-                                @endif
-                                </span>
-                            </li>
-                        @endforeach
-                    </ul>
-                @endif
-
-                <div class="flex flex-wrap items-center gap-3 text-sm">
-                    @if($alt->license_type)
-                        <span class="rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 px-2.5 py-0.5 text-xs font-semibold">{{ $alt->license_type }}</span>
-                    @endif
-                    <span class="rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2.5 py-0.5 text-xs font-semibold">Health {{ number_format($alt->overall_health_score, 0) }}</span>
-                    <a href="{{ route('alternatives.show', $alt) }}" class="font-semibold text-brand-600 dark:text-brand-400 hover:underline">
-                        More about {{ $alt->name }} →
-                    </a>
-                </div>
-            </article>
-        @empty
-            <div class="rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 p-10 text-center text-slate-500">
-                No published alternatives yet.
-                <a href="{{ route('suggest') }}" class="text-brand-600 font-semibold hover:underline">Suggest one</a>
+        {{-- Grid of alternatives --}}
+        <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-5">
+            <div>
+                <h2 class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
+                    {{ $count }} alternative{{ $count === 1 ? '' : 's' }} to explore
+                </h2>
+                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Sorted by health score. Tap a card for the full profile.</p>
             </div>
-        @endforelse
+            <a href="{{ route('alternatives.compare') }}" class="text-sm font-semibold text-brand-600 dark:text-brand-400 hover:underline shrink-0">
+                Compare tools
+            </a>
+        </div>
 
-        <div class="mt-12 pt-8 border-t border-slate-200 dark:border-slate-800 text-center">
-            <a href="{{ route('finder') }}" class="text-sm font-semibold text-brand-600 hover:underline">Browse all open-source alternatives →</a>
+        @if($alternatives->isEmpty())
+            <div class="rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-10 sm:p-14 text-center">
+                <p class="text-slate-600 dark:text-slate-400">No published alternatives for {{ $tool->name }} yet.</p>
+                <a href="{{ route('suggest') }}" class="mt-4 inline-flex font-semibold text-brand-600 dark:text-brand-400 hover:underline">Suggest one</a>
+            </div>
+        @else
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
+                @foreach($alternatives as $alt)
+                    <a href="{{ route('alternatives.show', $alt) }}"
+                        class="group flex flex-col rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 shadow-sm hover:border-brand-300 dark:hover:border-brand-600 hover:shadow-md transition h-full">
+                        <div class="flex items-start justify-between gap-3">
+                            <h3 class="text-lg font-semibold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition leading-snug">
+                                {{ $alt->name }}
+                            </h3>
+                            <span class="shrink-0 rounded-full bg-brand-50 dark:bg-brand-950/60 text-brand-700 dark:text-brand-300 text-xs font-bold px-2.5 py-1 tabular-nums">
+                                {{ number_format($alt->overall_health_score, 0) }}
+                            </span>
+                        </div>
+
+                        <p class="mt-3 text-sm text-slate-600 dark:text-slate-400 line-clamp-3 flex-1">
+                            {{ \Illuminate\Support\Str::limit(strip_tags((string) $alt->description), 140) }}
+                        </p>
+
+                        <div class="mt-4 flex flex-wrap gap-2">
+                            @if($alt->license_type)
+                                <span class="rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-200 text-[11px] font-semibold px-2.5 py-0.5">
+                                    {{ $alt->license_type }}
+                                </span>
+                            @endif
+                            @if($alt->primary_language)
+                                <span class="rounded-full bg-sky-50 dark:bg-sky-950/50 text-sky-800 dark:text-sky-200 text-[11px] font-semibold px-2.5 py-0.5">
+                                    {{ $alt->primary_language }}
+                                </span>
+                            @endif
+                            @if($alt->repoMetric && $alt->repoMetric->github_stars)
+                                <span class="rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] font-semibold px-2.5 py-0.5">
+                                    ★ {{ number_format($alt->repoMetric->github_stars) }}
+                                </span>
+                            @endif
+                        </div>
+
+                        <span class="mt-4 text-sm font-semibold text-brand-600 dark:text-brand-400 group-hover:underline">
+                            View profile
+                        </span>
+                    </a>
+                @endforeach
+            </div>
+        @endif
+
+        <div class="mt-10 sm:mt-12 text-center">
+            <a href="{{ route('finder') }}" class="text-sm font-semibold text-slate-500 hover:text-brand-600 dark:hover:text-brand-400 transition">
+                Browse all open source alternatives
+            </a>
         </div>
     </div>
 </div>
