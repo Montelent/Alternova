@@ -4,11 +4,8 @@
     $title = $seo->homepageTitle();
     $description = $seo->homepageDescription();
 @endphp
-@extends('layouts.app')
-
-@section('content')
+@component('layouts.app', ['title' => $title, 'description' => $description, 'canonical' => url('/')])
 <div class="min-h-screen">
-    {{-- Hero --}}
     <section class="relative overflow-hidden border-b border-slate-200 dark:border-slate-800 bg-slate-950 text-white">
         <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-900/40 via-slate-950 to-slate-950"></div>
         <div class="relative mx-auto max-w-4xl px-4 pt-16 pb-16 sm:pt-24 sm:pb-20 text-center">
@@ -143,4 +140,4 @@
         </div>
     </section>
 </div>
-@endsection
+@endcomponent
