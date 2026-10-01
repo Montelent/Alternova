@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\ProprietaryTool;
+use App\Models\SiteSetting;
 use App\Models\SlugRedirect;
 use App\Services\OgImageService;
 use App\Services\ProprietaryPageCopy;
@@ -28,8 +29,7 @@ class ProprietaryToolShow extends Component
             try {
                 $redirect = null;
                 if (class_exists(SlugRedirect::class)) {
-                    $redirect = S
-                    lugRedirect::query()
+                    $redirect = SlugRedirect::query()
                         ->where('old_slug', $requestedSlug)
                         ->where('model_type', 'tool')
                         ->first();
@@ -77,13 +77,17 @@ class ProprietaryToolShow extends Component
         $copy = app(ProprietaryPageCopy::class)->build($tool, $alternatives, $categoryList);
 
         $seo = app(SeoManager::class);
-        $title = $tool->meta_title
-            ?: $seo->replace(
-                (string) (\App\Models\SiteSetting::get('seo_title_tool', '%count% Open Source Alternatives to %title% %sep% %sitename%') ?: '%count% Open Source Alternatives to %title% %sep% %sitename%'),
-                ['%title%' => $tool->name, '%count%' => (string) $count]
+        if ($tool->meta_title) {
+            $title = $tool->meta_title;
+        } else {
+            $tpl = (string) SiteSetting::get(
+                'seo_title_tool',
+                '%count% Open Source Alternatives to %title% %sep% %sitename%'
             );
-        if (! $tool->meta_title && ! str_contains($title, (string) $count) && $count > 0) {
-            $title = $copy['heading'].' | '.$seo->siteName();
+            $title = $seo->replace($tpl, [
+                '%title%' => $tool->name,
+                '%count%' => (string) $count,
+            ]);
         }
 
         $description = $tool->meta_description ?: $copy['meta_description'];

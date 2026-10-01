@@ -71,6 +71,8 @@ class SeoManager
             '%license%' => '',
             '%language%' => '',
             '%health%' => '',
+            '%count%' => '',
+            '%excerpt%' => '',
         ];
 
         $map = array_merge($defaults, $vars);
@@ -106,7 +108,7 @@ class SeoManager
 
         $tpl = SiteSetting::get(
             'seo_title_alternative',
-            '%title% — Open-Source %prop% Alternative %sep% %sitename%'
+            '%title% Open-Source %prop% Alternative %sep% %sitename%'
         );
 
         return $this->replace((string) $tpl, [
@@ -145,14 +147,21 @@ class SeoManager
         );
     }
 
-    public function toolTitle(ProprietaryTool $tool): string
+    public function toolTitle(ProprietaryTool $tool, ?int $count = null): string
     {
         if ($tool->meta_title) {
             return $tool->meta_title;
         }
 
-        // Same pattern as opensourcealternative.to
-        return 'Open Source Alternatives to '.$tool->name;
+        $tpl = SiteSetting::get(
+            'seo_title_tool',
+            '%count% Open Source Alternatives to %title% %sep% %sitename%'
+        );
+
+        return $this->replace((string) $tpl, [
+            '%title%' => $tool->name,
+            '%count%' => $count !== null ? (string) $count : '',
+        ]);
     }
 
     public function toolDescription(ProprietaryTool $tool): string
@@ -200,6 +209,12 @@ class SeoManager
 
         return SiteSetting::get('seo_robots_default', 'index,follow,max-image-preview:large,max-snippet:-1')
             ?: 'index,follow,max-image-preview:large,max-snippet:-1';
+    }
+
+    /** Private / account surfaces that should not be indexed. */
+    public function privateRobots(): string
+    {
+        return SiteSetting::get('seo_private_robots', 'noindex,nofollow') ?: 'noindex,nofollow';
     }
 
     public function verifications(): array
