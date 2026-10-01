@@ -61,6 +61,7 @@
         .dark nav[role="navigation"] a {
             border-color: rgb(51 65 85) !important;
         }
+        .prose img { max-width: 100%; height: auto; }
     </style>
 </head>
 <body class="font-sans antialiased bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col">
@@ -84,6 +85,14 @@
                         class="hidden md:inline px-3 py-1.5 rounded-lg {{ request()->routeIs('trending') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                         Trending
                     </a>
+                    @isset($navPages)
+                        @foreach($navPages as $np)
+                            <a href="{{ $np->publicUrl() }}"
+                                class="hidden lg:inline px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
+                                {{ $np->title }}
+                            </a>
+                        @endforeach
+                    @endisset
                     <a href="{{ route('domains') }}"
                         class="px-3 py-1.5 rounded-lg {{ request()->routeIs('domains') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                         Domains
@@ -171,16 +180,27 @@
                                 <li><a href="{{ route('login') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Sign in</a></li>
                                 <li><a href="{{ route('register') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Create account</a></li>
                             @endauth
-                            <li><a href="{{ route('about') }}" class="hover:text-slate-800 dark:hover:text-slate-200">About</a></li>
                             <li><a href="{{ route('contact') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Contact</a></li>
                         </ul>
                     </div>
                     <div>
-                        <p class="font-semibold text-slate-900 dark:text-white mb-3">Legal</p>
+                        <p class="font-semibold text-slate-900 dark:text-white mb-3">Pages</p>
                         <ul class="space-y-2 text-slate-500 dark:text-slate-400">
-                            <li><a href="{{ route('privacy') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Privacy</a></li>
-                            <li><a href="{{ route('terms') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Terms</a></li>
-                            <li><a href="{{ route('disclosure') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Affiliate disclosure</a></li>
+                            @isset($footerPages)
+                                @forelse($footerPages as $fp)
+                                    <li><a href="{{ $fp->publicUrl() }}" class="hover:text-slate-800 dark:hover:text-slate-200">{{ $fp->title }}</a></li>
+                                @empty
+                                    <li><a href="{{ route('about') }}" class="hover:text-slate-800 dark:hover:text-slate-200">About</a></li>
+                                    <li><a href="{{ route('privacy') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Privacy</a></li>
+                                    <li><a href="{{ route('terms') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Terms</a></li>
+                                    <li><a href="{{ route('disclosure') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Disclosure</a></li>
+                                @endforelse
+                            @else
+                                <li><a href="{{ route('about') }}" class="hover:text-slate-800 dark:hover:text-slate-200">About</a></li>
+                                <li><a href="{{ route('privacy') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Privacy</a></li>
+                                <li><a href="{{ route('terms') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Terms</a></li>
+                                <li><a href="{{ route('disclosure') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Disclosure</a></li>
+                            @endisset
                         </ul>
                     </div>
                 </div>

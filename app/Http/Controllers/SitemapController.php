@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Collection;
 use App\Models\OpenSourceAlternative;
+use App\Models\Page;
 use App\Models\ProprietaryTool;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Schema;
@@ -25,12 +26,27 @@ class SitemapController extends Controller
             ['loc' => $base.'/domains', 'changefreq' => 'weekly', 'priority' => '0.8'],
             ['loc' => $base.'/suggest', 'changefreq' => 'monthly', 'priority' => '0.5'],
             ['loc' => $base.'/suggest/collection', 'changefreq' => 'monthly', 'priority' => '0.5'],
-            ['loc' => $base.'/about', 'changefreq' => 'monthly', 'priority' => '0.5'],
             ['loc' => $base.'/contact', 'changefreq' => 'monthly', 'priority' => '0.4'],
-            ['loc' => $base.'/privacy', 'changefreq' => 'yearly', 'priority' => '0.3'],
-            ['loc' => $base.'/terms', 'changefreq' => 'yearly', 'priority' => '0.3'],
-            ['loc' => $base.'/disclosure', 'changefreq' => 'yearly', 'priority' => '0.3'],
         ];
+
+        try {
+            if (Schema::hasTable('pages')) {
+                $pages = Page::query()->published()->orderBy('sort_order')->get(['slug', 'updated_at']);
+                foreach ($pages as $p) {
+                    $urls[] = [
+                        'loc' => rtrim($p->publicUrl(), '/'),
+                        'lastmod' => optional($p->updated_at)->toAtomString(),
+                        'changefreq' => 'monthly',
+                        'priority' => '0.5',
+                    ];
+                }
+            }
+        } catch (\Throwable) {
+            $urls[] = ['loc' => $base.'/about', 'changefreq' => 'monthly', 'priority' => '0.5'];
+            $urls[] = ['loc' => $base.'/privacy', 'changefreq' => 'yearly', 'priority' => '0.3'];
+            $urls[] = ['loc' => $base.'/terms', 'changefreq' => 'yearly', 'priority' => '0.3'];
+            $urls[] = ['loc' => $base.'/disclosure', 'changefreq' => 'yearly', 'priority' => '0.3'];
+        }
 
         try {
             if (Schema::hasTable('collections')) {
