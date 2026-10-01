@@ -51,8 +51,8 @@
             <nav class="hidden sm:flex items-center gap-6 text-sm text-slate-300">
                 <a href="{{ route('finder') }}" class="hover:text-white transition">Alternatives</a>
                 <a href="{{ route('collections.index') }}" class="hover:text-white transition">Collections</a>
+                <a href="{{ route('trending') }}" class="hover:text-white transition">Trending</a>
                 <a href="{{ route('domains') }}" class="hover:text-white transition">Domains</a>
-                <a href="{{ route('suggest') }}" class="hover:text-white transition">Suggest</a>
                 <a href="{{ route('about') }}" class="hover:text-white transition">About</a>
             </nav>
             <a href="{{ route('finder') }}" class="rounded-full bg-brand-600 hover:bg-brand-500 px-4 py-2 text-sm font-medium text-white transition">
@@ -87,6 +87,39 @@
             </div>
         </div>
     </section>
+
+    @if(isset($trending) && $trending->isNotEmpty())
+    <section class="py-12 border-t border-white/5" id="trending">
+        <div class="mx-auto max-w-6xl px-4 sm:px-6">
+            <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8">
+                <div>
+                    <p class="text-sm font-semibold uppercase tracking-wider text-amber-400 mb-2">This week</p>
+                    <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-white">Trending</h2>
+                    <p class="mt-1 text-sm text-slate-400">Most upvoted in the last 7 days</p>
+                </div>
+                <a href="{{ route('trending') }}" class="text-sm font-medium text-brand-300 hover:text-brand-200 shrink-0">Full board →</a>
+            </div>
+            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                @foreach($trending as $i => $alt)
+                    <a href="{{ route('alternatives.show', $alt) }}"
+                        class="group flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 hover:border-amber-400/40 transition">
+                        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-amber-200 text-xs font-bold">{{ $i + 1 }}</span>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-start justify-between gap-2">
+                                <h3 class="font-semibold text-white group-hover:text-amber-200 transition truncate">{{ $alt->name }}</h3>
+                                <span class="shrink-0 text-xs font-bold text-amber-400">▲ {{ $alt->period_votes ?? 0 }}</span>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-0.5 truncate">
+                                @if($alt->proprietaryTool) vs {{ $alt->proprietaryTool->name }} · @endif
+                                Health {{ number_format($alt->overall_health_score, 0) }}
+                            </p>
+                        </div>
+                    </a>
+                @endforeach
+            </div>
+        </div>
+    </section>
+    @endif
 
     @if(isset($collections) && $collections->isNotEmpty())
     <section class="py-16 border-t border-white/5" id="collections">
@@ -246,9 +279,9 @@
             <span>© {{ date('Y') }} Alternova</span>
             <div class="flex flex-wrap justify-center gap-5">
                 <a href="{{ route('finder') }}" class="hover:text-slate-300">Alternatives</a>
+                <a href="{{ route('trending') }}" class="hover:text-slate-300">Trending</a>
                 <a href="{{ route('collections.index') }}" class="hover:text-slate-300">Collections</a>
                 <a href="{{ route('domains') }}" class="hover:text-slate-300">Domains</a>
-                <a href="{{ route('disclosure') }}" class="hover:text-slate-300">Disclosure</a>
                 <a href="{{ route('privacy') }}" class="hover:text-slate-300">Privacy</a>
                 <a href="{{ route('about') }}" class="hover:text-slate-300">About</a>
             </div>
