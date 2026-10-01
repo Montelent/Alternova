@@ -1,7 +1,7 @@
 User-agent: *
 Allow: /
 
-# Private / utility
+# Private / utility (paths are relative to whatever domain this install uses)
 Disallow: /admin
 Disallow: /admin/
 Disallow: /install
@@ -19,7 +19,8 @@ Disallow: /reset-password
 Disallow: /api/
 Disallow: /embed/
 
-# Prefer canonical alternativesto URLs over legacy /tools/
+# Prefer canonical /alternativesto/ URLs
 Disallow: /tools/
 
+# Sitemap line is rewritten at runtime to absolute APP_URL (see routes/web.php)
 Sitemap: /sitemap.xml

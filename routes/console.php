@@ -4,17 +4,15 @@ use App\Support\CronSettings;
 use Illuminate\Support\Facades\Schedule;
 
 /*
-| Hostinger: run this every minute (or every 5–15 minutes):
-|   cd /home/USER/domains/YOURDOMAIN/public_html && php artisan schedule:run >> /dev/null 2>&1
-|
-| Toggles and times are controlled in Admin → Cron settings.
+| Cron is host-agnostic. In Admin → Cron settings the panel shows the
+| recommended command for THIS install (auto PHP path + artisan path).
+| Run schedule:run every minute from the customer’s hosting panel.
 */
 
 Schedule::call(function () {
     CronSettings::markScheduleRan();
 })->everyMinute()->name('alternova-cron-heartbeat');
 
-// GitHub metrics
 if (CronSettings::get('cron_metrics_enabled', true)) {
     $limit = max(1, min(200, (int) CronSettings::get('cron_metrics_limit', 25)));
     $time = (string) CronSettings::get('cron_metrics_time', '03:15');
@@ -24,7 +22,6 @@ if (CronSettings::get('cron_metrics_enabled', true)) {
         ->withoutOverlapping();
 }
 
-// Broken link checks
 if (CronSettings::get('cron_links_enabled', true)) {
     $limit = max(1, min(200, (int) CronSettings::get('cron_links_limit', 40)));
     $day = (int) CronSettings::get('cron_links_day', 1);
@@ -35,7 +32,6 @@ if (CronSettings::get('cron_links_enabled', true)) {
         ->withoutOverlapping();
 }
 
-// Newsletter digest
 if (CronSettings::get('cron_digest_enabled', true)) {
     $day = (int) CronSettings::get('cron_digest_day', 1);
     $time = (string) CronSettings::get('cron_digest_time', '09:00');
@@ -45,7 +41,6 @@ if (CronSettings::get('cron_digest_enabled', true)) {
         ->withoutOverlapping();
 }
 
-// In-app notification email digest
 if (CronSettings::get('cron_notif_digest_enabled', true)) {
     $day = (int) CronSettings::get('cron_notif_digest_day', 1);
     $time = (string) CronSettings::get('cron_notif_digest_time', '09:30');
@@ -55,7 +50,6 @@ if (CronSettings::get('cron_notif_digest_enabled', true)) {
         ->withoutOverlapping();
 }
 
-// Sponsored expiry
 if (CronSettings::get('cron_expire_sponsored_enabled', true)) {
     $time = (string) CronSettings::get('cron_expire_sponsored_time', '00:30');
     Schedule::command('alternova:expire-sponsored')

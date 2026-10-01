@@ -2,90 +2,43 @@
 
 **Find open-source alternatives. Generate brandable domains.**
 
-Alternova is a production-ready Laravel 11 platform with two core tools:
+Production-ready Laravel 11 product: Open Source Alternative Finder + Domain Name Idea Combinator, with Filament admin, SEO tools, email digests, and shared-hosting friendly install.
 
-1. **Open Source Alternative Finder** – Discover high-quality, self-hostable open-source alternatives to proprietary software, with live GitHub metrics, health scoring, Docker blueprints, and SEO-optimized detail pages.
-2. **Domain Name Idea Combinator** – Generate brandable domain combinations from seed keywords, score them for brandability, check availability via DNS + RDAP, and export results with affiliate links.
+## Requirements
 
-## Stack
+- PHP 8.2+
+- MySQL or PostgreSQL
+- Composer
+- Writable `storage/` and `bootstrap/cache/`
 
-- **Framework**: Laravel 11 (PHP 8.3+)
-- **Frontend**: Tailwind CSS, Alpine.js, Laravel Livewire v3
-- **Database**: PostgreSQL (MySQL also supported in installer)
-- **Search**: Laravel Scout + Meilisearch
-- **Queue & Cache**: Redis
-- **Admin**: Filament v3
-- **Icons**: Heroicons
+## Install (any domain / host)
 
-## Features
-
-### Open Source Alternative Finder
-- Queued GitHub metrics sync (`SyncGitHubMetricsJob`)
-- Artisan command `app:sync-metrics` (scheduled daily)
-- Livewire search with Scout/Meilisearch, filters, sorting & pagination
-- Detail pages with metrics, feature comparison, Docker Compose + copy, deploy buttons, Schema.org markup, SEO footer
-
-### Domain Name Idea Combinator
-- Combinatorial generation + brandability scoring
-- DNS + RDAP availability checks with 24h Redis cache
-- Livewire UI with chip keywords, TLD filters, sliders, live status, CSV/TXT export
-
-### Admin (Filament v3)
-- CRUD for proprietary tools & open-source alternatives
-- Manual GitHub sync action
-- **System Tools** – run migrations, status, clear caches, optimize from the panel
-
-### First-time Installer (locks after setup)
-- `/install` wizard:
-  1. Server requirements
-  2. Auto-create `.env` + generate `APP_KEY` + save DB credentials
-  3. Run migrations
-  4. Create admin account
-  5. Lock installer (`storage/app/installed`)
-- After install, `/install` returns 403
-
-## Getting Started
+1. Upload or clone the project into the web root your host assigns (often `public_html` or `httpdocs`).
+2. Point the domain document root at that folder (this package is designed so `index.php` lives at the app root).
+3. Run:
 
 ```bash
-git clone https://github.com/Montelent/Alternova.git
-cd Alternova
-composer install
-# Optional until installer creates .env:
-# cp .env.example .env && php artisan key:generate
-npm install && npm run build
-php artisan serve
+composer install --no-dev --optimize-autoloader
 ```
 
-Open **http://localhost:8000/install** and complete the wizard.
+4. Open `https://YOUR-DOMAIN/install` and complete the wizard (creates `.env`, APP_KEY, migrations, admin user, locks the installer).
 
-Then log in at `/admin`.
+Paths, `APP_URL`, PHP binary for cron, and sitemap URLs are detected from **this install** — nothing is tied to a specific host brand or seller domain.
 
-### System Tools (Admin)
+## After install
 
-**System → System Tools**
+- **Admin:** `/admin`
+- **Cron settings:** Admin → System → Cron settings (copy the auto-detected command into your host’s cron, every minute)
+- **SEO / Email / Ads:** Admin → System settings pages
+- Optional starter catalog: Admin → System tools → Seed demo data (real OSS projects, optional)
 
-- Run Migrations (`migrate --force`)
-- Migration Status
-- Clear Caches
-- Optimize
+## Optional environment
 
-### Environment (set by installer or manually)
-
-```env
-APP_NAME=Alternova
-DB_CONNECTION=pgsql   # or mysql
-REDIS_CLIENT=phpredis
-SCOUT_DRIVER=meilisearch
-MEILISEARCH_HOST=http://127.0.0.1:7700
-GITHUB_TOKEN=
-```
-
-### Queue
-
-```bash
-php artisan queue:work redis --queue=default
-```
+| Variable | Purpose |
+|----------|---------|
+| `GITHUB_TOKEN` | Higher rate limits for metrics sync |
+| `RESEND_KEY` or SMTP via Admin | Outbound email |
 
 ## License
 
-MIT
+MIT (see repository license file if present).
