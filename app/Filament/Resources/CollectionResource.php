@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Forms\Components\TinyEditor;
+use App\Filament\Forms\ImageField;
 use App\Filament\Resources\CollectionResource\Pages;
 use App\Models\Collection;
 use App\Models\OpenSourceAlternative;
@@ -64,10 +65,27 @@ class CollectionResource extends Resource
                     ->label('Intro')
                     ->height(360)
                     ->columnSpanFull(),
+                Forms\Components\FileUpload::make('cover_path')
+                    ->label('Cover image (upload)')
+                    ->image()
+                    ->imageEditor()
+                    ->imageEditorAspectRatios([null, '16:9', '2:1', '1:1'])
+                    ->maxSize(5120)
+                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+                    ->disk('public')
+                    ->directory('collections')
+                    ->visibility('public')
+                    ->downloadable()
+                    ->openable()
+                    ->previewable()
+                    ->helperText('Upload from your device (max 5MB).')
+                    ->columnSpanFull(),
                 Forms\Components\TextInput::make('cover_image_url')
+                    ->label('Or cover image URL')
                     ->url()
                     ->columnSpanFull()
-                    ->placeholder('https://…'),
+                    ->placeholder('https://…')
+                    ->helperText('Optional if you uploaded a file above.'),
                 Forms\Components\Toggle::make('is_published')->label('Published')->default(false),
                 Forms\Components\Toggle::make('is_featured')->label('Featured on homepage / index')->default(false),
                 Forms\Components\TextInput::make('sort_order')->numeric()->default(0),

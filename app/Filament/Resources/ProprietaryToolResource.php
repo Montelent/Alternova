@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Forms\Components\TinyEditor;
+use App\Filament\Forms\ImageField;
 use App\Filament\Forms\SeoForm;
 use App\Filament\Resources\ProprietaryToolResource\Pages;
 use App\Models\ProprietaryTool;
@@ -49,10 +50,14 @@ class ProprietaryToolResource extends Resource
                         ->required()
                         ->unique(ignoreRecord: true),
                     Forms\Components\TextInput::make('website_url')->url()->columnSpanFull(),
-                    Forms\Components\FileUpload::make('logo_path')
-                        ->image()
-                        ->directory('logos')
-                        ->columnSpanFull(),
+                    ...ImageField::make('logo_path', 'Logo', 'logos', withUrlFallback: false),
+                    Forms\Components\TextInput::make('logo_url')
+                        ->label('Or logo image URL')
+                        ->url()
+                        ->maxLength(500)
+                        ->helperText('Optional external URL if you do not upload a file.')
+                        ->columnSpanFull()
+                        ->visible(fn () => \Illuminate\Support\Facades\Schema::hasColumn('proprietary_tools', 'logo_url') === false ? true : true),
                     TinyEditor::make('description')
                         ->label('Description')
                         ->height(300)
@@ -96,6 +101,12 @@ class ProprietaryToolResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\ImageColumn::make('logo_path')
+                    ->label('Logo')
+                    ->disk('public')
+                    ->circular()
+                    ->defaultImageUrl(fn ($record) => $record->logo_url ?? null)
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('name')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('slug')->toggleable(),
                 Tables\Columns\TextColumn::make('focus_keyword')->label('Keyphrase')->toggleable(isToggledHiddenByDefault: true),
