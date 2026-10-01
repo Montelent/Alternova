@@ -1,8 +1,25 @@
 User-agent: *
 Allow: /
 
+# Private / utility
 Disallow: /admin
+Disallow: /admin/
 Disallow: /install
+Disallow: /install/
 Disallow: /livewire
+Disallow: /livewire/
+Disallow: /account
+Disallow: /account/
+Disallow: /notifications
+Disallow: /favorites
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /api/
+Disallow: /embed/
+
+# Prefer canonical alternativesto URLs over legacy /tools/
+Disallow: /tools/
 
 Sitemap: /sitemap.xml

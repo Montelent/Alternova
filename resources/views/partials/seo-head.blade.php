@@ -15,9 +15,11 @@
 <title>{{ $head['title'] }}</title>
 <meta name="description" content="{{ $head['description'] }}">
 <meta name="robots" content="{{ $head['robots'] }}">
+<meta name="googlebot" content="{{ $head['robots'] }}">
 <link rel="canonical" href="{{ $head['canonical'] }}">
 
 <meta property="og:site_name" content="{{ $head['ogSiteName'] }}">
+<meta property="og:locale" content="{{ str_replace('_', '-', app()->getLocale()) }}">
 <meta property="og:type" content="{{ $head['ogType'] }}">
 <meta property="og:title" content="{{ $head['ogTitle'] }}">
 <meta property="og:description" content="{{ $head['ogDescription'] }}">
@@ -53,4 +55,10 @@
 @endif
 @if(!empty($head['verifications']['pinterest']))
 <meta name="p:domain_verify" content="{{ $head['verifications']['pinterest'] }}">
+@endif
+
+@if(!empty($jsonLd))
+    @foreach((array) $jsonLd as $block)
+        <script type="application/ld+json">{!! json_encode($block, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE) !!}</script>
+    @endforeach
 @endif
