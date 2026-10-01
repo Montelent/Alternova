@@ -16,9 +16,6 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Schema;
 
-/**
- * One screen for beginners: everything that needs a human decision or fix.
- */
 class NeedsAttentionPage extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-exclamation-triangle';
@@ -60,7 +57,8 @@ class NeedsAttentionPage extends Page
                 + static::zeroHealthCount()
                 + static::pendingSubmissionsCount()
                 + static::unreadContactsCount()
-                + static::openIssuesCount();
+                + static::openIssuesCount()
+                + static::duplicateSuspectsCount();
         } catch (\Throwable) {
             return 0;
         }
@@ -92,6 +90,7 @@ class NeedsAttentionPage extends Page
                 $q->whereNull('overall_health_score')->orWhere('overall_health_score', '<=', 0);
             })
             ->whereNotNull('repo_url')
+            ->where('repo_url', '!=', '')
             ->count();
     }
 
@@ -102,10 +101,7 @@ class NeedsAttentionPage extends Page
                 return 0;
             }
 
-            return AlternativeSubmission::query()
-                ->whereIn('status', ['pending', 'new', 'submitted'])
-                ->orWhereNull('status')
-                ->count();
+            return AlternativeSubmission::query()->where('status', 'pending')->count();
         } catch (\Throwable) {
             return 0;
         }
@@ -117,15 +113,20 @@ class NeedsAttentionPage extends Page
             if (! Schema::hasTable('contact_messages')) {
                 return 0;
             }
-            $q = ContactMessage::query();
-            if (Schema::hasColumn('contact_messages', 'is_read')) {
-                return $q->where('is_read', false)->count();
-            }
-            if (Schema::hasColumn('contact_messages', 'read_at')) {
-                return $q->whereNull('read_at')->count();
-            }
 
-            return $q->count();
+            return ContactMessage::query()
+                ->where(function ($q) {
+                    $q->whereNull('read_at');
+                    if (Schema::hasColumn('contact_messages', 'status')) {
+                        $q->orWhere('status', 'new')->orWhere('status', 'unread');
+                    }
+                })
+                ->where(function ($q) {
+                    if (Schema::hasColumn('contact_messages', 'status')) {
+                        $q->where('status', '!=', 'read')->orWhereNull('status');
+                    }
+                })
+                ->count();
         } catch (\Throwable) {
             return 0;
         }
@@ -140,7 +141,7 @@ class NeedsAttentionPage extends Page
 
             return IssueReport::query()
                 ->where(function ($q) {
-                    $q->whereIn('status', ['open', 'new', 'pending'])
+                    $q->whereIn('status', ['open', 'pending', 'new'])
                         ->orWhereNull('status');
                 })
                 ->count();
@@ -149,14 +150,29 @@ class NeedsAttentionPage extends Page
         }
     }
 
+    public static function duplicateSuspectsCount(): int
+    {
+        try {
+            return count(app(\App\Services\DuplicateAlternativeService::class)->summaryCounts());
+        } catch (\Throwable) {
+            return 0;
+        }
+    }
+
     public function summary(): array
     {
+        $dupCount = 0;
+        try {
+            $dupCount = array_sum(app(\App\Services\DuplicateAlternativeService::class)->summaryCounts());
+        } catch (\Throwable) {
+        }
+
         return [
             [
                 'label' => 'Draft alternatives',
                 'count' => self::draftsCount(),
                 'hint' => 'Not visible on the public site until published.',
-                'href' => OpenSourceAlternativeResource::getUrl('index', ['tableFilters' => ['is_published' => ['value' => false]]]),
+                'href' => OpenSourceAlternativeResource::getUrl('index'),
                 'cta' => 'Review drafts',
             ],
             [
@@ -181,7 +197,7 @@ class NeedsAttentionPage extends Page
                 'cta' => 'Review submissions',
             ],
             [
-                'label' => 'Contact messages',
+                'label' => 'Unread contact messages',
                 'count' => self::unreadContactsCount(),
                 'hint' => 'Messages that may still need a reply.',
                 'href' => ContactMessageResource::getUrl('index'),
@@ -193,6 +209,13 @@ class NeedsAttentionPage extends Page
                 'hint' => 'User-reported problems on listings.',
                 'href' => IssueReportResource::getUrl('index'),
                 'cta' => 'Issue reports',
+            ],
+            [
+                'label' => 'Possible duplicates',
+                'count' => $dupCount,
+                'hint' => 'Same repo URL or very similar names — review before publishing more.',
+                'href' => DuplicateAlternativesPage::getUrl(),
+                'cta' => 'Duplicate detector',
             ],
         ];
     }
@@ -230,6 +253,7 @@ class NeedsAttentionPage extends Page
                 $q->whereNull('overall_health_score')->orWhere('overall_health_score', '<=', 0);
             })
             ->whereNotNull('repo_url')
+            ->where('repo_url', '!=', '')
             ->orderBy('name')
             ->limit(15)
             ->get();
