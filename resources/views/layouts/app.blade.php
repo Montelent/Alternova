@@ -57,10 +57,27 @@
         .dark textarea { color-scheme: dark; }
         .prose img { max-width: 100%; height: auto; }
         body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+        body.menu-locked { overflow: hidden; touch-action: none; }
     </style>
 </head>
-<body class="font-sans antialiased bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col" x-data="{ mobileOpen: false }" @keydown.escape.window="mobileOpen = false">
-    <header class="sticky top-0 z-50 border-b border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg">
+<body
+    class="font-sans antialiased bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col"
+    x-data="{ mobileOpen: false }"
+    @keydown.escape.window="mobileOpen = false"
+    x-effect="document.body.classList.toggle('menu-locked', mobileOpen)"
+>
+    {{-- Dim page only (below header). Must stay UNDER the menu panel. --}}
+    <div
+        x-show="mobileOpen"
+        x-cloak
+        x-transition.opacity.duration.200ms
+        @click="mobileOpen = false"
+        class="lg:hidden fixed inset-0 z-40 bg-slate-900/50"
+        style="top: 3.5rem;"
+        aria-hidden="true"
+    ></div>
+
+    <header class="sticky top-0 z-50 border-b border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900">
         <div class="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
             <div class="flex h-14 items-center justify-between gap-2">
                 <a href="{{ route('home') }}" class="flex items-center gap-2 font-bold text-slate-900 dark:text-white shrink-0 min-w-0">
@@ -68,7 +85,6 @@
                     <span class="truncate">Alternova</span>
                 </a>
 
-                {{-- Desktop nav --}}
                 <nav class="hidden lg:flex items-center gap-1 text-sm font-medium">
                     <a href="{{ route('finder') }}" class="px-3 py-1.5 rounded-lg {{ request()->routeIs('finder','alternatives.show','tools.show') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">Alternatives</a>
                     <a href="{{ route('collections.index') }}" class="px-3 py-1.5 rounded-lg {{ request()->routeIs('collections.*') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">Collections</a>
@@ -105,7 +121,6 @@
 
                     <a href="{{ url('/admin') }}" class="hidden md:inline-flex px-2.5 py-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm">Admin</a>
 
-                    {{-- Mobile menu button --}}
                     <button type="button"
                         class="lg:hidden inline-flex items-center justify-center p-2.5 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
                         @click="mobileOpen = !mobileOpen"
@@ -119,50 +134,45 @@
             </div>
         </div>
 
-        {{-- Mobile drawer --}}
+        {{-- Menu panel: solid background, above the dim overlay (header is z-50, overlay is z-40) --}}
         <div id="mobile-nav"
             x-show="mobileOpen"
             x-cloak
-            x-transition:enter="transition ease-out duration-200"
-            x-transition:enter-start="opacity-0 -translate-y-2"
+            x-transition:enter="transition ease-out duration-150"
+            x-transition:enter-start="opacity-0 -translate-y-1"
             x-transition:enter-end="opacity-100 translate-y-0"
-            x-transition:leave="transition ease-in duration-150"
+            x-transition:leave="transition ease-in duration-100"
             x-transition:leave-start="opacity-100 translate-y-0"
-            x-transition:leave-end="opacity-0 -translate-y-2"
-            class="lg:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-lg max-h-[min(80vh,calc(100dvh-3.5rem))] overflow-y-auto">
-            <nav class="px-3 py-3 space-y-0.5 text-sm font-medium">
-                <a href="{{ route('finder') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 {{ request()->routeIs('finder','alternatives.*','tools.*') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800' }}">Alternatives</a>
-                <a href="{{ route('collections.index') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 {{ request()->routeIs('collections.*') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800' }}">Collections</a>
-                <a href="{{ route('trending') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 {{ request()->routeIs('trending') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800' }}">Trending</a>
-                <a href="{{ route('leaderboard') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">Rankings</a>
-                <a href="{{ route('domains') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 {{ request()->routeIs('domains') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800' }}">Domains</a>
-                <a href="{{ route('whats-new') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">What's new</a>
-                <a href="{{ route('suggest') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">Suggest a tool</a>
+            x-transition:leave-end="opacity-0 -translate-y-1"
+            class="lg:hidden relative z-50 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl max-h-[min(80vh,calc(100dvh-3.5rem))] overflow-y-auto overscroll-contain">
+            <nav class="px-3 py-3 space-y-0.5 text-sm font-medium" @click.stop>
+                <a href="{{ route('finder') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 {{ request()->routeIs('finder','alternatives.*','tools.*') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-700 dark:text-slate-200 active:bg-slate-100 dark:active:bg-slate-800' }}">Alternatives</a>
+                <a href="{{ route('collections.index') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 {{ request()->routeIs('collections.*') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-700 dark:text-slate-200 active:bg-slate-100 dark:active:bg-slate-800' }}">Collections</a>
+                <a href="{{ route('trending') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 {{ request()->routeIs('trending') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-700 dark:text-slate-200 active:bg-slate-100 dark:active:bg-slate-800' }}">Trending</a>
+                <a href="{{ route('leaderboard') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 active:bg-slate-100 dark:active:bg-slate-800">Rankings</a>
+                <a href="{{ route('domains') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 {{ request()->routeIs('domains') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-700 dark:text-slate-200 active:bg-slate-100 dark:active:bg-slate-800' }}">Domains</a>
+                <a href="{{ route('whats-new') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 active:bg-slate-100 dark:active:bg-slate-800">What's new</a>
+                <a href="{{ route('suggest') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 active:bg-slate-100 dark:active:bg-slate-800">Suggest a tool</a>
                 @isset($navPages)
                     @foreach($navPages as $np)
-                        <a href="{{ $np->publicUrl() }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">{{ $np->title }}</a>
+                        <a href="{{ $np->publicUrl() }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 active:bg-slate-100 dark:active:bg-slate-800">{{ $np->title }}</a>
                     @endforeach
                 @endisset
 
                 <div class="my-2 border-t border-slate-100 dark:border-slate-800"></div>
 
                 @auth
-                    <a href="{{ route('notifications') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">Notifications</a>
-                    <a href="{{ route('account') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">Account</a>
-                    <a href="{{ route('favorites') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">Favorites</a>
+                    <a href="{{ route('notifications') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 active:bg-slate-100 dark:active:bg-slate-800">Notifications</a>
+                    <a href="{{ route('account') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 active:bg-slate-100 dark:active:bg-slate-800">Account</a>
+                    <a href="{{ route('favorites') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 active:bg-slate-100 dark:active:bg-slate-800">Favorites</a>
                 @else
-                    <a href="{{ route('login') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">Sign in</a>
-                    <a href="{{ route('register') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">Create account</a>
+                    <a href="{{ route('login') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 active:bg-slate-100 dark:active:bg-slate-800">Sign in</a>
+                    <a href="{{ route('register') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 active:bg-slate-100 dark:active:bg-slate-800">Create account</a>
                 @endauth
-                <a href="{{ url('/admin') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800">Admin panel</a>
-                <a href="{{ route('contact') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">Contact</a>
+                <a href="{{ url('/admin') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-500 dark:text-slate-400 active:bg-slate-100 dark:active:bg-slate-800">Admin panel</a>
+                <a href="{{ route('contact') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 active:bg-slate-100 dark:active:bg-slate-800">Contact</a>
             </nav>
         </div>
-
-        {{-- Backdrop --}}
-        <div x-show="mobileOpen" x-cloak @click="mobileOpen=false"
-            class="lg:hidden fixed inset-0 top-14 z-40 bg-slate-900/40 backdrop-blur-[1px]"
-            aria-hidden="true"></div>
     </header>
 
     <main class="flex-1">
