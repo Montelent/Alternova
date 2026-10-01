@@ -22,6 +22,9 @@ class SitemapController extends Controller
         $urls = [
             ['loc' => $base.'/', 'changefreq' => 'daily', 'priority' => '1.0'],
             ['loc' => $base.'/alternatives', 'changefreq' => 'daily', 'priority' => '0.9'],
+            ['loc' => $base.'/browse/categories', 'changefreq' => 'weekly', 'priority' => '0.75'],
+            ['loc' => $base.'/browse/languages', 'changefreq' => 'weekly', 'priority' => '0.75'],
+            ['loc' => $base.'/browse/licenses', 'changefreq' => 'weekly', 'priority' => '0.75'],
             ['loc' => $base.'/leaderboard', 'changefreq' => 'daily', 'priority' => '0.8'],
             ['loc' => $base.'/trending', 'changefreq' => 'daily', 'priority' => '0.8'],
             ['loc' => $base.'/collections', 'changefreq' => 'weekly', 'priority' => '0.8'],
@@ -79,7 +82,36 @@ class SitemapController extends Controller
         } catch (\Throwable) {
         }
 
-        // Canonical proprietary URLs: /alternativesto/{slug} (not /tools/)
+        try {
+            $langs = OpenSourceAlternative::query()
+                ->where('is_published', true)
+                ->whereNotNull('primary_language')
+                ->where('primary_language', '!=', '')
+                ->distinct()
+                ->pluck('primary_language');
+            foreach ($langs as $lang) {
+                $urls[] = [
+                    'loc' => $base.'/browse/languages/'.\Illuminate\Support\Str::slug($lang),
+                    'changefreq' => 'weekly',
+                    'priority' => '0.65',
+                ];
+            }
+            $lics = OpenSourceAlternative::query()
+                ->where('is_published', true)
+                ->whereNotNull('license_type')
+                ->where('license_type', '!=', '')
+                ->distinct()
+                ->pluck('license_type');
+            foreach ($lics as $lic) {
+                $urls[] = [
+                    'loc' => $base.'/browse/licenses/'.\Illuminate\Support\Str::slug($lic),
+                    'changefreq' => 'weekly',
+                    'priority' => '0.65',
+                ];
+            }
+        } catch (\Throwable) {
+        }
+
         $tools = ProprietaryTool::query()
             ->where('is_published', true)
             ->orderByDesc('updated_at')
