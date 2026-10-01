@@ -2,20 +2,21 @@
 
 namespace App\Services;
 
+use App\Models\OpenSourceAlternative;
 use App\Models\ProprietaryTool;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 /**
  * Builds natural, unique on-page copy for /alternativesto/{slug} pages.
- * Avoids template-sounding filler and em dashes.
+ * Alternative names mentioned in the text are linked to their profiles.
  */
 class ProprietaryPageCopy
 {
     /**
-     * @param  Collection<int, \App\Models\OpenSourceAlternative>  $alternatives
+     * @param  Collection<int, OpenSourceAlternative>  $alternatives
      * @param  list<string>  $categoryList
-     * @return array{heading: string, kicker: string, intro: string, body: string, meta_description: string}
+     * @return array{heading: string, kicker: string, intro_html: string, body_html: string, meta_description: string}
      */
     public function build(ProprietaryTool $tool, Collection $alternatives, array $categoryList = []): array
     {
@@ -39,21 +40,56 @@ class ProprietaryPageCopy
         $licenses = $alternatives->pluck('license_type')->filter()->unique()->take(3)->values()->all();
         $langs = $alternatives->pluck('primary_language')->filter()->unique()->take(3)->values()->all();
 
-        $intro = $this->introParagraph($name, $count, $topName, $topStars, $categories, $licenses);
-        $body = $this->bodyParagraph($name, $count, $alternatives, $langs, $licenses);
+        $introPlain = $this->introParagraph($name, $count, $topName, $topStars, $categories, $licenses, $alternatives);
+        $bodyPlain = $this->bodyParagraph($name, $count, $alternatives, $langs);
 
-        $meta = Str::limit(
-            $heading.'. '.$intro,
-            155
-        );
+        $introHtml = $this->linkNames($introPlain, $alternatives);
+        $bodyHtml = $this->linkNames($bodyPlain, $alternatives);
+
+        $meta = Str::limit($heading.'. '.$introPlain, 155);
 
         return [
             'heading' => $heading,
             'kicker' => $kicker,
-            'intro' => $intro,
-            'body' => $body,
+            'intro_html' => $introHtml,
+            'body_html' => $bodyHtml,
             'meta_description' => $meta,
         ];
+    }
+
+    /**
+     * Replace known alternative names with profile links (longest names first).
+     *
+     * @param  Collection<int, OpenSourceAlternative>  $alternatives
+     */
+    public function linkNames(string $text, Collection $alternatives): string
+    {
+        $escaped = e($text);
+
+        $named = $alternatives
+            ->filter(fn ($a) => filled($a->name) && filled($a->slug))
+            ->sortByDesc(fn ($a) => mb_strlen($a->name))
+            ->values();
+
+        foreach ($named as $alt) {
+            $needle = e($alt->name);
+            if ($needle === '') {
+                continue;
+            }
+
+            $url = e(route('alternatives.show', $alt->slug));
+            $link = '<a href="'.$url.'" class="font-semibold text-brand-600 dark:text-brand-400 hover:underline underline-offset-2">'.$needle.'</a>';
+
+            // Case-sensitive whole-word-ish replace; avoid breaking existing tags
+            $escaped = preg_replace(
+                '/(?<![\w\/"\-=])'.preg_quote($needle, '/').'(?![\w])/u',
+                $link,
+                $escaped,
+                1 // first mention only keeps the prose readable
+            ) ?? $escaped;
+        }
+
+        return $escaped;
     }
 
     /** @param  list<string>  $categories */
@@ -79,6 +115,7 @@ class ProprietaryPageCopy
     /**
      * @param  list<string>  $categories
      * @param  list<string>  $licenses
+     * @param  Collection<int, OpenSourceAlternative>  $alternatives
      */
     protected function introParagraph(
         string $name,
@@ -87,6 +124,7 @@ class ProprietaryPageCopy
         ?int $topStars,
         array $categories,
         array $licenses,
+        Collection $alternatives,
     ): string {
         if ($count === 0) {
             return 'We have not listed a published open source alternative to '.$name.' yet. '
@@ -111,6 +149,18 @@ class ProprietaryPageCopy
             }
         }
 
+        // Mention 2–3 other names so they become links in the prose
+        $others = $alternatives->skip(1)->take(3)->pluck('name')->filter()->values();
+        if ($others->isNotEmpty()) {
+            if ($others->count() === 1) {
+                $parts[] = 'Another option worth a look is '.$others[0].'.';
+            } elseif ($others->count() === 2) {
+                $parts[] = 'Other strong contenders include '.$others[0].' and '.$others[1].'.';
+            } else {
+                $parts[] = 'Other strong contenders include '.$others[0].', '.$others[1].', and '.$others[2].'.';
+            }
+        }
+
         if ($licenses !== []) {
             $parts[] = 'Licenses in this set include '.implode(', ', $licenses).'.';
         }
@@ -123,16 +173,14 @@ class ProprietaryPageCopy
     }
 
     /**
-     * @param  Collection<int, \App\Models\OpenSourceAlternative>  $alternatives
+     * @param  Collection<int, OpenSourceAlternative>  $alternatives
      * @param  list<string>  $langs
-     * @param  list<string>  $licenses
      */
     protected function bodyParagraph(
         string $name,
         int $count,
         Collection $alternatives,
         array $langs,
-        array $licenses,
     ): string {
         if ($count === 0) {
             return 'Check back after more alternatives are published, or browse the full finder for tools in a related category.';

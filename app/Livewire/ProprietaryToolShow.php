@@ -6,7 +6,6 @@ use App\Models\ProprietaryTool;
 use App\Models\SlugRedirect;
 use App\Services\OgImageService;
 use App\Services\ProprietaryPageCopy;
-use App\Services\SeoManager;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Livewire\Component;
 
@@ -84,8 +83,8 @@ class ProprietaryToolShow extends Component
             'count' => $count,
             'heading' => $copy['heading'],
             'kicker' => $copy['kicker'],
-            'intro' => $copy['intro'],
-            'body' => $copy['body'],
+            'introHtml' => $copy['intro_html'],
+            'bodyHtml' => $copy['body_html'],
             'categoryList' => $categoryList,
         ])->layout('layouts.app', [
             'title' => $title.' | Alternova',

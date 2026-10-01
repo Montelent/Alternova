@@ -33,9 +33,17 @@
                 </div>
             </div>
 
+            {{-- 1) Proprietary description first (editor content) --}}
+            @if(filled(trim(strip_tags((string) $tool->description))))
+                <div class="mt-6 text-sm sm:text-base text-slate-700 dark:text-slate-300 leading-relaxed max-w-3xl prose prose-slate dark:prose-invert prose-p:my-2 prose-a:text-brand-600">
+                    {!! $tool->description !!}
+                </div>
+            @endif
+
+            {{-- 2) Generated overview with linked alternative names in the prose --}}
             <div class="mt-6 space-y-4 text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-relaxed max-w-3xl">
-                <p>{{ $intro }}</p>
-                <p>{{ $body }}</p>
+                <p>{!! $introHtml !!}</p>
+                <p>{!! $bodyHtml !!}</p>
             </div>
 
             @if(is_array($tool->key_features) && count($tool->key_features))
@@ -70,7 +78,7 @@
                 <h2 class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
                     {{ $count }} alternative{{ $count === 1 ? '' : 's' }} to explore
                 </h2>
-                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Sorted by health score. Open a profile, or filter by license or language.</p>
+                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Sorted by health score. Names in the overview above also link to full profiles.</p>
             </div>
             <a href="{{ route('alternatives.compare') }}" class="text-sm font-semibold text-brand-600 dark:text-brand-400 hover:underline shrink-0">
                 Compare tools
@@ -83,7 +91,6 @@
                 <a href="{{ route('suggest') }}" class="mt-4 inline-flex font-semibold text-brand-600 dark:text-brand-400 hover:underline">Suggest one</a>
             </div>
         @else
-            {{-- Cards are not a single outer <a> so license/language links work --}}
             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
                 @foreach($alternatives as $alt)
                     <article class="group flex flex-col rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 shadow-sm hover:border-brand-300 dark:hover:border-brand-600 hover:shadow-md transition h-full">
