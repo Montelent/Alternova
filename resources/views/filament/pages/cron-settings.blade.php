@@ -1,34 +1,63 @@
 <x-filament-panels::page>
+    @php
+        $env = \App\Support\CronSettings::environmentInfo();
+        $variants = \App\Support\CronSettings::commandVariants();
+    @endphp
+
     <x-filament::section class="mb-6">
-        <x-slot name="heading">Hostinger cron (required once)</x-slot>
+        <x-slot name="heading">Server cron (any host)</x-slot>
         <x-slot name="description">
-            Laravel does not start jobs by itself. Hostinger must call <code class="text-xs">php artisan schedule:run</code> often (every minute is best). Alternova then decides which jobs are due from the settings below.
+            Paths below are detected automatically for <strong>this installation</strong> (domain, folder, and PHP binary). Buyers only paste the recommended line into their host’s cron panel.
         </x-slot>
 
-        <div class="space-y-3 text-sm">
-            <ol class="list-decimal list-inside space-y-1 text-gray-600 dark:text-gray-300">
-                <li>Hostinger hPanel → <strong>Advanced</strong> → <strong>Cron Jobs</strong></li>
-                <li>Common setting: <strong>Every minute</strong> (or every 5 / 15 minutes if that is all they allow)</li>
-                <li>Command: paste the line below</li>
-            </ol>
-
-            <div class="rounded-lg bg-gray-950 text-gray-100 p-4 font-mono text-xs break-all select-all" x-data="{ copied: false }">
-                <div class="flex flex-col sm:flex-row sm:items-start gap-3">
-                    <code class="flex-1">{{ $this->cronCommand }}</code>
-                    <button
-                        type="button"
-                        class="shrink-0 rounded-md bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/20"
-                        x-on:click="navigator.clipboard.writeText(@js($this->cronCommand)); copied = true; setTimeout(() => copied = false, 2000)"
-                    >
-                        <span x-show="!copied">Copy</span>
-                        <span x-show="copied" x-cloak>Copied</span>
-                    </button>
+        <div class="space-y-4 text-sm">
+            <div class="grid gap-2 sm:grid-cols-2 rounded-lg border border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900/40">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Site URL</p>
+                    <p class="font-mono text-xs break-all">{{ $env['app_url'] ?: 'Set APP_URL in .env' }}</p>
+                </div>
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Install path</p>
+                    <p class="font-mono text-xs break-all">{{ $env['install_path'] }}</p>
+                </div>
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">PHP binary (detected)</p>
+                    <p class="font-mono text-xs break-all">{{ $env['php_binary'] }} ({{ $env['php_version'] }})</p>
+                </div>
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">App timezone</p>
+                    <p class="font-mono text-xs">{{ $env['timezone'] }}</p>
                 </div>
             </div>
 
-            <p class="text-gray-500 dark:text-gray-400">
-                If PHP is not on the PATH, use the full path Hostinger shows for PHP, for example:
-                <code class="text-xs">/usr/bin/php /home/…/public_html/artisan schedule:run</code>
+            <ol class="list-decimal list-inside space-y-1 text-gray-600 dark:text-gray-300">
+                <li>Open your host’s control panel (cPanel, hPanel, Plesk, DirectAdmin, etc.)</li>
+                <li>Create a <strong>Cron Job</strong></li>
+                <li>Frequency: <strong>Every minute</strong> (or every 5 minutes minimum)</li>
+                <li>Command: copy the <strong>Recommended</strong> line below</li>
+            </ol>
+
+            @foreach($variants as $i => $variant)
+                <div class="rounded-lg bg-gray-950 text-gray-100 p-4" x-data="{ copied: false }">
+                    <p class="text-xs font-semibold text-gray-400 mb-1">{{ $variant['label'] }}</p>
+                    <p class="text-[11px] text-gray-500 mb-2">{{ $variant['note'] }}</p>
+                    <div class="flex flex-col sm:flex-row sm:items-start gap-3">
+                        <code class="flex-1 font-mono text-xs break-all select-all">{{ $variant['command'] }}</code>
+                        <button
+                            type="button"
+                            class="shrink-0 rounded-md bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/20"
+                            x-on:click="navigator.clipboard.writeText(@js($variant['command'])); copied = true; setTimeout(() => copied = false, 2000)"
+                        >
+                            <span x-show="!copied">Copy</span>
+                            <span x-show="copied" x-cloak>Copied</span>
+                        </button>
+                    </div>
+                </div>
+            @endforeach
+
+            <p class="text-gray-500 dark:text-gray-400 text-xs">
+                If the recommended PHP path fails, open your host’s “Select PHP version” / “PHP CLI” page and put that full path in place of <code class="text-[10px]">php</code>.
+                Nothing in Alternova is hardcoded to a specific domain or hosting brand.
             </p>
 
             <p class="text-gray-600 dark:text-gray-300">
@@ -37,7 +66,7 @@
                     {{ \Illuminate\Support\Carbon::parse($this->lastRun)->diffForHumans() }}
                     <span class="text-gray-400">({{ $this->lastRun }})</span>
                 @else
-                    <span class="text-warning-600 dark:text-warning-400">Never recorded. Cron may not be set up yet. Click “Run schedule:run once” after saving, or wait for Hostinger.</span>
+                    <span class="text-warning-600 dark:text-warning-400">Never recorded. Cron is not running yet for this install.</span>
                 @endif
             </p>
         </div>

@@ -4,6 +4,10 @@ namespace App\Support;
 
 use App\Models\SiteSetting;
 
+/**
+ * Scheduled-job config for any domain/host. Paths and PHP binary are
+ * detected from the current install (base_path, PHP_BINARY) — never hardcoded.
+ */
 class CronSettings
 {
     public static function defaults(): array
@@ -13,7 +17,7 @@ class CronSettings
             'cron_metrics_time' => '03:15',
             'cron_metrics_limit' => 25,
             'cron_links_enabled' => true,
-            'cron_links_day' => 1, // Monday
+            'cron_links_day' => 1,
             'cron_links_time' => '04:00',
             'cron_links_limit' => 40,
             'cron_digest_enabled' => true,
@@ -57,12 +61,113 @@ class CronSettings
         return $v !== '' && $v !== null ? (string) $v : null;
     }
 
-    /** Suggested Hostinger cron expression (once per minute is ideal for Laravel). */
+    /** Absolute path to this install (works on any host). */
+    public static function installPath(): string
+    {
+        return rtrim(str_replace('\\', '/', base_path()), '/');
+    }
+
+    /** Absolute path to artisan. */
+    public static function artisanPath(): string
+    {
+        return self::installPath().'/artisan';
+    }
+
+    /**
+     * Best-effort PHP CLI binary for this server.
+     * Prefers PHP_BINARY when it looks like a CLI binary.
+     */
+    public static function phpBinary(): string
+    {
+        $candidates = [];
+
+        if (defined('PHP_BINARY') && PHP_BINARY) {
+            $candidates[] = PHP_BINARY;
+        }
+
+        $candidates = array_merge($candidates, [
+            '/usr/bin/php',
+            '/usr/local/bin/php',
+            '/opt/alt/php83/usr/bin/php',
+            '/opt/alt/php82/usr/bin/php',
+            '/opt/alt/php81/usr/bin/php',
+            'php',
+        ]);
+
+        foreach ($candidates as $bin) {
+            if ($bin === 'php') {
+                return 'php';
+            }
+            // PHP_BINARY is often the FPM/CGI binary; still usable for artisan on many hosts
+            if (is_string($bin) && $bin !== '' && (is_executable($bin) || @is_file($bin))) {
+                return $bin;
+            }
+        }
+
+        return 'php';
+    }
+
+    /**
+     * Recommended cron command for THIS installation (auto paths).
+     * Safe default for cPanel, Hostinger, Plesk, VPS, etc.
+     */
+    public static function recommendedCommand(): string
+    {
+        $php = self::phpBinary();
+        $artisan = self::artisanPath();
+
+        return $php.' '.$artisan.' schedule:run >> /dev/null 2>&1';
+    }
+
+    /** Alternate: cd into app then relative artisan (some panels prefer this). */
+    public static function alternateCommand(): string
+    {
+        $php = self::phpBinary();
+        $base = self::installPath();
+
+        return 'cd '.$base.' && '.$php.' artisan schedule:run >> /dev/null 2>&1';
+    }
+
+    /** @deprecated use recommendedCommand() */
     public static function hostingerCommand(): string
     {
-        $base = base_path();
+        return self::recommendedCommand();
+    }
 
-        return 'cd '.$base.' && php artisan schedule:run >> /dev/null 2>&1';
+    /**
+     * @return list<array{label: string, command: string, note: string}>
+     */
+    public static function commandVariants(): array
+    {
+        return [
+            [
+                'label' => 'Recommended (works on most hosts)',
+                'command' => self::recommendedCommand(),
+                'note' => 'Uses the detected PHP binary and absolute path to artisan for this install.',
+            ],
+            [
+                'label' => 'Alternate (cd into app folder)',
+                'command' => self::alternateCommand(),
+                'note' => 'Use if your panel requires a shell context in the project directory.',
+            ],
+            [
+                'label' => 'Generic (if PHP path is wrong)',
+                'command' => 'php '.self::artisanPath().' schedule:run >> /dev/null 2>&1',
+                'note' => 'Replace php with the path your host shows under “Select PHP version” or “PHP CLI”.',
+            ],
+        ];
+    }
+
+    /** Detected environment summary for the admin UI. */
+    public static function environmentInfo(): array
+    {
+        return [
+            'app_url' => rtrim((string) config('app.url'), '/'),
+            'install_path' => self::installPath(),
+            'php_binary' => self::phpBinary(),
+            'php_version' => PHP_VERSION,
+            'timezone' => config('app.timezone', 'UTC'),
+        ];
     }
 
     /** @return list<array{id: string, label: string, when: string, enabled: bool, command: string}> */

@@ -78,15 +78,15 @@ class CronSettingsPage extends Page implements HasForms
         return $form
             ->schema([
                 Section::make('GitHub metrics sync')
-                    ->description('Pulls stars, forks, issues and recalculates health scores. Runs a limited batch each day so GitHub rate limits stay safe.')
+                    ->description('Pulls stars, forks, issues and recalculates health scores. Limited batch per day to respect GitHub rate limits on any shared host.')
                     ->schema([
                         Toggle::make('cron_metrics_enabled')->label('Enable scheduled metrics sync')->inline(false),
-                        TextInput::make('cron_metrics_time')->label('Time (server timezone)')->placeholder('03:15')->helperText('24-hour format HH:MM'),
+                        TextInput::make('cron_metrics_time')->label('Time (app timezone)')->placeholder('03:15')->helperText('24-hour HH:MM — uses config app.timezone'),
                         TextInput::make('cron_metrics_limit')->label('Max alternatives per run')->numeric()->minValue(1)->maxValue(200),
                     ])->columns(3),
 
                 Section::make('Link health checks')
-                    ->description('HEAD/GET requests to repo and website URLs. Marks broken links on each alternative.')
+                    ->description('Checks repo and website URLs. Marks broken links on each alternative.')
                     ->schema([
                         Toggle::make('cron_links_enabled')->label('Enable scheduled link checks')->inline(false),
                         Select::make('cron_links_day')->label('Day of week')->options($dayOptions),
@@ -95,7 +95,7 @@ class CronSettingsPage extends Page implements HasForms
                     ])->columns(2),
 
                 Section::make('Weekly newsletter digest')
-                    ->description('Also requires Email settings (SMTP/Resend) and digest toggles on that page.')
+                    ->description('Requires working mail in Email settings. Same schedule logic on every customer install.')
                     ->schema([
                         Toggle::make('cron_digest_enabled')->label('Enable scheduled newsletter digest')->inline(false),
                         Select::make('cron_digest_day')->label('Day of week')->options($dayOptions),
@@ -103,7 +103,6 @@ class CronSettingsPage extends Page implements HasForms
                     ])->columns(3),
 
                 Section::make('Member notification digest')
-                    ->description('Emails signed-in members a summary of unread in-app notifications.')
                     ->schema([
                         Toggle::make('cron_notif_digest_enabled')->label('Enable member notification digest')->inline(false),
                         Select::make('cron_notif_digest_day')->label('Day of week')->options($dayOptions),
@@ -143,7 +142,7 @@ class CronSettingsPage extends Page implements HasForms
 
         Notification::make()
             ->title('Cron settings saved')
-            ->body('Laravel reads these the next time schedule:run executes. Hostinger must call schedule:run every minute (or every few minutes).')
+            ->body('Applies on this install only. Each customer site detects its own paths automatically.')
             ->success()
             ->send();
     }
@@ -201,7 +200,7 @@ class CronSettingsPage extends Page implements HasForms
 
     public function getCronCommandProperty(): string
     {
-        return CronSettings::hostingerCommand();
+        return CronSettings::recommendedCommand();
     }
 
     public function getJobsProperty(): array
