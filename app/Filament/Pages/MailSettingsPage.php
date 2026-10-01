@@ -71,13 +71,14 @@ class MailSettingsPage extends Page implements HasForms
                             ->label('Mail driver')
                             ->options([
                                 'log' => 'Log (writes to storage/logs — no real email)',
-                                'resend' => 'Resend',
+                                'resend' => 'Resend (API key; uses SMTP if PHP SDK is missing)',
                                 'smtp' => 'SMTP (custom server)',
                                 'array' => 'Array (testing — keeps mail in memory)',
                             ])
                             ->required()
                             ->live(),
-                        TextInput::make('mail_from_address')->label('From address')->email()->required(),
+                        TextInput::make('mail_from_address')->label('From address')->email()->required()
+                            ->helperText('Must be a domain verified in Resend (or allowed by your SMTP provider).'),
                         TextInput::make('mail_from_name')->label('From name')->required(),
                         TextInput::make('mail_admin_email')
                             ->label('Admin alert inbox')
@@ -89,15 +90,9 @@ class MailSettingsPage extends Page implements HasForms
 
                 Section::make('Alerts')
                     ->schema([
-                        Toggle::make('mail_alert_contact')
-                            ->label('Email me on new contact messages')
-                            ->inline(false),
-                        Toggle::make('mail_alert_submission')
-                            ->label('Email me on new alternative submissions')
-                            ->inline(false),
-                        Toggle::make('mail_alert_comment')
-                            ->label('Email me on new comments')
-                            ->inline(false),
+                        Toggle::make('mail_alert_contact')->label('Email me on new contact messages')->inline(false),
+                        Toggle::make('mail_alert_submission')->label('Email me on new alternative submissions')->inline(false),
+                        Toggle::make('mail_alert_comment')->label('Email me on new comments')->inline(false),
                         Toggle::make('mail_contact_autoreply')
                             ->label('Send auto-reply to contact form submitters')
                             ->helperText('Visitor receives a short “we got your message” email.')
@@ -110,33 +105,30 @@ class MailSettingsPage extends Page implements HasForms
                     ->schema([
                         Toggle::make('mail_digest_enabled')
                             ->label('Send weekly digest to subscribers')
-                            ->helperText('Off = schedule and manual runs skip sending (unless force/ignore flags).')
                             ->inline(false),
                         Toggle::make('mail_digest_include_featured')
                             ->label('If nothing new, include featured alternatives')
-                            ->helperText('Avoids empty weeks when the catalog was quiet.')
                             ->inline(false),
                     ])
                     ->columns(1),
 
                 Section::make('Member notification digest')
-                    ->description('Emails signed-in members a summary of unread in-app notifications (comment replies, health drops). Mondays 09:30.')
                     ->schema([
                         Toggle::make('mail_notification_digest_enabled')
                             ->label('Send unread-notification digest emails')
-                            ->helperText('Only users with unread notifications receive mail.')
                             ->inline(false),
                     ])
                     ->columns(1),
 
                 Section::make('Resend')
-                    ->description('Create an API key at resend.com. Verify your domain, then paste the key below.')
+                    ->description('API key from resend.com. Domain must be verified. If the Resend PHP package is not installed, Alternova uses smtp.resend.com automatically.')
                     ->visible(fn (Get $get) => $get('mail_mailer') === 'resend')
                     ->schema([
                         TextInput::make('mail_resend_key')
                             ->label('Resend API key')
                             ->password()
                             ->revealable()
+                            ->required(fn (Get $get) => $get('mail_mailer') === 'resend')
                             ->columnSpanFull(),
                     ]),
 
@@ -208,14 +200,28 @@ class MailSettingsPage extends Page implements HasForms
 
         try {
             MailSettings::apply();
+
+            $driver = config('mail.default');
+            $host = config('mail.mailers.smtp.host');
+
             Mail::to($to)->send(new TestMail('If you received this, delivery is configured correctly.'));
+
+            $hint = 'Driver: '.$driver;
+            if ($driver === 'smtp' && $host === 'smtp.resend.com') {
+                $hint .= ' (Resend via SMTP fallback — no PHP SDK required)';
+            }
+
             Notification::make()
                 ->title('Test email sent')
-                ->body('Check inbox (and spam) for '.$to.'. Driver: '.config('mail.default'))
+                ->body('Check inbox (and spam) for '.$to.'. '.$hint)
                 ->success()
                 ->send();
         } catch (\Throwable $e) {
-            Notification::make()->title('Test email failed')->body($e->getMessage())->danger()->send();
+            Notification::make()
+                ->title('Test email failed')
+                ->body($e->getMessage())
+                ->danger()
+                ->send();
         }
     }
 

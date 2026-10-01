@@ -19,8 +19,6 @@ class MailSettings
 
         $mailer = SiteSetting::get('mail_mailer', config('mail.default', 'log')) ?: 'log';
 
-        Config::set('mail.default', $mailer);
-
         $fromAddress = SiteSetting::get('mail_from_address', config('mail.from.address'));
         $fromName = SiteSetting::get('mail_from_name', config('mail.from.name'));
 
@@ -31,19 +29,51 @@ class MailSettings
             Config::set('mail.from.name', $fromName);
         }
 
-        Config::set('mail.mailers.smtp.host', SiteSetting::get('mail_smtp_host', config('mail.mailers.smtp.host')));
-        Config::set('mail.mailers.smtp.port', (int) SiteSetting::get('mail_smtp_port', config('mail.mailers.smtp.port', 587)));
-        Config::set('mail.mailers.smtp.username', SiteSetting::get('mail_smtp_username', config('mail.mailers.smtp.username')));
-        $password = SiteSetting::get('mail_smtp_password');
-        if ($password !== null && $password !== '') {
-            Config::set('mail.mailers.smtp.password', $password);
-        }
-        Config::set('mail.mailers.smtp.encryption', SiteSetting::get('mail_smtp_encryption', config('mail.mailers.smtp.encryption')) ?: null);
+        $resendKey = trim((string) SiteSetting::get('mail_resend_key', config('services.resend.key', '')));
 
-        $resendKey = SiteSetting::get('mail_resend_key', config('services.resend.key'));
-        if ($resendKey) {
-            Config::set('services.resend.key', $resendKey);
-            Config::set('mail.mailers.resend.key', $resendKey);
+        /*
+         | Resend without the PHP SDK (common on shared hosting if composer
+         | did not install resend/resend-php). Use Resend's official SMTP
+         | endpoint so delivery still works with only an API key.
+         */
+        if ($mailer === 'resend') {
+            $hasSdk = class_exists(\Resend\Factory::class)
+                || class_exists(\Resend::class)
+                || class_exists(\Resend\Resend::class)
+                || class_exists(\Resend\Laravel\ResendServiceProvider::class);
+
+            if ($hasSdk && $resendKey !== '') {
+                Config::set('mail.default', 'resend');
+                Config::set('services.resend.key', $resendKey);
+                Config::set('mail.mailers.resend.key', $resendKey);
+                if (class_exists(\Resend\Laravel\ResendServiceProvider::class)) {
+                    Config::set('resend.api_key', $resendKey);
+                }
+            } else {
+                // SMTP fallback — no Resend PHP class required
+                Config::set('mail.default', 'smtp');
+                Config::set('mail.mailers.smtp.host', 'smtp.resend.com');
+                Config::set('mail.mailers.smtp.port', 587);
+                Config::set('mail.mailers.smtp.username', 'resend');
+                Config::set('mail.mailers.smtp.password', $resendKey !== '' ? $resendKey : null);
+                Config::set('mail.mailers.smtp.encryption', 'tls');
+                Config::set('mail.mailers.smtp.scheme', null);
+                if ($resendKey !== '') {
+                    Config::set('services.resend.key', $resendKey);
+                }
+            }
+        } elseif ($mailer === 'smtp') {
+            Config::set('mail.default', 'smtp');
+            Config::set('mail.mailers.smtp.host', SiteSetting::get('mail_smtp_host', config('mail.mailers.smtp.host')));
+            Config::set('mail.mailers.smtp.port', (int) SiteSetting::get('mail_smtp_port', config('mail.mailers.smtp.port', 587)));
+            Config::set('mail.mailers.smtp.username', SiteSetting::get('mail_smtp_username', config('mail.mailers.smtp.username')));
+            $password = SiteSetting::get('mail_smtp_password');
+            if ($password !== null && $password !== '') {
+                Config::set('mail.mailers.smtp.password', $password);
+            }
+            Config::set('mail.mailers.smtp.encryption', SiteSetting::get('mail_smtp_encryption', config('mail.mailers.smtp.encryption')) ?: null);
+        } else {
+            Config::set('mail.default', $mailer);
         }
 
         Config::set('alternova.mail.admin_email', SiteSetting::get('mail_admin_email', $fromAddress));

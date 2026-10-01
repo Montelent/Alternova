@@ -8,7 +8,6 @@
             <span class="text-slate-800 dark:text-slate-200 font-medium">{{ $tool->name }}</span>
         </nav>
 
-        {{-- Hero --}}
         <header class="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-8 lg:p-10 shadow-sm mb-8 sm:mb-10">
             <div class="flex flex-col sm:flex-row sm:items-start gap-5 sm:gap-6">
                 @if($tool->logo_url)
@@ -66,13 +65,12 @@
             </div>
         </header>
 
-        {{-- Grid of alternatives --}}
         <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-5">
             <div>
                 <h2 class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
                     {{ $count }} alternative{{ $count === 1 ? '' : 's' }} to explore
                 </h2>
-                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Sorted by health score. Tap a card for the full profile.</p>
+                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Sorted by health score. Open a profile, or filter by license or language.</p>
             </div>
             <a href="{{ route('alternatives.compare') }}" class="text-sm font-semibold text-brand-600 dark:text-brand-400 hover:underline shrink-0">
                 Compare tools
@@ -85,33 +83,42 @@
                 <a href="{{ route('suggest') }}" class="mt-4 inline-flex font-semibold text-brand-600 dark:text-brand-400 hover:underline">Suggest one</a>
             </div>
         @else
+            {{-- Cards are not a single outer <a> so license/language links work --}}
             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
                 @foreach($alternatives as $alt)
-                    <a href="{{ route('alternatives.show', $alt) }}"
-                        class="group flex flex-col rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 shadow-sm hover:border-brand-300 dark:hover:border-brand-600 hover:shadow-md transition h-full">
+                    <article class="group flex flex-col rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 shadow-sm hover:border-brand-300 dark:hover:border-brand-600 hover:shadow-md transition h-full">
                         <div class="flex items-start justify-between gap-3">
-                            <h3 class="text-lg font-semibold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition leading-snug">
-                                {{ $alt->name }}
+                            <h3 class="text-lg font-semibold leading-snug">
+                                <a href="{{ route('alternatives.show', $alt) }}"
+                                    class="text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition">
+                                    {{ $alt->name }}
+                                </a>
                             </h3>
-                            <span class="shrink-0 rounded-full bg-brand-50 dark:bg-brand-950/60 text-brand-700 dark:text-brand-300 text-xs font-bold px-2.5 py-1 tabular-nums">
+                            <span class="shrink-0 rounded-full bg-brand-50 dark:bg-brand-950/60 text-brand-700 dark:text-brand-300 text-xs font-bold px-2.5 py-1 tabular-nums" title="Health score">
                                 {{ number_format($alt->overall_health_score, 0) }}
                             </span>
                         </div>
 
                         <p class="mt-3 text-sm text-slate-600 dark:text-slate-400 line-clamp-3 flex-1">
-                            {{ \Illuminate\Support\Str::limit(strip_tags((string) $alt->description), 140) }}
+                            <a href="{{ route('alternatives.show', $alt) }}" class="hover:text-slate-800 dark:hover:text-slate-200">
+                                {{ \Illuminate\Support\Str::limit(strip_tags((string) $alt->description), 140) }}
+                            </a>
                         </p>
 
                         <div class="mt-4 flex flex-wrap gap-2">
                             @if($alt->license_type)
-                                <span class="rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-200 text-[11px] font-semibold px-2.5 py-0.5">
+                                <a href="{{ route('finder', ['licenses' => [$alt->license_type]]) }}"
+                                    class="rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-200 text-[11px] font-semibold px-2.5 py-0.5 hover:ring-1 hover:ring-emerald-400 transition"
+                                    title="Browse all {{ $alt->license_type }} projects">
                                     {{ $alt->license_type }}
-                                </span>
+                                </a>
                             @endif
                             @if($alt->primary_language)
-                                <span class="rounded-full bg-sky-50 dark:bg-sky-950/50 text-sky-800 dark:text-sky-200 text-[11px] font-semibold px-2.5 py-0.5">
+                                <a href="{{ route('finder', ['languages' => [$alt->primary_language]]) }}"
+                                    class="rounded-full bg-sky-50 dark:bg-sky-950/50 text-sky-800 dark:text-sky-200 text-[11px] font-semibold px-2.5 py-0.5 hover:ring-1 hover:ring-sky-400 transition"
+                                    title="Browse all {{ $alt->primary_language }} projects">
                                     {{ $alt->primary_language }}
-                                </span>
+                                </a>
                             @endif
                             @if($alt->repoMetric && $alt->repoMetric->github_stars)
                                 <span class="rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] font-semibold px-2.5 py-0.5">
@@ -120,10 +127,11 @@
                             @endif
                         </div>
 
-                        <span class="mt-4 text-sm font-semibold text-brand-600 dark:text-brand-400 group-hover:underline">
-                            View profile
-                        </span>
-                    </a>
+                        <a href="{{ route('alternatives.show', $alt) }}"
+                            class="mt-4 inline-flex text-sm font-semibold text-brand-600 dark:text-brand-400 hover:underline">
+                            View {{ $alt->name }} profile
+                        </a>
+                    </article>
                 @endforeach
             </div>
         @endif
