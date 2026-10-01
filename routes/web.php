@@ -108,6 +108,9 @@ Route::get('/about', [PageController::class, 'about'])->name('about');
 Route::get('/privacy', [PageController::class, 'privacy'])->name('privacy');
 Route::get('/terms', [PageController::class, 'terms'])->name('terms');
 Route::get('/disclosure', [PageController::class, 'disclosure'])->name('disclosure');
+Route::get('/p/{slug}', [PageController::class, 'show'])
+    ->where('slug', '[A-Za-z0-9\-_]+')
+    ->name('pages.show');
 
 Route::get('/feed', [FeedController::class, 'rss'])->name('feed.rss');
 Route::get('/feed/rss', [FeedController::class, 'rss']);

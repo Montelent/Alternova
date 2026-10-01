@@ -39,6 +39,7 @@ class AdminPanelProvider extends PanelProvider
             ->sidebarCollapsibleOnDesktop()
             ->globalSearchKeyBindings(['command+k', 'ctrl+k'])
             ->navigationGroups([
+                'Content',
                 'Open Source Finder',
                 'Engagement',
                 'System',
