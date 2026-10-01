@@ -9,13 +9,12 @@ use Filament\Forms\Components\TextInput;
 class ImageField
 {
     /**
-     * Direct file upload (public disk) with optional external URL fallback.
-     * Stores relative path under storage/app/public/{directory}.
+     * Direct file upload into public/uploads (no storage symlink required).
      */
     public static function make(
         string $name,
         string $label = 'Image',
-        string $directory = 'uploads',
+        string $directory = 'general',
         bool $withUrlFallback = true,
         string $urlField = 'image_url',
     ): array {
@@ -29,18 +28,16 @@ class ImageField
                 '16:9',
                 '4:3',
             ])
-            ->imageResizeMode('cover')
-            ->imageCropAspectRatio(null)
             ->maxSize(5120)
             ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'])
-            ->disk('public')
+            ->disk('uploads')
             ->directory($directory)
             ->visibility('public')
             ->downloadable()
             ->openable()
             ->previewable()
-            ->moveFiles()
-            ->helperText('Upload from device (max 5MB). JPG, PNG, WebP, GIF, or SVG.')
+            ->imagePreviewHeight('120')
+            ->helperText('Upload from device (max 5MB). Saved under /uploads/'.$directory.'/')
             ->columnSpanFull();
 
         if (! $withUrlFallback) {
@@ -75,13 +72,13 @@ class ImageField
             ->imageEditor()
             ->maxSize(5120)
             ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
-            ->disk('public')
+            ->disk('uploads')
             ->directory($directory)
             ->visibility('public')
             ->downloadable()
             ->openable()
             ->previewable()
-            ->helperText("Upload up to {$max} images (max 5MB each). Drag to reorder.")
+            ->helperText("Upload up to {$max} images (max 5MB each). Stored in /uploads/{$directory}/")
             ->columnSpanFull();
     }
 }

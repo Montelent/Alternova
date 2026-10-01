@@ -9,25 +9,38 @@
         </nav>
 
         <header class="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-10 shadow-sm mb-10">
-            <p class="text-sm font-semibold uppercase tracking-wider text-brand-600 mb-2">Alternatives to</p>
-            <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                {{ $heading ?? ('Open Source Alternatives to '.$tool->name) }}
-            </h1>
-            @if($tool->description)
-                <div class="mt-4 text-slate-600 dark:text-slate-300 leading-relaxed max-w-3xl prose dark:prose-invert">
-                    {!! $tool->description !!}
-                </div>
-            @endif
-            <div class="mt-6 flex flex-wrap gap-3">
-                @if($tool->website_url)
-                    <a href="{{ $tool->website_url }}" target="_blank" rel="noopener noreferrer"
-                        class="inline-flex rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">
-                        Official website
-                    </a>
+            <div class="flex flex-col sm:flex-row sm:items-start gap-5">
+                @if($tool->logo_url)
+                    <img src="{{ $tool->logo_url }}" alt="{{ $tool->name }} logo"
+                        class="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl object-contain bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2 shrink-0"
+                        loading="lazy" width="80" height="80">
+                @else
+                    <div class="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl bg-brand-50 dark:bg-brand-900/30 border border-brand-100 dark:border-brand-800 flex items-center justify-center text-2xl font-bold text-brand-600 shrink-0">
+                        {{ strtoupper(substr($tool->name, 0, 1)) }}
+                    </div>
                 @endif
-                <a href="{{ route('finder', ['tool' => $tool->slug]) }}" class="inline-flex rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">
-                    Filter in finder
-                </a>
+                <div class="min-w-0 flex-1">
+                    <p class="text-sm font-semibold uppercase tracking-wider text-brand-600 mb-2">Alternatives to</p>
+                    <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                        {{ $heading ?? ('Open Source Alternatives to '.$tool->name) }}
+                    </h1>
+                    @if($tool->description)
+                        <div class="mt-4 text-slate-600 dark:text-slate-300 leading-relaxed max-w-3xl prose dark:prose-invert">
+                            {!! $tool->description !!}
+                        </div>
+                    @endif
+                    <div class="mt-6 flex flex-wrap gap-3">
+                        @if($tool->website_url)
+                            <a href="{{ $tool->website_url }}" target="_blank" rel="noopener noreferrer"
+                                class="inline-flex rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">
+                                Official website
+                            </a>
+                        @endif
+                        <a href="{{ route('finder', ['tool' => $tool->slug]) }}" class="inline-flex rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">
+                            Filter in finder
+                        </a>
+                    </div>
+                </div>
             </div>
             @if(is_array($tool->key_features) && count($tool->key_features))
                 <div class="mt-8">

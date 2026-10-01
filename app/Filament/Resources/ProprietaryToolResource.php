@@ -8,6 +8,7 @@ use App\Filament\Forms\SeoForm;
 use App\Filament\Resources\ProprietaryToolResource\Pages;
 use App\Models\ProprietaryTool;
 use App\Services\DescriptionGeneratorService;
+use App\Support\MediaUrl;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -96,8 +97,9 @@ class ProprietaryToolResource extends Resource
             ->columns([
                 Tables\Columns\ImageColumn::make('logo_path')
                     ->label('Logo')
-                    ->disk('public')
+                    ->getStateUsing(fn (ProprietaryTool $record) => $record->logo_url)
                     ->circular()
+                    ->defaultImageUrl(fn () => 'data:image/svg+xml,'.rawurlencode('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" rx="8" fill="#e2e8f0"/><text x="50%" y="54%" text-anchor="middle" fill="#64748b" font-size="14" font-family="sans-serif">?</text></svg>'))
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('name')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('slug')->toggleable(),
@@ -116,7 +118,7 @@ class ProprietaryToolResource extends Resource
                 Tables\Actions\Action::make('viewSite')
                     ->label('View')
                     ->icon('heroicon-o-arrow-top-right-on-square')
-                    ->url(fn (ProprietaryTool $r) => route('tools.show', $r->slug), shouldOpenInNewTab: true)
+                    ->url(fn (ProprietaryTool $r) => route('alternativesto.show', $r->slug), shouldOpenInNewTab: true)
                     ->visible(fn (ProprietaryTool $r) => $r->is_published && ! $r->trashed()),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),

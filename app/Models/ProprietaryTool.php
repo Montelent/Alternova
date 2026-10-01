@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\MediaUrl;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -39,6 +40,14 @@ class ProprietaryTool extends Model
         'is_published' => 'boolean',
     ];
 
+    protected $appends = ['logo_url'];
+
+    public function getLogoUrlAttribute(): ?string
+    {
+        return MediaUrl::make($this->logo_path, 'uploads')
+            ?? MediaUrl::make($this->logo_path, 'public');
+    }
+
     public function openSourceAlternatives(): HasMany
     {
         return $this->hasMany(OpenSourceAlternative::class);
@@ -50,7 +59,6 @@ class ProprietaryTool extends Model
             ->where('is_published', true);
     }
 
-    /** All alternatives linked via primary FK or pivot (up to 5 tools). */
     public function linkedAlternatives()
     {
         $primary = $this->publishedAlternatives()
