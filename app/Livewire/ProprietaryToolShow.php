@@ -13,9 +13,6 @@ class ProprietaryToolShow extends Component
 {
     public ProprietaryTool $tool;
 
-    /**
-     * Route param is {slug} — must not match property name $tool (Livewire implicit binding).
-     */
     public function mount(string $slug): void
     {
         $requestedSlug = trim($slug);
@@ -29,7 +26,8 @@ class ProprietaryToolShow extends Component
             try {
                 $redirect = null;
                 if (class_exists(SlugRedirect::class)) {
-                    $redirect = SlugRedirect::query()
+                    $redirect = S
+                    lugRedirect::query()
                         ->where('old_slug', $requestedSlug)
                         ->where('model_type', 'tool')
                         ->first();
@@ -43,7 +41,7 @@ class ProprietaryToolShow extends Component
 
                     if ($target) {
                         throw new HttpResponseException(
-                            redirect()->to(route('tools.show', $target), 301)
+                            redirect()->to(route('alternativesto.show', $target->slug), 301)
                         );
                     }
                 }
@@ -55,34 +53,27 @@ class ProprietaryToolShow extends Component
             abort(404);
         }
 
-        try {
-            $this->tool = $record->load([
-                'publishedAlternatives' => fn ($q) => $q
-                    ->with(['repoMetric', 'tags'])
-                    ->orderByDesc('overall_health_score'),
-            ]);
-        } catch (\Throwable) {
-            $this->tool = $record->load([
-                'publishedAlternatives' => fn ($q) => $q
-                    ->with(['repoMetric'])
-                    ->orderByDesc('overall_health_score'),
-            ]);
-        }
+        $this->tool = $record;
     }
 
     public function render()
     {
         $tool = $this->tool;
+        $alternatives = $tool->linkedAlternatives();
+
         $seo = app(SeoManager::class);
-        $title = $seo->toolTitle($tool);
+        // Match opensourcealternative.to style: "Open Source Alternatives to {Name}"
+        $title = $tool->meta_title
+            ?: ('Open Source Alternatives to '.$tool->name);
         $description = $seo->toolDescription($tool);
-        $canonical = $tool->canonical_url ?: route('tools.show', $tool);
+        $canonical = $tool->canonical_url ?: route('alternativesto.show', $tool->slug);
         $ogImage = app(OgImageService::class)->toolUrl($tool);
 
         return view('livewire.proprietary-tool-show', [
-            'alternatives' => $tool->publishedAlternatives,
+            'alternatives' => $alternatives,
         ])->layout('layouts.app', [
-            'title' => $title,
+            'title' => $title.
+                ' | Alternova',
             'description' => $description,
             'canonical' => $canonical,
             'robots' => $tool->robots_meta ?: null,
