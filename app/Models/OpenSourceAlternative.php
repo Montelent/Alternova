@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -107,6 +108,17 @@ class OpenSourceAlternative extends Model
     public function proprietaryTool(): BelongsTo
     {
         return $this->belongsTo(ProprietaryTool::class);
+    }
+
+    /** Up to 5 proprietary products this alternative replaces. */
+    public function proprietaryTools(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            ProprietaryTool::class,
+            'alternative_proprietary_tool',
+            'open_source_alternative_id',
+            'proprietary_tool_id'
+        )->withPivot('position')->withTimestamps()->orderByPivot('position');
     }
 
     public function repoMetric(): HasOne

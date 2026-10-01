@@ -4,8 +4,10 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Schema;
 use Laravel\Scout\Searchable;
 use Spatie\Tags\HasTags;
 
@@ -48,6 +50,41 @@ class ProprietaryTool extends Model
             ->where('is_published', true);
     }
 
+    /** All alternatives linked via primary FK or pivot (up to 5 tools). */
+    public function linkedAlternatives()
+    {
+        $primary = $this->publishedAlternatives()
+            ->with(['repoMetric', 'tags'])
+            ->orderByDesc('overall_health_score')
+            ->get();
+
+        try {
+            if (Schema::hasTable('alternative_proprietary_tool')) {
+                $viaPivot = OpenSourceAlternative::query()
+                    ->where('is_published', true)
+                    ->whereHas('proprietaryTools', fn ($q) => $q->where('proprietary_tools.id', $this->id))
+                    ->with(['repoMetric', 'tags'])
+                    ->orderByDesc('overall_health_score')
+                    ->get();
+
+                return $primary->concat($viaPivot)->unique('id')->sortByDesc('overall_health_score')->values();
+            }
+        } catch (\Throwable) {
+        }
+
+        return $primary;
+    }
+
+    public function alternativesMany(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            OpenSourceAlternative::class,
+            'alternative_proprietary_tool',
+            'proprietary_tool_id',
+            'open_source_alternative_id'
+        )->withPivot('position')->withTimestamps();
+    }
+
     public function getRouteKeyName(): string
     {
         return 'slug';
@@ -61,6 +98,11 @@ class ProprietaryTool extends Model
             ->where($field, $value)
             ->where('is_published', true)
             ->first();
+    }
+
+    public function publicUrl(): string
+    {
+        return route('alternativesto.show', $this->slug);
     }
 
     public function toSearchableArray(): array
