@@ -7,45 +7,45 @@
     <x-filament::section class="mb-6">
         <x-slot name="heading">Server cron (any host)</x-slot>
         <x-slot name="description">
-            Paths below are detected automatically for <strong>this installation</strong> (domain, folder, and PHP binary). Buyers only paste the recommended line into their host’s cron panel.
+            Paths below are detected automatically for <strong>this installation</strong> (domain, folder, and PHP binary). Paste the recommended line into your host’s cron panel.
         </x-slot>
 
-        <div class="space-y-4 text-sm">
-            <div class="grid gap-2 sm:grid-cols-2 rounded-lg border border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900/40">
+        <div class="space-y-4 text-sm text-gray-950 dark:text-gray-100">
+            <div class="grid gap-3 sm:grid-cols-2 rounded-xl border border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-900">
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Site URL</p>
-                    <p class="font-mono text-xs break-all">{{ $env['app_url'] ?: 'Set APP_URL in .env' }}</p>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Site URL</p>
+                    <p class="mt-1 font-mono text-xs break-all text-gray-900 dark:text-gray-100">{{ $env['app_url'] ?: 'Set APP_URL in .env' }}</p>
                 </div>
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Install path</p>
-                    <p class="font-mono text-xs break-all">{{ $env['install_path'] }}</p>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Install path</p>
+                    <p class="mt-1 font-mono text-xs break-all text-gray-900 dark:text-gray-100">{{ $env['install_path'] }}</p>
                 </div>
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">PHP binary (detected)</p>
-                    <p class="font-mono text-xs break-all">{{ $env['php_binary'] }} ({{ $env['php_version'] }})</p>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">PHP binary (detected)</p>
+                    <p class="mt-1 font-mono text-xs break-all text-gray-900 dark:text-gray-100">{{ $env['php_binary'] }} ({{ $env['php_version'] }})</p>
                 </div>
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">App timezone</p>
-                    <p class="font-mono text-xs">{{ $env['timezone'] }}</p>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">App timezone</p>
+                    <p class="mt-1 font-mono text-xs text-gray-900 dark:text-gray-100">{{ $env['timezone'] }}</p>
                 </div>
             </div>
 
-            <ol class="list-decimal list-inside space-y-1 text-gray-600 dark:text-gray-300">
+            <ol class="list-decimal list-inside space-y-1.5 text-gray-800 dark:text-gray-200">
                 <li>Open your host’s control panel (cPanel, hPanel, Plesk, DirectAdmin, etc.)</li>
-                <li>Create a <strong>Cron Job</strong></li>
-                <li>Frequency: <strong>Every minute</strong> (or every 5 minutes minimum)</li>
-                <li>Command: copy the <strong>Recommended</strong> line below</li>
+                <li>Create a <strong class="text-gray-950 dark:text-white">Cron Job</strong></li>
+                <li>Frequency: <strong class="text-gray-950 dark:text-white">Every minute</strong> (or every 5 minutes minimum)</li>
+                <li>Command: copy the <strong class="text-gray-950 dark:text-white">Recommended</strong> line below</li>
             </ol>
 
-            @foreach($variants as $i => $variant)
-                <div class="rounded-lg bg-gray-950 text-gray-100 p-4" x-data="{ copied: false }">
-                    <p class="text-xs font-semibold text-gray-400 mb-1">{{ $variant['label'] }}</p>
-                    <p class="text-[11px] text-gray-500 mb-2">{{ $variant['note'] }}</p>
+            @foreach($variants as $variant)
+                <div class="rounded-xl border border-gray-800 bg-gray-900 p-4 text-gray-100" x-data="{ copied: false }">
+                    <p class="text-xs font-semibold text-gray-300 mb-1">{{ $variant['label'] }}</p>
+                    <p class="text-[11px] text-gray-400 mb-3">{{ $variant['note'] }}</p>
                     <div class="flex flex-col sm:flex-row sm:items-start gap-3">
-                        <code class="flex-1 font-mono text-xs break-all select-all">{{ $variant['command'] }}</code>
+                        <code class="flex-1 font-mono text-xs break-all select-all text-emerald-300 leading-relaxed">{{ $variant['command'] }}</code>
                         <button
                             type="button"
-                            class="shrink-0 rounded-md bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/20"
+                            class="shrink-0 rounded-lg bg-white/15 text-white px-3 py-1.5 text-xs font-semibold hover:bg-white/25 transition"
                             x-on:click="navigator.clipboard.writeText(@js($variant['command'])); copied = true; setTimeout(() => copied = false, 2000)"
                         >
                             <span x-show="!copied">Copy</span>
@@ -55,18 +55,19 @@
                 </div>
             @endforeach
 
-            <p class="text-gray-500 dark:text-gray-400 text-xs">
-                If the recommended PHP path fails, open your host’s “Select PHP version” / “PHP CLI” page and put that full path in place of <code class="text-[10px]">php</code>.
-                Nothing in Alternova is hardcoded to a specific domain or hosting brand.
+            <p class="text-gray-600 dark:text-gray-400 text-xs leading-relaxed">
+                If the recommended PHP path fails, open your host’s “Select PHP version” / “PHP CLI” page and put that full path in place of
+                <code class="rounded bg-gray-100 dark:bg-gray-800 px-1 text-gray-900 dark:text-gray-100">php</code>.
+                Paths are detected per install — nothing is hardcoded to a specific domain or host brand.
             </p>
 
-            <p class="text-gray-600 dark:text-gray-300">
-                <strong>Last schedule heartbeat:</strong>
+            <p class="text-gray-800 dark:text-gray-200">
+                <strong class="text-gray-950 dark:text-white">Last schedule heartbeat:</strong>
                 @if($this->lastRun)
-                    {{ \Illuminate\Support\Carbon::parse($this->lastRun)->diffForHumans() }}
-                    <span class="text-gray-400">({{ $this->lastRun }})</span>
+                    <span class="text-gray-900 dark:text-gray-100">{{ \Illuminate\Support\Carbon::parse($this->lastRun)->diffForHumans() }}</span>
+                    <span class="text-gray-500 dark:text-gray-400">({{ $this->lastRun }})</span>
                 @else
-                    <span class="text-warning-600 dark:text-warning-400">Never recorded. Cron is not running yet for this install.</span>
+                    <span class="text-amber-700 dark:text-amber-400 font-medium">Never recorded. Cron is not running yet for this install.</span>
                 @endif
             </p>
         </div>
@@ -75,28 +76,28 @@
     <x-filament::section class="mb-6">
         <x-slot name="heading">Scheduled jobs overview</x-slot>
         <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left">
-                <thead class="text-xs uppercase text-gray-500 border-b border-gray-200 dark:border-gray-700">
+            <table class="w-full text-sm text-left text-gray-900 dark:text-gray-100">
+                <thead class="text-xs uppercase text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
                     <tr>
-                        <th class="py-2 pr-4">Job</th>
-                        <th class="py-2 pr-4">When</th>
-                        <th class="py-2 pr-4">Status</th>
-                        <th class="py-2">Command</th>
+                        <th class="py-2 pr-4 font-semibold">Job</th>
+                        <th class="py-2 pr-4 font-semibold">When</th>
+                        <th class="py-2 pr-4 font-semibold">Status</th>
+                        <th class="py-2 font-semibold">Command</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                     @foreach($this->jobs as $job)
-                        <tr>
+                        <tr class="text-gray-900 dark:text-gray-100">
                             <td class="py-2.5 pr-4 font-medium">{{ $job['label'] }}</td>
-                            <td class="py-2.5 pr-4 text-gray-600 dark:text-gray-400">{{ $job['when'] }}</td>
+                            <td class="py-2.5 pr-4 text-gray-700 dark:text-gray-300">{{ $job['when'] }}</td>
                             <td class="py-2.5 pr-4">
                                 @if($job['enabled'])
-                                    <span class="text-success-600 dark:text-success-400 font-semibold">On</span>
+                                    <span class="inline-flex rounded-full bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 text-xs font-semibold text-emerald-800 dark:text-emerald-300">On</span>
                                 @else
-                                    <span class="text-gray-400">Off</span>
+                                    <span class="inline-flex rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-xs font-semibold text-gray-600 dark:text-gray-400">Off</span>
                                 @endif
                             </td>
-                            <td class="py-2.5 font-mono text-xs text-gray-500">{{ $job['command'] }}</td>
+                            <td class="py-2.5 font-mono text-xs text-gray-600 dark:text-gray-400">{{ $job['command'] }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -126,7 +127,7 @@
     @if($lastOutput)
         <x-filament::section class="mt-6">
             <x-slot name="heading">Last output</x-slot>
-            <pre class="text-xs whitespace-pre-wrap font-mono bg-gray-50 dark:bg-gray-900 p-4 rounded-lg overflow-x-auto">{{ $lastOutput }}</pre>
+            <pre class="text-xs whitespace-pre-wrap font-mono text-gray-900 dark:text-gray-100 bg-gray-100 dark:bg-gray-950 border border-gray-200 dark:border-gray-700 p-4 rounded-xl overflow-x-auto">{{ $lastOutput }}</pre>
         </x-filament::section>
     @endif
 </x-filament-panels::page>
