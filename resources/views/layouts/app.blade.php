@@ -2,7 +2,7 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full" x-data="themeApp()" x-init="init()" :class="{ 'dark': dark }">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     @include('partials.seo-head')
@@ -54,80 +54,115 @@
         [x-cloak]{display:none!important}
         .dark input:not([type=checkbox]):not([type=radio]),
         .dark select,
-        .dark textarea {
-            color-scheme: dark;
-        }
-        .dark nav[role="navigation"] span,
-        .dark nav[role="navigation"] a {
-            border-color: rgb(51 65 85) !important;
-        }
+        .dark textarea { color-scheme: dark; }
         .prose img { max-width: 100%; height: auto; }
+        body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
     </style>
 </head>
-<body class="font-sans antialiased bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col">
-    <header class="sticky top-0 z-40 border-b border-slate-200/80 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-lg">
-        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div class="flex h-14 items-center justify-between">
-                <a href="{{ route('home') }}" class="flex items-center gap-2 font-bold text-slate-900 dark:text-white">
-                    <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-600 text-white text-xs">A</span>
-                    Alternova
+<body class="font-sans antialiased bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col" x-data="{ mobileOpen: false }" @keydown.escape.window="mobileOpen = false">
+    <header class="sticky top-0 z-50 border-b border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg">
+        <div class="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
+            <div class="flex h-14 items-center justify-between gap-2">
+                <a href="{{ route('home') }}" class="flex items-center gap-2 font-bold text-slate-900 dark:text-white shrink-0 min-w-0">
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-white text-xs">A</span>
+                    <span class="truncate">Alternova</span>
                 </a>
-                <nav class="flex items-center gap-1 sm:gap-2 text-sm font-medium">
-                    <a href="{{ route('finder') }}"
-                        class="px-3 py-1.5 rounded-lg {{ request()->routeIs('finder','alternatives.show','tools.show') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
-                        Alternatives
-                    </a>
-                    <a href="{{ route('collections.index') }}"
-                        class="hidden sm:inline px-3 py-1.5 rounded-lg {{ request()->routeIs('collections.*') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
-                        Collections
-                    </a>
-                    <a href="{{ route('trending') }}"
-                        class="hidden md:inline px-3 py-1.5 rounded-lg {{ request()->routeIs('trending') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
-                        Trending
-                    </a>
+
+                {{-- Desktop nav --}}
+                <nav class="hidden lg:flex items-center gap-1 text-sm font-medium">
+                    <a href="{{ route('finder') }}" class="px-3 py-1.5 rounded-lg {{ request()->routeIs('finder','alternatives.show','tools.show') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">Alternatives</a>
+                    <a href="{{ route('collections.index') }}" class="px-3 py-1.5 rounded-lg {{ request()->routeIs('collections.*') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">Collections</a>
+                    <a href="{{ route('trending') }}" class="px-3 py-1.5 rounded-lg {{ request()->routeIs('trending') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">Trending</a>
+                    <a href="{{ route('domains') }}" class="px-3 py-1.5 rounded-lg {{ request()->routeIs('domains') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">Domains</a>
                     @isset($navPages)
                         @foreach($navPages as $np)
-                            <a href="{{ $np->publicUrl() }}"
-                                class="hidden lg:inline px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
-                                {{ $np->title }}
-                            </a>
+                            <a href="{{ $np->publicUrl() }}" class="px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">{{ $np->title }}</a>
                         @endforeach
                     @endisset
-                    <a href="{{ route('domains') }}"
-                        class="px-3 py-1.5 rounded-lg {{ request()->routeIs('domains') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
-                        Domains
-                    </a>
-                    <button type="button" @click="toggle()" class="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800" title="Toggle theme" aria-label="Toggle dark mode">
+                </nav>
+
+                <div class="flex items-center gap-0.5 sm:gap-1 shrink-0">
+                    <button type="button" @click="toggle()" class="p-2.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800" title="Toggle theme" aria-label="Toggle dark mode">
                         <svg x-show="!dark" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
                         <svg x-show="dark" x-cloak class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
                     </button>
+
                     @auth
                         @php
                             $unreadNotifs = 0;
-                            try {
-                                $unreadNotifs = app(\App\Services\UserNotificationService::class)->unreadCount(auth()->user());
-                            } catch (\Throwable) {}
+                            try { $unreadNotifs = app(\App\Services\UserNotificationService::class)->unreadCount(auth()->user()); } catch (\Throwable) {}
                         @endphp
-                        <a href="{{ route('notifications') }}" class="relative px-2 py-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800" title="Notifications">
+                        <a href="{{ route('notifications') }}" class="relative hidden sm:inline-flex p-2.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800" title="Notifications">
                             <span class="text-sm">🔔</span>
                             @if($unreadNotifs > 0)
-                                <span class="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white px-1">{{ $unreadNotifs > 9 ? '9+' : $unreadNotifs }}</span>
+                                <span class="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white px-1">{{ $unreadNotifs > 9 ? '9+' : $unreadNotifs }}</span>
                             @endif
                         </a>
-                        <a href="{{ route('account') }}" class="px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs sm:text-sm">
-                            Account
-                        </a>
+                        <a href="{{ route('account') }}" class="hidden md:inline-flex px-2.5 py-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm">Account</a>
                     @else
-                        <a href="{{ route('login') }}" class="px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs sm:text-sm">
-                            Sign in
-                        </a>
+                        <a href="{{ route('login') }}" class="hidden sm:inline-flex px-2.5 py-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm">Sign in</a>
                     @endauth
-                    <a href="{{ url('/admin') }}" class="px-3 py-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs sm:text-sm">
-                        Admin
-                    </a>
-                </nav>
+
+                    <a href="{{ url('/admin') }}" class="hidden md:inline-flex px-2.5 py-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm">Admin</a>
+
+                    {{-- Mobile menu button --}}
+                    <button type="button"
+                        class="lg:hidden inline-flex items-center justify-center p-2.5 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                        @click="mobileOpen = !mobileOpen"
+                        :aria-expanded="mobileOpen.toString()"
+                        aria-controls="mobile-nav"
+                        aria-label="Open menu">
+                        <svg x-show="!mobileOpen" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                        <svg x-show="mobileOpen" x-cloak class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
             </div>
         </div>
+
+        {{-- Mobile drawer --}}
+        <div id="mobile-nav"
+            x-show="mobileOpen"
+            x-cloak
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0 -translate-y-2"
+            x-transition:enter-end="opacity-100 translate-y-0"
+            x-transition:leave="transition ease-in duration-150"
+            x-transition:leave-start="opacity-100 translate-y-0"
+            x-transition:leave-end="opacity-0 -translate-y-2"
+            class="lg:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-lg max-h-[min(80vh,calc(100dvh-3.5rem))] overflow-y-auto">
+            <nav class="px-3 py-3 space-y-0.5 text-sm font-medium">
+                <a href="{{ route('finder') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 {{ request()->routeIs('finder','alternatives.*','tools.*') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800' }}">Alternatives</a>
+                <a href="{{ route('collections.index') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 {{ request()->routeIs('collections.*') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800' }}">Collections</a>
+                <a href="{{ route('trending') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 {{ request()->routeIs('trending') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800' }}">Trending</a>
+                <a href="{{ route('leaderboard') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">Rankings</a>
+                <a href="{{ route('domains') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 {{ request()->routeIs('domains') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800' }}">Domains</a>
+                <a href="{{ route('whats-new') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">What's new</a>
+                <a href="{{ route('suggest') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">Suggest a tool</a>
+                @isset($navPages)
+                    @foreach($navPages as $np)
+                        <a href="{{ $np->publicUrl() }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">{{ $np->title }}</a>
+                    @endforeach
+                @endisset
+
+                <div class="my-2 border-t border-slate-100 dark:border-slate-800"></div>
+
+                @auth
+                    <a href="{{ route('notifications') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">Notifications</a>
+                    <a href="{{ route('account') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">Account</a>
+                    <a href="{{ route('favorites') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">Favorites</a>
+                @else
+                    <a href="{{ route('login') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">Sign in</a>
+                    <a href="{{ route('register') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">Create account</a>
+                @endauth
+                <a href="{{ url('/admin') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800">Admin panel</a>
+                <a href="{{ route('contact') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">Contact</a>
+            </nav>
+        </div>
+
+        {{-- Backdrop --}}
+        <div x-show="mobileOpen" x-cloak @click="mobileOpen=false"
+            class="lg:hidden fixed inset-0 top-14 z-40 bg-slate-900/40 backdrop-blur-[1px]"
+            aria-hidden="true"></div>
     </header>
 
     <main class="flex-1">
@@ -162,12 +197,8 @@
                             <li><a href="{{ route('collections.index') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Collections</a></li>
                             <li><a href="{{ route('trending') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Trending</a></li>
                             <li><a href="{{ route('leaderboard') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Rankings</a></li>
-                            <li><a href="{{ route('whats-new') }}" class="hover:text-slate-800 dark:hover:text-slate-200">What's new</a></li>
                             <li><a href="{{ route('domains') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Domains</a></li>
                             <li><a href="{{ route('suggest') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Suggest tool</a></li>
-                            <li><a href="{{ route('suggest.collection') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Suggest collection</a></li>
-                            <li><a href="{{ url('/feed') }}" class="hover:text-slate-800 dark:hover:text-slate-200">RSS</a></li>
-                            <li><a href="{{ url('/api/alternatives') }}" class="hover:text-slate-800 dark:hover:text-slate-200">API</a></li>
                         </ul>
                     </div>
                     <div>
