@@ -51,13 +51,6 @@ class ProprietaryToolResource extends Resource
                         ->unique(ignoreRecord: true),
                     Forms\Components\TextInput::make('website_url')->url()->columnSpanFull(),
                     ...ImageField::make('logo_path', 'Logo', 'logos', withUrlFallback: false),
-                    Forms\Components\TextInput::make('logo_url')
-                        ->label('Or logo image URL')
-                        ->url()
-                        ->maxLength(500)
-                        ->helperText('Optional external URL if you do not upload a file.')
-                        ->columnSpanFull()
-                        ->visible(fn () => \Illuminate\Support\Facades\Schema::hasColumn('proprietary_tools', 'logo_url') === false ? true : true),
                     TinyEditor::make('description')
                         ->label('Description')
                         ->height(300)
@@ -105,7 +98,6 @@ class ProprietaryToolResource extends Resource
                     ->label('Logo')
                     ->disk('public')
                     ->circular()
-                    ->defaultImageUrl(fn ($record) => $record->logo_url ?? null)
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('name')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('slug')->toggleable(),

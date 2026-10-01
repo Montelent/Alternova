@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Forms\Components\TinyEditor;
+use App\Filament\Forms\ImageField;
 use App\Filament\Forms\SeoForm;
 use App\Filament\Resources\OpenSourceAlternativeResource\Pages;
 use App\Jobs\SyncGitHubMetricsJob;
@@ -178,9 +179,11 @@ class OpenSourceAlternativeResource extends Resource
                     Forms\Components\TagsInput::make('cons')->columnSpanFull(),
                     TinyEditor::make('editor_note')->label('Editor note')->height(220)->columnSpanFull(),
                     TinyEditor::make('changelog')->label('Public changelog / notes')->height(280)->columnSpanFull(),
+                    ImageField::multiple('gallery_paths', 'Screenshots (upload)', 'gallery', 12),
                     Forms\Components\TagsInput::make('gallery_urls')
-                        ->label('Screenshot URLs')
+                        ->label('Extra screenshot URLs')
                         ->placeholder('https://…')
+                        ->helperText('Optional external image links in addition to uploads.')
                         ->columnSpanFull(),
                 ])->columns(2),
 
