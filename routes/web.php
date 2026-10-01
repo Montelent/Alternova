@@ -23,6 +23,7 @@ use App\Livewire\Auth\ForgotPassword;
 use App\Livewire\Auth\Login;
 use App\Livewire\Auth\Register;
 use App\Livewire\Auth\ResetPassword;
+use App\Livewire\BrowseHub;
 use App\Livewire\CollectionIndex;
 use App\Livewire\CollectionShow;
 use App\Livewire\CompareAlternatives;
@@ -48,6 +49,8 @@ Route::middleware(['web', 'not.installed'])->prefix('install')->group(function (
 Route::get('/', HomeController::class)->name('home');
 
 Route::get('/alternatives', OpenSourceFinder::class)->name('finder');
+Route::get('/browse/{type}', BrowseHub::class)->whereIn('type', ['categories', 'languages', 'licenses'])->name('browse.type');
+Route::get('/browse/{type}/{slug}', BrowseHub::class)->whereIn('type', ['categories', 'languages', 'licenses'])->name('browse.show');
 Route::get('/alternatives/compare', CompareAlternatives::class)->name('alternatives.compare');
 Route::get('/leaderboard', Leaderboard::class)->name('leaderboard');
 Route::get('/trending', TrendingPage::class)->name('trending');
@@ -55,9 +58,7 @@ Route::get('/collections', CollectionIndex::class)->name('collections.index');
 Route::get('/collections/{slug}', CollectionShow::class)->name('collections.show');
 Route::get('/alternatives/{slug}', AlternativeDetail::class)->name('alternatives.show');
 
-// Canonical “alternatives to X” pages (opensourcealternative.to style)
 Route::get('/alternativesto/{slug}', ProprietaryToolShow::class)->name('alternativesto.show');
-// Legacy /tools/{slug} redirects to alternativesto
 Route::get('/tools/{slug}', function (string $slug) {
     return redirect()->route('alternativesto.show', $slug, 301);
 })->name('tools.show');
