@@ -53,13 +53,14 @@ class SiteSeoSettings extends Page implements HasForms
                 'Discover self-hostable open-source alternatives to proprietary tools. Generate brandable domain names with live availability checks.'
             ),
             'seo_robots_default' => $g('seo_robots_default', 'index,follow,max-image-preview:large,max-snippet:-1'),
+            'seo_private_robots' => $g('seo_private_robots', 'noindex,nofollow'),
             'seo_site_noindex' => SiteSetting::getBool('seo_site_noindex', false),
 
             'seo_title_home' => $g('seo_title_home', '%sitename% %sep% Open-source alternatives & brandable domains'),
             'seo_desc_home' => $g('seo_desc_home', ''),
-            'seo_title_alternative' => $g('seo_title_alternative', '%title% — Open-Source %prop% Alternative %sep% %sitename%'),
+            'seo_title_alternative' => $g('seo_title_alternative', '%title% Open-Source %prop% Alternative %sep% %sitename%'),
             'seo_desc_alternative' => $g('seo_desc_alternative', '%title% is a free, self-hostable open-source alternative to %prop%. %excerpt%'),
-            'seo_title_tool' => $g('seo_title_tool', 'Open-source alternatives to %title% %sep% %sitename%'),
+            'seo_title_tool' => $g('seo_title_tool', '%count% Open Source Alternatives to %title% %sep% %sitename%'),
             'seo_desc_tool' => $g('seo_desc_tool', 'Browse free, self-hostable open-source alternatives to %title%. %excerpt%'),
             'seo_title_finder' => $g('seo_title_finder', 'Open Source Alternatives Finder %sep% %sitename%'),
             'seo_title_domains' => $g('seo_title_domains', 'Domain Name Idea Combinator %sep% %sitename%'),
@@ -80,6 +81,8 @@ class SiteSeoSettings extends Page implements HasForms
             'seo_org_sameas' => $g('seo_org_sameas', ''),
 
             'seo_canonical_force_https' => SiteSetting::getBool('seo_canonical_force_https', true),
+            'seo_sitemap_domains' => SiteSetting::getBool('seo_sitemap_domains', true),
+            'seo_sitemap_compare' => SiteSetting::getBool('seo_sitemap_compare', false),
         ]);
     }
 
@@ -87,138 +90,110 @@ class SiteSeoSettings extends Page implements HasForms
     {
         return $form
             ->schema([
-                Section::make('How templates work (read this first)')
-                    ->description('Similar to Rank Math / Yoast title templates. Variables below are replaced automatically when a page has no custom SEO title.')
+                Section::make('How templates work')
+                    ->description('Like Rank Math / Yoast. Variables are replaced when a page has no custom SEO title on the record.')
                     ->schema([
                         Placeholder::make('token_guide')
-                            ->label('Available variables')
+                            ->label('Variables')
                             ->content(new \Illuminate\Support\HtmlString(<<<'HTML'
-<div class="text-sm space-y-3 text-gray-600 dark:text-gray-300">
-  <p>Type these <strong>exactly</strong> (including the percent signs). They are not WordPress shortcodes — they only work inside the template fields on this page.</p>
-  <div class="overflow-x-auto">
-  <table class="min-w-full text-left text-xs border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-    <thead class="bg-gray-50 dark:bg-gray-800">
-      <tr>
-        <th class="px-3 py-2 font-semibold">Variable</th>
-        <th class="px-3 py-2 font-semibold">Meaning</th>
-        <th class="px-3 py-2 font-semibold">Example output</th>
-      </tr>
-    </thead>
-    <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-      <tr><td class="px-3 py-2 font-mono">%sitename%</td><td class="px-3 py-2">Your site name (General tab)</td><td class="px-3 py-2">Alternova</td></tr>
-      <tr><td class="px-3 py-2 font-mono">%sep%</td><td class="px-3 py-2">Title separator</td><td class="px-3 py-2">|</td></tr>
-      <tr><td class="px-3 py-2 font-mono">%tagline%</td><td class="px-3 py-2">Site tagline</td><td class="px-3 py-2">Open-source alternatives…</td></tr>
-      <tr><td class="px-3 py-2 font-mono">%title%</td><td class="px-3 py-2">Record name (alternative or tool)</td><td class="px-3 py-2">AppFlowy</td></tr>
-      <tr><td class="px-3 py-2 font-mono">%prop%</td><td class="px-3 py-2">Linked proprietary product name</td><td class="px-3 py-2">Notion</td></tr>
-      <tr><td class="px-3 py-2 font-mono">%license%</td><td class="px-3 py-2">License type</td><td class="px-3 py-2">AGPL-3.0</td></tr>
-      <tr><td class="px-3 py-2 font-mono">%language%</td><td class="px-3 py-2">Primary language</td><td class="px-3 py-2">Rust</td></tr>
-      <tr><td class="px-3 py-2 font-mono">%health%</td><td class="px-3 py-2">Health score (0–100)</td><td class="px-3 py-2">82</td></tr>
-      <tr><td class="px-3 py-2 font-mono">%excerpt%</td><td class="px-3 py-2">Short description excerpt</td><td class="px-3 py-2">Self-hostable notes…</td></tr>
-      <tr><td class="px-3 py-2 font-mono">%page%</td><td class="px-3 py-2">Static page label (finder, domains…)</td><td class="px-3 py-2">Domain Combinator</td></tr>
-    </tbody>
-  </table>
-  </div>
-  <p class="pt-1"><strong>Example template:</strong> <code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">%title% — Open-Source %prop% Alternative %sep% %sitename%</code><br>
-  <strong>Becomes:</strong> AppFlowy — Open-Source Notion Alternative | Alternova</p>
-  <p><strong>Override order:</strong> 1) SEO title on the alternative/tool form → 2) template on this page → 3) built-in fallback.</p>
+<div class="text-sm space-y-2 text-gray-600 dark:text-gray-300">
+  <p><code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">%sitename%</code> site name ·
+  <code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">%sep%</code> separator ·
+  <code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">%title%</code> record name ·
+  <code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">%prop%</code> proprietary product ·
+  <code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">%count%</code> number of alternatives (tool pages) ·
+  <code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">%excerpt%</code> short description</p>
+  <p><strong>Tool title example:</strong> <code class="text-xs">%count% Open Source Alternatives to %title% %sep% %sitename%</code><br>
+  → <em>5 Open Source Alternatives to Notion | Alternova</em></p>
 </div>
 HTML)),
-                        Placeholder::make('live_preview')
-                            ->label('Live template preview (sample data)')
-                            ->content(function (Get $get) {
-                                $seo = app(SeoManager::class);
-                                // Temporarily use form state via SiteSetting is not written yet — simulate replace
-                                $sep = $get('seo_separator') ?: '|';
-                                $site = $get('seo_site_name') ?: 'Alternova';
-                                $tpl = $get('seo_title_alternative') ?: '%title% — Open-Source %prop% Alternative %sep% %sitename%';
-                                $out = str_replace(
-                                    ['%sitename%', '%sep%', '%title%', '%prop%', '%license%', '%language%', '%health%', '%excerpt%', '%tagline%', '%page%'],
-                                    [$site, $sep, 'AppFlowy', 'Notion', 'AGPL-3.0', 'Rust', '82', 'A self-hostable Notion alternative.', $get('site_tagline') ?: '', 'Finder'],
-                                    (string) $tpl
-                                );
-
-                                return 'Sample alternative title → '.$out;
-                            }),
                     ]),
 
                 Section::make('1. General')
                     ->schema([
-                        TextInput::make('seo_site_name')->label('Site name')->required()->maxLength(80)
-                            ->helperText('Used wherever %sitename% appears.'),
-                        TextInput::make('site_tagline')->label('Tagline')->maxLength(120)
-                            ->helperText('Used in footer and %tagline%.'),
-                        TextInput::make('seo_separator')->label('Title separator')->maxLength(5)
-                            ->helperText('Common choices: |  –  ·  >'),
+                        TextInput::make('seo_site_name')->label('Site name')->required()->maxLength(80),
+                        TextInput::make('site_tagline')->label('Tagline')->maxLength(120),
+                        TextInput::make('seo_separator')->label('Title separator')->maxLength(5),
                         Textarea::make('default_meta_description')
                             ->label('Fallback meta description')
                             ->rows(3)
                             ->maxLength(160)
-                            ->helperText('When a page has no description at all (~150–160 characters).')
                             ->columnSpanFull(),
                         TextInput::make('seo_robots_default')
-                            ->label('Default robots meta')
-                            ->helperText('Usually: index,follow,max-image-preview:large,max-snippet:-1')
+                            ->label('Default robots (public pages)')
+                            ->helperText('Recommended: index,follow,max-image-preview:large,max-snippet:-1')
+                            ->columnSpanFull(),
+                        TextInput::make('seo_private_robots')
+                            ->label('Robots for private pages (login, account, favorites…)')
+                            ->helperText('Recommended: noindex,nofollow')
                             ->columnSpanFull(),
                         Toggle::make('seo_site_noindex')
-                            ->label('Discourage search engines (noindex entire public site)')
-                            ->helperText('Turn ON for staging/dev. Overrides every page.')
+                            ->label('Noindex entire public site (staging)')
+                            ->helperText('Turn ON only for staging or pre-launch. Overrides every page.')
                             ->columnSpanFull(),
                     ])->columns(2),
 
                 Section::make('2. Title & meta templates')
                     ->schema([
-                        TextInput::make('seo_title_home')->label('Homepage title template')->columnSpanFull(),
-                        Textarea::make('seo_desc_home')->label('Homepage description (optional override)')->rows(2)->columnSpanFull(),
-                        TextInput::make('seo_title_alternative')->label('Open-source alternative — title template')->columnSpanFull()
-                            ->helperText('Variables: %title% %prop% %license% %language% %health% %sitename% %sep%'),
-                        Textarea::make('seo_desc_alternative')->label('Open-source alternative — description template')->rows(2)->columnSpanFull()
-                            ->helperText('Variables: %title% %prop% %excerpt% %license% …'),
-                        TextInput::make('seo_title_tool')->label('Proprietary tool — title template')->columnSpanFull()
-                            ->helperText('Variables: %title% %sitename% %sep%'),
-                        Textarea::make('seo_desc_tool')->label('Proprietary tool — description template')->rows(2)->columnSpanFull(),
-                        TextInput::make('seo_title_finder')->label('Finder page title')->helperText('Use %page% or plain text + %sep% %sitename%'),
-                        TextInput::make('seo_title_domains')->label('Domains page title'),
-                        TextInput::make('seo_title_compare')->label('Compare page title'),
+                        TextInput::make('seo_title_home')->label('Homepage title')->columnSpanFull(),
+                        Textarea::make('seo_desc_home')->label('Homepage description')->rows(2)->columnSpanFull(),
+                        TextInput::make('seo_title_alternative')->label('Alternative title template')->columnSpanFull(),
+                        Textarea::make('seo_desc_alternative')->label('Alternative description template')->rows(2)->columnSpanFull(),
+                        TextInput::make('seo_title_tool')->label('Proprietary / alternativesto title')
+                            ->helperText('Use %count% for the number of listed alternatives.')
+                            ->columnSpanFull(),
+                        Textarea::make('seo_desc_tool')->label('Proprietary description template')->rows(2)->columnSpanFull(),
+                        TextInput::make('seo_title_finder')->label('Finder title'),
+                        TextInput::make('seo_title_domains')->label('Domains title'),
+                        TextInput::make('seo_title_compare')->label('Compare title'),
                     ])->columns(2),
 
-                Section::make('3. Social (Open Graph & X)')
+                Section::make('3. Sitemap controls')
+                    ->description('Canonical proprietary URLs are always /alternativesto/{slug}. Pages marked noindex on the record are omitted.')
                     ->schema([
-                        TextInput::make('og_image_url')->label('Default social image URL')->url()
-                            ->helperText('Absolute HTTPS URL, ideally 1200×630 pixels. Used when a page has no OG image.')
-                            ->columnSpanFull(),
+                        Toggle::make('seo_sitemap_domains')
+                            ->label('Include /domains in sitemap')
+                            ->inline(false),
+                        Toggle::make('seo_sitemap_compare')
+                            ->label('Include /alternatives/compare in sitemap')
+                            ->helperText('Usually leave OFF (thin or parameter-heavy page).')
+                            ->inline(false),
+                    ])->columns(1),
+
+                Section::make('4. Social (Open Graph & X)')
+                    ->schema([
+                        TextInput::make('og_image_url')->label('Default social image URL')->url()->columnSpanFull(),
                         TextInput::make('twitter_handle')->label('X / Twitter handle')->placeholder('@alternova'),
                         Select::make('twitter_card')->label('Twitter card type')->options([
-                            'summary_large_image' => 'Summary with large image (recommended)',
+                            'summary_large_image' => 'Summary with large image',
                             'summary' => 'Summary',
                         ]),
                         TextInput::make('seo_facebook_app_id')->label('Facebook App ID')->maxLength(40),
                     ])->columns(2),
 
-                Section::make('4. Webmaster tools verification')
-                    ->description('Paste only the content value from each platform — not the full HTML tag.')
+                Section::make('5. Webmaster verification')
                     ->schema([
-                        TextInput::make('seo_verify_google')->label('Google Search Console')->placeholder('e.g. abc123…'),
-                        TextInput::make('seo_verify_bing')->label('Bing Webmaster')->placeholder('e.g. abc123…'),
-                        TextInput::make('seo_verify_yandex')->label('Yandex')->placeholder('e.g. abc123…'),
-                        TextInput::make('seo_verify_pinterest')->label('Pinterest')->placeholder('e.g. abc123…'),
+                        TextInput::make('seo_verify_google')->label('Google Search Console'),
+                        TextInput::make('seo_verify_bing')->label('Bing Webmaster'),
+                        TextInput::make('seo_verify_yandex')->label('Yandex'),
+                        TextInput::make('seo_verify_pinterest')->label('Pinterest'),
                     ])->columns(2)->collapsed(),
 
-                Section::make('5. Organization schema (Knowledge Graph)')
+                Section::make('6. Organization schema')
                     ->schema([
                         TextInput::make('seo_org_name')->label('Organization name'),
-                        TextInput::make('seo_org_logo')->label('Organization logo URL')->url()->columnSpanFull(),
+                        TextInput::make('seo_org_logo')->label('Logo URL')->url()->columnSpanFull(),
                         Textarea::make('seo_org_sameas')
                             ->label('Social profile URLs (one per line)')
                             ->rows(4)
-                            ->helperText('https://twitter.com/…\nhttps://github.com/…\nhttps://linkedin.com/company/…')
                             ->columnSpanFull(),
                     ])->columns(2)->collapsed(),
 
-                Section::make('6. Advanced')
+                Section::make('7. Advanced')
                     ->schema([
                         Toggle::make('seo_canonical_force_https')
-                            ->label('Prefer HTTPS when building defaults')
-                            ->helperText('Keep ON in production if your site is served over HTTPS.'),
+                            ->label('Prefer HTTPS for defaults')
+                            ->helperText('Keep ON in production.'),
                     ])->collapsed(),
             ])
             ->statePath('data');
@@ -234,6 +209,7 @@ HTML)),
             'seo_separator' => trim((string) ($s['seo_separator'] ?? '|')) ?: '|',
             'default_meta_description' => trim((string) ($s['default_meta_description'] ?? '')),
             'seo_robots_default' => trim((string) ($s['seo_robots_default'] ?? '')),
+            'seo_private_robots' => trim((string) ($s['seo_private_robots'] ?? 'noindex,nofollow')),
             'seo_site_noindex' => ! empty($s['seo_site_noindex']),
 
             'seo_title_home' => trim((string) ($s['seo_title_home'] ?? '')),
@@ -261,11 +237,13 @@ HTML)),
             'seo_org_sameas' => trim((string) ($s['seo_org_sameas'] ?? '')),
 
             'seo_canonical_force_https' => ! empty($s['seo_canonical_force_https']),
+            'seo_sitemap_domains' => ! empty($s['seo_sitemap_domains']),
+            'seo_sitemap_compare' => ! empty($s['seo_sitemap_compare']),
         ]);
 
         Notification::make()
             ->title('SEO settings saved')
-            ->body('Templates apply when a record leaves SEO title empty. Custom titles on Alternatives/Tools still win.')
+            ->body('Sitemap and robots rules apply on the next request. Clear view cache if pages look stale.')
             ->success()
             ->send();
     }

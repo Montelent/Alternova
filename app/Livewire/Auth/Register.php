@@ -5,8 +5,9 @@ namespace App\Livewire\Auth;
 use App\Models\User;
 use App\Services\FavoriteService;
 use App\Services\SavedDomainService;
+use App\Services\SeoManager;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -31,29 +32,19 @@ class Register extends Component
 
     public function register(): void
     {
-        $key = 'register:'.request()->ip();
-        if (RateLimiter::tooManyAttempts($key, 5)) {
-            $this->addError('email', 'Too many registrations from this network.');
-
-            return;
-        }
-
         $data = $this->validate([
-            'name' => 'required|string|max:80',
+            'name' => 'required|string|max:120',
             'email' => 'required|email|max:190|unique:users,email',
             'password' => ['required', 'confirmed', Password::defaults()],
         ]);
 
-        RateLimiter::hit($key, 3600);
-
-        $user = User::create([
+        $user = User::query()->create([
             'name' => $data['name'],
             'email' => $data['email'],
-            'password' => $data['password'],
-            'role' => User::ROLE_MEMBER,
+            'password' => Hash::make($data['password']),
         ]);
 
-        Auth::login($user, true);
+        Auth::login($user);
         request()->session()->regenerate();
 
         try {
@@ -67,11 +58,14 @@ class Register extends Component
 
     public function render()
     {
+        $robots = app(SeoManager::class)->privateRobots();
+
         return view('livewire.auth.register')
             ->layout('layouts.app', [
                 'title' => 'Create account | Alternova',
-                'description' => 'Create a free Alternova account to sync favorites across devices.',
-                'robots' => 'noindex,follow',
+                'description' => 'Create an Alternova account to save favorites and watchlists.',
+                'robots' => $robots,
+                'canonical' => route('register'),
             ]);
     }
 }
