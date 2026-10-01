@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\WebhookDispatcher;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -27,6 +28,35 @@ class Collection extends Model
         'is_featured' => 'boolean',
         'sort_order' => 'integer',
     ];
+
+    protected static function booted(): void
+    {
+        static::created(function (Collection $collection) {
+            try {
+                if ($collection->is_published) {
+                    $dispatcher = app(WebhookDispatcher::class);
+                    $dispatcher->dispatch(
+                        Webhook::EVENT_COLLECTION_PUBLISHED,
+                        $dispatcher->collectionPublishedPayload($collection)
+                    );
+                }
+            } catch (\Throwable) {
+            }
+        });
+
+        static::updated(function (Collection $collection) {
+            try {
+                if ($collection->wasChanged('is_published') && $collection->is_published) {
+                    $dispatcher = app(WebhookDispatcher::class);
+                    $dispatcher->dispatch(
+                        Webhook::EVENT_COLLECTION_PUBLISHED,
+                        $dispatcher->collectionPublishedPayload($collection)
+                    );
+                }
+            } catch (\Throwable) {
+            }
+        });
+    }
 
     public function getRouteKeyName(): string
     {

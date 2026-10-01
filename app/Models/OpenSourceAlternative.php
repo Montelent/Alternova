@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Services\HealthHistoryService;
 use App\Services\SeoManager;
 use App\Services\WatchlistService;
+use App\Services\WebhookDispatcher;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -70,6 +71,35 @@ class OpenSourceAlternative extends Model
         'website_reachable' => 'boolean',
         'links_checked_at' => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        static::updated(function (OpenSourceAlternative $alt) {
+            try {
+                if ($alt->wasChanged('is_published') && $alt->is_published) {
+                    $dispatcher = app(WebhookDispatcher::class);
+                    $dispatcher->dispatch(
+                        Webhook::EVENT_ALTERNATIVE_PUBLISHED,
+                        $dispatcher->alternativePublishedPayload($alt)
+                    );
+                }
+            } catch (\Throwable) {
+            }
+        });
+
+        static::created(function (OpenSourceAlternative $alt) {
+            try {
+                if ($alt->is_published) {
+                    $dispatcher = app(WebhookDispatcher::class);
+                    $dispatcher->dispatch(
+                        Webhook::EVENT_ALTERNATIVE_PUBLISHED,
+                        $dispatcher->alternativePublishedPayload($alt)
+                    );
+                }
+            } catch (\Throwable) {
+            }
+        });
+    }
 
     public function proprietaryTool(): BelongsTo
     {
@@ -230,6 +260,18 @@ class OpenSourceAlternative extends Model
         try {
             if ($previous > 0) {
                 app(WatchlistService::class)->notifyHealthDrop($this, $previous, $score);
+            }
+        } catch (\Throwable) {
+        }
+
+        try {
+            $drop = $previous - $score;
+            if ($previous > 0 && $drop >= 5.0) {
+                $dispatcher = app(WebhookDispatcher::class);
+                $dispatcher->dispatch(
+                    Webhook::EVENT_HEALTH_DROP,
+                    $dispatcher->healthDropPayload($this, $previous, $score)
+                );
             }
         } catch (\Throwable) {
         }

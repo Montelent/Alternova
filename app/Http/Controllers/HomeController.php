@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AlternativeVote;
 use App\Models\Collection;
 use App\Models\OpenSourceAlternative;
 use App\Models\ProprietaryTool;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
@@ -56,6 +58,8 @@ class HomeController extends Controller
             ->limit(6)
             ->get();
 
+        $trending = $this->trending(6);
+
         $tools = ProprietaryTool::query()
             ->where('is_published', true)
             ->withCount(['publishedAlternatives as alternatives_count'])
@@ -95,6 +99,46 @@ class HomeController extends Controller
             'featured' => OpenSourceAlternative::query()->where('is_published', true)->where('is_featured', true)->count(),
         ];
 
-        return view('welcome', compact('featured', 'recent', 'popular', 'tools', 'collections', 'stats'));
+        return view('welcome', compact('featured', 'recent', 'popular', 'trending', 'tools', 'collections', 'stats'));
+    }
+
+    protected function trending(int $limit = 6)
+    {
+        try {
+            if (! Schema::hasTable('alternative_votes')) {
+                return collect();
+            }
+
+            $counts = AlternativeVote::query()
+                ->where('created_at', '>=', now()->subDays(7))
+                ->select('open_source_alternative_id', DB::raw('COUNT(*) as period_votes'))
+                ->groupBy('open_source_alternative_id')
+                ->orderByDesc('period_votes')
+                ->limit($limit)
+                ->pluck('period_votes', 'open_source_alternative_id');
+
+            if ($counts->isEmpty()) {
+                return collect();
+            }
+
+            $alts = OpenSourceAlternative::query()
+                ->with(['proprietaryTool', 'repoMetric'])
+                ->where('is_published', true)
+                ->whereIn('id', $counts->keys())
+                ->get()
+                ->keyBy('id');
+
+            return $counts->map(function ($votes, $id) use ($alts) {
+                $alt = $alts->get($id);
+                if (! $alt) {
+                    return null;
+                }
+                $alt->period_votes = (int) $votes;
+
+                return $alt;
+            })->filter()->values();
+        } catch (\Throwable) {
+            return collect();
+        }
     }
 }
