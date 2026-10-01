@@ -5,12 +5,9 @@ namespace App\Filament\Pages;
 use App\Models\OpenSourceAlternative;
 use App\Models\ProprietaryTool;
 use App\Models\SiteSetting;
-use App\Models\User;
 use App\Support\CronSettings;
-use App\Support\Installer;
 use App\Support\IntegrationsSettings;
 use Filament\Pages\Page;
-use Illuminate\Support\Facades\Schema;
 
 class GettingStartedPage extends Page
 {
@@ -47,7 +44,9 @@ class GettingStartedPage extends Page
         }
 
         $appUrl = rtrim((string) config('app.url'), '/');
-        $urlLooksLocal = str_contains($appUrl, 'localhost') || str_contains($appUrl, '127.0.0.1') || $appUrl === '';
+        $urlLooksLocal = str_contains($appUrl, 'localhost')
+            || str_contains($appUrl, '127.0.0.1')
+            || $appUrl === '';
 
         $mailer = SiteSetting::get('mail_mailer', config('mail.default', 'log'));
         $mailConfigured = in_array($mailer, ['smtp', 'resend'], true);
@@ -56,12 +55,14 @@ class GettingStartedPage extends Page
         $github = IntegrationsSettings::githubToken() !== null;
 
         $seoName = trim((string) SiteSetting::get('seo_site_name', ''));
+        $seoDesc = trim((string) SiteSetting::get('default_meta_description', ''));
+        $seoDone = ($seoName !== '' && $seoName !== 'Alternova') || $seoDesc !== '';
 
         return [
             [
                 'id' => 'url',
                 'title' => 'Confirm your site URL',
-                'body' => 'APP_URL should match the public domain buyers and Google see (https://your-domain.com). Wrong URL breaks emails, sitemaps, and social previews.',
+                'body' => 'APP_URL should match the public domain (https://your-domain.com). Wrong URL breaks emails, sitemaps, and social previews.',
                 'done' => ! $urlLooksLocal,
                 'href' => SiteSeoSettings::getUrl(),
                 'cta' => 'Open SEO settings',
@@ -69,7 +70,8 @@ class GettingStartedPage extends Page
             [
                 'id' => 'content',
                 'title' => 'Add at least one proprietary tool and one alternative',
-                'body' => 'Published catalog: '.$tools.' tool(s), '.$published.' published alternative(s)'.($alts > $published ? ' ('.$alts.' total including drafts).' : '.'),
+                'body' => 'Published catalog: '.$tools.' tool(s), '.$published.' published alternative(s)'
+                    .($alts > $published ? ' ('.$alts.' total including drafts).' : '.'),
                 'done' => $tools > 0 && $published > 0,
                 'href' => \App\Filament\Resources\ProprietaryToolResource::getUrl('index'),
                 'cta' => 'Manage tools',
@@ -77,7 +79,7 @@ class GettingStartedPage extends Page
             [
                 'id' => 'github',
                 'title' => 'Add a GitHub token (recommended)',
-                'body' => 'Raises API rate limits so health scores and stars stay accurate. Create a classic token with public_repo (or fine-grained public read) access.',
+                'body' => 'Raises API rate limits so health scores and stars stay accurate. Create a token with public repository read access.',
                 'done' => $github,
                 'href' => IntegrationsPage::getUrl(),
                 'cta' => 'Integrations',
@@ -93,7 +95,7 @@ class GettingStartedPage extends Page
             [
                 'id' => 'mail',
                 'title' => 'Configure outbound email',
-                'body' => 'Use Resend or SMTP so contact forms, digests, and admin alerts actually send. Log driver is fine for local testing only.',
+                'body' => 'Use Resend or SMTP so contact forms, digests, and admin alerts actually send. Log driver is fine for testing only.',
                 'done' => $mailConfigured,
                 'href' => MailSettingsPage::getUrl(),
                 'cta' => 'Email settings',
@@ -102,14 +104,14 @@ class GettingStartedPage extends Page
                 'id' => 'seo',
                 'title' => 'Set site name and default meta description',
                 'body' => 'Templates control titles site-wide. You can still override SEO on each tool or alternative.',
-                'done' => $seoName !== '' && $seoName !== 'Alternova' || filled(SiteSetting::get('default_meta_description', '')),
+                'done' => $seoDone,
                 'href' => SiteSeoSettings::getUrl(),
                 'cta' => 'SEO settings',
             ],
             [
                 'id' => 'pages',
-                'title' => 'Review legal / about pages',
-                'body' => 'Privacy, Terms, and About can be edited under Pages in admin (or use the built-in fallbacks until you publish CMS pages).',
+                'title' => 'Review About / legal pages',
+                'body' => 'Publish CMS pages or use built-in About, Privacy, and Terms until you customize them.',
                 'done' => true,
                 'href' => url('/about'),
                 'cta' => 'View About',

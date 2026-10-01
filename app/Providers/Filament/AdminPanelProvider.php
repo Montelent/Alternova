@@ -28,7 +28,7 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
-            ->brandName('Alternova')
+            ->brandName(config('app.name', 'Alternova'))
             ->colors([
                 'primary' => Color::Indigo,
                 'danger' => Color::Rose,
@@ -51,14 +51,10 @@ class AdminPanelProvider extends PanelProvider
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([
                 Pages\Dashboard::class,
-                \App\Filament\Pages\EngagementAnalytics::class,
-                \App\Filament\Pages\AdSettings::class,
-                \App\Filament\Pages\MailSettingsPage::class,
-                \App\Filament\Pages\SiteSeoSettings::class,
-                \App\Filament\Pages\SystemTools::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
+                \App\Filament\Widgets\SystemStatusWidget::class,
                 \App\Filament\Widgets\StatsOverview::class,
                 \App\Filament\Widgets\EngagementStatsWidget::class,
                 Widgets\AccountWidget::class,

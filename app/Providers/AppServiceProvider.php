@@ -2,8 +2,9 @@
 
 namespace App\Providers;
 
+use App\Support\IntegrationsSettings;
+use App\Support\MailSettings;
 use App\View\Composers\CmsNavComposer;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -18,7 +19,16 @@ class AppServiceProvider extends ServiceProvider
     {
         View::composer(['layouts.app', 'welcome'], CmsNavComposer::class);
 
-        // Ensure uploads directory exists and is writable
+        try {
+            MailSettings::apply();
+        } catch (\Throwable) {
+        }
+
+        try {
+            IntegrationsSettings::apply();
+        } catch (\Throwable) {
+        }
+
         $uploadsRoot = base_path('uploads');
         if (! is_dir($uploadsRoot)) {
             @mkdir($uploadsRoot, 0775, true);
