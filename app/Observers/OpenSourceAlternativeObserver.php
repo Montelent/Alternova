@@ -4,9 +4,28 @@ namespace App\Observers;
 
 use App\Models\OpenSourceAlternative;
 use App\Models\SlugRedirect;
+use App\Services\CatalogEnrichmentService;
+use Illuminate\Support\Facades\Log;
 
 class OpenSourceAlternativeObserver
 {
+    public function created(OpenSourceAlternative $alternative): void
+    {
+        $this->enrich($alternative);
+    }
+
+    public function updated(OpenSourceAlternative $alternative): void
+    {
+        // Enrich when key fields change or still missing enrichment data
+        if ($alternative->wasChanged(['repo_url', 'website_url', 'description', 'is_published'])
+            || $alternative->overall_health_score === null
+            || (float) $alternative->overall_health_score <= 0
+            || $alternative->links_checked_at === null
+        ) {
+            $this->enrich($alternative);
+        }
+    }
+
     public function updating(OpenSourceAlternative $alternative): void
     {
         if (! $alternative->isDirty('slug')) {
@@ -20,20 +39,26 @@ class OpenSourceAlternativeObserver
             return;
         }
 
-        // Point old slug → new
         SlugRedirect::query()->updateOrCreate(
             ['old_slug' => $old],
             ['new_slug' => $new, 'model_type' => 'OpenSourceAlternative']
         );
 
-        // Update any redirects that already pointed to the old slug
         SlugRedirect::query()
             ->where('new_slug', $old)
             ->update(['new_slug' => $new]);
 
-        // Avoid redirect loops if new_slug was previously an old_slug
         SlugRedirect::query()
             ->where('old_slug', $new)
             ->delete();
+    }
+
+    protected function enrich(OpenSourceAlternative $alternative): void
+    {
+        try {
+            app(CatalogEnrichmentService::class)->enrichAlternative($alternative);
+        } catch (\Throwable $e) {
+            Log::warning('Catalog enrichment (alternative) failed: '.$e->getMessage());
+        }
     }
 }

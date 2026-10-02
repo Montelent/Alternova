@@ -2,6 +2,10 @@
 
 namespace App\Providers;
 
+use App\Models\OpenSourceAlternative;
+use App\Models\ProprietaryTool;
+use App\Observers\OpenSourceAlternativeObserver;
+use App\Observers\ProprietaryToolObserver;
 use App\Support\IntegrationsSettings;
 use App\Support\MailSettings;
 use App\View\Composers\CmsNavComposer;
@@ -18,6 +22,9 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         View::composer(['layouts.app', 'welcome'], CmsNavComposer::class);
+
+        OpenSourceAlternative::observe(OpenSourceAlternativeObserver::class);
+        ProprietaryTool::observe(ProprietaryToolObserver::class);
 
         try {
             MailSettings::apply();
