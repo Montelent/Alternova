@@ -130,6 +130,10 @@
         {{ $slot }}
     </main>
 
+    @if(request()->routeIs('home'))
+        @include('partials.home-editorial')
+    @endif
+
     <div class="mx-auto max-w-7xl px-4 sm:px-6 w-full">
         <x-ad-slot placement="before_footer" class="my-4" />
         <x-ad-slot placement="footer" class="my-4" />
