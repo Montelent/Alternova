@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Support\WhiteLabelSettings;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -23,14 +24,30 @@ class AdminPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
-        return $panel
+        $primary = '#4f46e5';
+        try {
+            $primary = WhiteLabelSettings::primary();
+        } catch (\Throwable) {
+        }
+
+        $adminName = config('app.name', 'Alternova').' Admin';
+        $logo = null;
+        $favicon = null;
+        try {
+            $adminName = WhiteLabelSettings::adminName();
+            $logo = WhiteLabelSettings::logoUrl();
+            $favicon = WhiteLabelSettings::faviconUrl();
+        } catch (\Throwable) {
+        }
+
+        $panel = $panel
             ->default()
             ->id('admin')
             ->path('admin')
             ->login()
-            ->brandName(config('app.name', 'Alternova'))
+            ->brandName($adminName)
             ->colors([
-                'primary' => Color::Indigo,
+                'primary' => Color::hex($primary),
                 'danger' => Color::Rose,
                 'success' => Color::Emerald,
                 'warning' => Color::Amber,
@@ -50,12 +67,12 @@ class AdminPanelProvider extends PanelProvider
                 'System',
                 'Monetization',
             ])
-            ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
-            ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
+            ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
+            ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
                 Pages\Dashboard::class,
             ])
-            ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
+            ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
                 \App\Filament\Widgets\NeedsAttentionWidget::class,
                 \App\Filament\Widgets\SystemStatusWidget::class,
@@ -81,5 +98,14 @@ class AdminPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
             ]);
+
+        if ($logo) {
+            $panel = $panel->brandLogo($logo)->brandLogoHeight('2rem');
+        }
+        if ($favicon) {
+            $panel = $panel->favicon($favicon);
+        }
+
+        return $panel;
     }
 }
