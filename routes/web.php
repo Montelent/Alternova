@@ -28,6 +28,7 @@ use App\Livewire\CollectionIndex;
 use App\Livewire\CollectionShow;
 use App\Livewire\CompareAlternatives;
 use App\Livewire\ContactForm;
+use App\Livewire\SupportTicketShow;
 use App\Livewire\DomainCombinator;
 use App\Livewire\FavoritesPage;
 use App\Livewire\Leaderboard;
@@ -98,6 +99,7 @@ Route::get('/suggest-collection', SuggestCollection::class)->name('suggest.colle
 Route::get('/submissions/{token}', SubmissionStatusController::class)->name('submissions.status');
 Route::get('/collection-submissions/{token}', CollectionSubmissionStatusController::class)->name('collection-submissions.status');
 Route::get('/contact', ContactForm::class)->name('contact');
+Route::get('/support/{publicId}', SupportTicketShow::class)->name('support.ticket');
 
 Route::get('/newsletter/unsubscribe', [NewsletterController::class, 'unsubscribe'])->name('newsletter.unsubscribe');
 
