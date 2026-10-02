@@ -1,6 +1,6 @@
 <div class="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
-        <x-ad-slot slot="domain_page" class="mb-6" />
+        <x-ad-slot placement="domain_page" class="mb-6" />
         <div class="text-center mb-8 sm:mb-10">
             <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 dark:text-white tracking-tight">Domain Name Idea Combinator</h1>
             <p class="mt-3 text-base sm:text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
@@ -28,7 +28,7 @@
                 <div class="flex flex-col sm:flex-row gap-2">
                     <input wire:model="keywordInput" wire:keydown.enter.prevent="addKeyword" type="text"
                         placeholder="Add keyword and press Enter"
-                        class="flex-1 rounded-xl border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:ring-brand-500 focus:border-brand-500 text-sm min-h-[44px]">
+                        class="flex-1 rounded-xl border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white min-h-[44px] text-sm">
                     <button wire:click="addKeyword" type="button"
                         class="px-4 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 min-h-[44px]">Add</button>
                 </div>
@@ -40,8 +40,8 @@
                 <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">TLDs</label>
                 <div class="flex flex-wrap gap-2">
                     @foreach($availableTlds as $tld)
-                        <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800">
-                            <input type="checkbox" wire:model="selectedTlds" value="{{ $tld }}" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+                        <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-sm cursor-pointer">
+                            <input type="checkbox" wire:model="selectedTlds" value="{{ $tld }}" class="rounded border-slate-300 text-brand-600">
                             .{{ $tld }}
                         </label>
                     @endforeach
@@ -71,8 +71,8 @@
                 </button>
                 @if(collect($results)->where('status', 'available')->isNotEmpty())
                     <div class="flex flex-wrap gap-2">
-                        <button wire:click="exportCsv" class="px-4 py-2.5 border border-slate-300 dark:border-slate-700 rounded-xl text-sm hover:bg-slate-50 dark:hover:bg-slate-800 min-h-[44px]">Export CSV</button>
-                        <button wire:click="exportTxt" class="px-4 py-2.5 border border-slate-300 dark:border-slate-700 rounded-xl text-sm hover:bg-slate-50 dark:hover:bg-slate-800 min-h-[44px]">Export TXT</button>
+                        <button wire:click="exportCsv" class="px-4 py-2.5 border border-slate-300 dark:border-slate-700 rounded-xl text-sm min-h-[44px]">Export CSV</button>
+                        <button wire:click="exportTxt" class="px-4 py-2.5 border border-slate-300 dark:border-slate-700 rounded-xl text-sm min-h-[44px]">Export TXT</button>
                     </div>
                 @endif
             </div>
@@ -140,7 +140,7 @@
                     </div>
                 @endforeach
             </div>
-            <x-ad-slot slot="between_list" class="my-8" />
+            <x-ad-slot placement="between_list" class="my-8" />
         @endif
     </div>
 </div>

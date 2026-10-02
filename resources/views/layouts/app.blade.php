@@ -123,7 +123,7 @@
     </header>
 
     <div class="mx-auto max-w-7xl px-4 sm:px-6 w-full">
-        <x-ad-slot slot="header" class="my-3" />
+        <x-ad-slot placement="header" class="my-3" />
     </div>
 
     <main class="flex-1">
@@ -131,13 +131,13 @@
     </main>
 
     <div class="mx-auto max-w-7xl px-4 sm:px-6 w-full">
-        <x-ad-slot slot="before_footer" class="my-4" />
-        <x-ad-slot slot="footer" class="my-4" />
+        <x-ad-slot placement="before_footer" class="my-4" />
+        <x-ad-slot placement="footer" class="my-4" />
     </div>
 
     <div class="fixed bottom-0 inset-x-0 z-40 md:hidden pointer-events-none">
         <div class="pointer-events-auto mx-auto max-w-lg px-2 pb-[env(safe-area-inset-bottom)]">
-            <x-ad-slot slot="sticky_mobile" class="mb-1 shadow-lg rounded-t-xl overflow-hidden bg-white/95 dark:bg-slate-900/95" />
+            <x-ad-slot placement="sticky_mobile" class="mb-1 shadow-lg rounded-t-xl overflow-hidden bg-white/95 dark:bg-slate-900/95" />
         </div>
     </div>
 
