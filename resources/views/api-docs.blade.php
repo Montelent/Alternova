@@ -1,14 +1,17 @@
-@extends('layouts.app')
-
-@section('content')
+@php
+    $site = config('app.name', 'Alternova');
+    $pageTitle = 'API documentation | '.$site;
+    $pageDescription = 'JSON API reference for listing open-source alternatives on '.$site.'. Authentication, rate limits, and endpoints.';
+@endphp
+@component('layouts.app', ['title' => $pageTitle, 'description' => $pageDescription, 'canonical' => url('/api-docs')])
 <div class="mx-auto max-w-3xl px-4 sm:px-6 py-10 sm:py-14">
     <p class="text-xs font-semibold uppercase tracking-wide text-brand-600 dark:text-brand-400">Developers</p>
     <h1 class="mt-2 text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
         Public API documentation
     </h1>
     <p class="mt-3 text-base text-slate-600 dark:text-slate-300 leading-relaxed">
-        Use these JSON endpoints to list and fetch open-source alternatives from {{ config('app.name', 'Alternova') }}.
-        Base URL is always this site’s domain — nothing is hardcoded to a single host.
+        Use these JSON endpoints to list and fetch open-source alternatives from {{ $site }}.
+        The base URL is this site’s domain so the same script works on any host.
     </p>
 
     @if(! $apiEnabled)
@@ -75,4 +78,4 @@ X-Api-Key: alt_your_key_here
         </p>
     </section>
 </div>
-@endsection
+@endcomponent
