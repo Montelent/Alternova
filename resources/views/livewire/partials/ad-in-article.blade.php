@@ -1,3 +1,1 @@
-<div class="my-8">
-    <x-ad-slot slot="in_article" />
-</div>
+<x-ad-slot slot="in_article" class="my-6" />
