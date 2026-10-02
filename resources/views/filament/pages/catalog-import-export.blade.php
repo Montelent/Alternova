@@ -2,18 +2,29 @@
     <x-filament::section class="mb-6">
         <x-slot name="heading">Export</x-slot>
         <p class="text-sm text-gray-700 dark:text-gray-300 mb-4 leading-relaxed">
-            Download all alternatives as CSV. Safe to re-import later. Proprietary links use tool <strong>slugs</strong> (comma-separated).
+            Download backups before large imports. UTF-8 CSV works in Excel, Google Sheets, and LibreOffice.
         </p>
-        <x-filament::button wire:click="exportCsv" icon="heroicon-o-arrow-down-tray" color="success">
-            Download alternatives CSV
-        </x-filament::button>
+        <div class="flex flex-wrap gap-2">
+            <x-filament::button wire:click="exportCsv" icon="heroicon-o-arrow-down-tray" color="success">
+                Download alternatives CSV
+            </x-filament::button>
+            <x-filament::button wire:click="exportToolsCsv" icon="heroicon-o-arrow-down-tray" color="success">
+                Download proprietary tools CSV
+            </x-filament::button>
+        </div>
     </x-filament::section>
 
-    <form wire:submit="importCsv" class="space-y-6">
+    <form class="space-y-6">
         {{ $this->form }}
-        <x-filament::button type="submit" icon="heroicon-o-arrow-up-tray">
-            Import CSV
-        </x-filament::button>
+
+        <div class="flex flex-wrap gap-2">
+            <x-filament::button type="button" wire:click="importCsv" icon="heroicon-o-arrow-up-tray">
+                Import alternatives CSV
+            </x-filament::button>
+            <x-filament::button type="button" wire:click="importToolsCsv" icon="heroicon-o-arrow-up-tray" color="gray">
+                Import tools CSV
+            </x-filament::button>
+        </div>
     </form>
 
     @if($importReport)
@@ -26,10 +37,10 @@
     <x-filament::section class="mt-8">
         <x-slot name="heading">Beginner tips</x-slot>
         <ul class="list-disc list-inside space-y-2 text-sm text-gray-700 dark:text-gray-300">
-            <li>Export first so you have a backup before a large import.</li>
-            <li>Use UTF-8 CSV (Excel: “CSV UTF-8”).</li>
-            <li>Unknown <code class="text-xs">proprietary_slugs</code> are ignored; create those tools first if needed.</li>
-            <li>Import never deletes rows — it only creates or updates by <code class="text-xs">slug</code>.</li>
+            <li>Import <strong>tools first</strong>, then alternatives, so <code class="text-xs">proprietary_slugs</code> can link.</li>
+            <li>Matching is by <code class="text-xs">slug</code> only — never deletes existing rows.</li>
+            <li>For a quick sample catalog, use <strong>System → Demo content</strong> instead of CSV.</li>
+            <li>Empty <code class="text-xs">is_published</code> is treated as draft (0).</li>
         </ul>
     </x-filament::section>
 </x-filament-panels::page>
