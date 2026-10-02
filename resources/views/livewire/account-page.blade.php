@@ -118,6 +118,8 @@
         @endif
     </section>
 
+    @include('livewire.partials.account-tickets')
+
     <section class="mb-12">
         <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
             <div>
