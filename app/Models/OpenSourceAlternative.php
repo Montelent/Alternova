@@ -110,7 +110,6 @@ class OpenSourceAlternative extends Model
         return $this->belongsTo(ProprietaryTool::class);
     }
 
-    /** Up to 5 proprietary products this alternative replaces. */
     public function proprietaryTools(): BelongsToMany
     {
         return $this->belongsToMany(
@@ -159,7 +158,6 @@ class OpenSourceAlternative extends Model
             if (! $path) {
                 continue;
             }
-            // Uploads disk is the correct store for ImageField::multiple()
             $url = MediaUrl::make(is_string($path) ? $path : null, 'uploads');
             if ($url) {
                 $urls[] = $url;
@@ -214,18 +212,6 @@ class OpenSourceAlternative extends Model
             return $record;
         }
 
-        try {
-            $redirect = eSlugRedirect::query()->where('old_slug', $value)->first();
-            if ($redirect) {
-                return static::query()
-                    ->where('slug', $redirect->new_slug)
-                    ->where('is_published', true)
-                    ->first();
-            }
-        } catch (\Throwable) {
-        }
-
-        // Fallback without typo class name
         try {
             $redirect = SlugRedirect::query()->where('old_slug', $value)->first();
             if ($redirect) {
