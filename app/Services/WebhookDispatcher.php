@@ -51,7 +51,37 @@ class WebhookDispatcher
         }
     }
 
-    protected function deliver(Webhook $hook, string $event, array $body): void
+    /**
+     * Re-send a stored delivery body to the same webhook URL.
+     */
+    public function retry(WebhookDelivery $delivery): WebhookDelivery
+    {
+        $hook = $delivery->webhook;
+        if (! $hook) {
+            throw new \RuntimeException('Webhook no longer exists for this delivery.');
+        }
+
+        $body = $delivery->decodedPayload();
+        if ($body === null) {
+            // Legacy rows without payload: send a minimal retry envelope
+            $body = [
+                'event' => $delivery->event,
+                'timestamp' => now()->toIso8601String(),
+                'data' => [
+                    'retry' => true,
+                    'original_delivery_id' => $delivery->id,
+                    'message' => 'Retry without original payload (delivery was logged before payload storage).',
+                ],
+            ];
+        }
+
+        return $this->deliver($hook, (string) $delivery->event, $body, $delivery);
+    }
+
+    /**
+     * @param  array<string, mixed>  $body
+     */
+    public function deliver(Webhook $hook, string $event, array $body, ?WebhookDelivery $existing = null): WebhookDelivery
     {
         $json = json_encode($body, JSON_UNESCAPED_SLASHES);
         $signature = null;
@@ -98,19 +128,37 @@ class WebhookDispatcher
                 'success_count' => $hook->success_count + ($success ? 1 : 0),
                 'failure_count' => $hook->failure_count + ($success ? 0 : 1),
             ])->save();
+        } catch (\Throwable $e) {
+            Log::warning('Webhook counter update failed: '.$e->getMessage());
+        }
 
-            if (Schema::hasTable('webhook_deliveries')) {
-                WebhookDelivery::create([
-                    'webhook_id' => $hook->id,
-                    'event' => $event,
-                    'status_code' => $status,
-                    'success' => $success,
-                    'response_body' => $responseBody,
-                    'error' => $error,
-                ]);
+        $attrs = [
+            'webhook_id' => $hook->id,
+            'event' => $event,
+            'status_code' => $status,
+            'success' => $success,
+            'response_body' => $responseBody,
+            'error' => $error,
+        ];
+
+        if (Schema::hasColumn('webhook_deliveries', 'payload')) {
+            $attrs['payload'] = $json;
+        }
+
+        try {
+            if ($existing) {
+                $existing->forceFill($attrs)->save();
+
+                return $existing->fresh();
             }
+
+            return WebhookDelivery::query()->create($attrs);
         } catch (\Throwable $e) {
             Log::warning('Webhook delivery log failed: '.$e->getMessage());
+
+            $fallback = new WebhookDelivery($attrs);
+
+            return $fallback;
         }
     }
 
