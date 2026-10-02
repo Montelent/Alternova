@@ -1,4 +1,5 @@
 @include('partials.alternative-editorial', ['alternative' => $alternative, 'editorial' => $editorial ?? []])
+
         @include('livewire.partials.changelog-gallery', ['alternative' => $alternative])
 
         @php
@@ -55,7 +56,7 @@
                 <div class="flex items-center justify-between gap-3 mb-4">
                     <h2 class="text-xl font-bold text-slate-900 dark:text-white">Docker Compose blueprint</h2>
                     <button type="button" @click="navigator.clipboard.writeText($refs.code.textContent); copied = true; setTimeout(() => copied = false, 2000)"
-                        class="rounded-lg border border-slate-200 dark:border-slate-600 px-3 py-1.5 text-xs font-semibold">
+                        class="rounded-lg border border-slate-200 dark:border-slate-600 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
                         <span x-show="!copied">Copy</span>
                         <span x-show="copied" x-cloak class="text-emerald-600">Copied</span>
                     </button>
@@ -64,26 +65,37 @@
             </section>
         @endif
 
-        @if(($proprietaryTools ?? collect())->isNotEmpty())
+        @if(($proprietaryTools ?? collect())->isNotEmpty() || !empty($proprietary))
             <section class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm p-6 sm:p-8 mb-8">
-                <h2 class="text-lg font-bold text-slate-900 dark:text-white mb-3">Compared to proprietary tools</h2>
-                <p class="text-sm text-slate-600 dark:text-slate-400">
-                    @foreach($proprietaryTools as $pt)
-                        <a href="{{ route('alternativesto.show', $pt->slug) }}" class="font-semibold text-brand-600 dark:text-brand-400 hover:underline">{{ $pt->name }}</a>@if(!$loop->last), @endif
+                <h2 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Compared to proprietary tools</h2>
+                <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    @foreach(($proprietaryTools ?? collect())->isNotEmpty() ? $proprietaryTools : collect([$proprietary]) as $pt)
+                        @continue(!$pt)
+                        <a href="{{ route('alternativesto.show', $pt->slug) }}"
+                            class="flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-700 px-4 py-3 hover:border-brand-400 dark:hover:border-brand-500 transition">
+                            @if($pt->logo_url)
+                                <img src="{{ $pt->logo_url }}" alt="" class="h-10 w-10 rounded-xl object-contain bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-1" loading="lazy" width="40" height="40">
+                            @else
+                                <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 dark:bg-brand-950/50 text-brand-700 dark:text-brand-300 text-sm font-bold">
+                                    {{ strtoupper(\Illuminate\Support\Str::substr($pt->name, 0, 1)) }}
+                                </span>
+                            @endif
+                            <span>
+                                <span class="block font-semibold text-slate-900 dark:text-white">{{ $pt->name }}</span>
+                                <span class="block text-xs text-brand-600 dark:text-brand-400">View all alternatives →</span>
+                            </span>
+                        </a>
                     @endforeach
-                </p>
+                </div>
             </section>
         @endif
 
         @if(isset($related) && $related->isNotEmpty())
             <section class="mb-10">
-                <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-4">Related alternatives</h2>
-                <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-5">Related alternatives</h2>
+                <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
                     @foreach($related as $rel)
-                        <a href="{{ route('alternatives.show', $rel) }}" class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 hover:border-brand-400 transition">
-                            <div class="font-semibold text-slate-900 dark:text-white">{{ $rel->name }}</div>
-                            <div class="text-xs text-slate-500 mt-1">Health {{ number_format($rel->overall_health_score ?? 0, 1) }}</div>
-                        </a>
+                        @include('partials.home-alt-card', ['alt' => $rel])
                     @endforeach
                 </div>
             </section>
