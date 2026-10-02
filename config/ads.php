@@ -4,33 +4,33 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Ads master switch
+    | Ads master switch (overridden by Admin → Ad settings)
     |--------------------------------------------------------------------------
-    |
-    | Keep false until AdSense (or another network) is approved.
-    | When true, placeholders render real ad scripts if client IDs are set.
-    |
     */
-
     'enabled' => (bool) env('ADS_ENABLED', false),
 
-    'provider' => env('ADS_PROVIDER', 'adsense'),
+    'provider' => env('ADS_PROVIDER', 'generic'),
 
     'adsense' => [
-        'client' => env('ADSENSE_CLIENT', ''), // ca-pub-xxxxxxxx
+        'client' => env('ADSENSE_CLIENT', ''),
         'slots' => [
             'header' => env('ADSENSE_SLOT_HEADER', ''),
+            'homepage' => env('ADSENSE_SLOT_HOMEPAGE', ''),
+            'after_hero' => env('ADSENSE_SLOT_AFTER_HERO', ''),
             'in_article' => env('ADSENSE_SLOT_IN_ARTICLE', ''),
             'sidebar' => env('ADSENSE_SLOT_SIDEBAR', ''),
+            'between_list' => env('ADSENSE_SLOT_BETWEEN_LIST', ''),
+            'alternative_mid' => env('ADSENSE_SLOT_ALTERNATIVE_MID', ''),
+            'tool_mid' => env('ADSENSE_SLOT_TOOL_MID', ''),
+            'domain_page' => env('ADSENSE_SLOT_DOMAIN', ''),
+            'compare_page' => env('ADSENSE_SLOT_COMPARE', ''),
+            'browse_hub' => env('ADSENSE_SLOT_BROWSE', ''),
+            'before_footer' => env('ADSENSE_SLOT_BEFORE_FOOTER', ''),
             'footer' => env('ADSENSE_SLOT_FOOTER', ''),
+            'sticky_mobile' => env('ADSENSE_SLOT_STICKY_MOBILE', ''),
         ],
     ],
 
-    /*
-    | Show labeled empty slots in local/debug so you can plan layout.
-    | Never shows fake ads to end users when ADS_ENABLED is false unless
-    | ADS_SHOW_PLACEHOLDERS=true (useful while designing).
-    */
     'show_placeholders' => (bool) env('ADS_SHOW_PLACEHOLDERS', false),
 
 ];

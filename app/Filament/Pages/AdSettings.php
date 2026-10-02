@@ -3,7 +3,10 @@
 namespace App\Filament\Pages;
 
 use App\Models\SiteSetting;
+use App\Support\AdSettings as AdConfig;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Concerns\InteractsWithForms;
@@ -11,18 +14,19 @@ use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Illuminate\Support\HtmlString;
 
 class AdSettings extends Page implements HasForms
 {
     use InteractsWithForms;
 
-    protected static ?string $navigationIcon = 'heroicon-o-currency-dollar';
+    protected static ?string $navigationIcon = 'heroicon-o-rectangle-group';
 
     protected static ?string $navigationLabel = 'Ad settings';
 
-    protected static ?string $navigationGroup = 'System';
+    protected static ?string $navigationGroup = 'Monetization';
 
-    protected static ?int $navigationSort = 20;
+    protected static ?int $navigationSort = 2;
 
     protected static string $view = 'filament.pages.ad-settings';
 
@@ -30,77 +34,92 @@ class AdSettings extends Page implements HasForms
 
     public ?array $data = [];
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->canManageSystem() ?? false;
+    }
+
     public function mount(): void
     {
-        $this->form->fill([
+        $fill = [
             'ads_enabled' => SiteSetting::getBool('ads_enabled', false),
             'ads_show_placeholders' => SiteSetting::getBool('ads_show_placeholders', false),
+            'ads_head_code' => SiteSetting::get('ads_head_code', ''),
             'adsense_client' => SiteSetting::get('adsense_client', (string) config('ads.adsense.client')),
-            'adsense_slot_header' => SiteSetting::get('adsense_slot_header', (string) config('ads.adsense.slots.header')),
-            'adsense_slot_in_article' => SiteSetting::get('adsense_slot_in_article', (string) config('ads.adsense.slots.in_article')),
-            'adsense_slot_sidebar' => SiteSetting::get('adsense_slot_sidebar', (string) config('ads.adsense.slots.sidebar')),
-            'adsense_slot_footer' => SiteSetting::get('adsense_slot_footer', (string) config('ads.adsense.slots.footer')),
-            'affiliate_namecheap' => SiteSetting::get('affiliate_namecheap', ''),
-            'affiliate_porkbun' => SiteSetting::get('affiliate_porkbun', ''),
-            'affiliate_godaddy' => SiteSetting::get('affiliate_godaddy', ''),
-        ]);
+        ];
+
+        foreach (AdConfig::placements() as $p) {
+            $fill['ads_code_'.$p] = SiteSetting::get('ads_code_'.$p, '');
+            $fill['adsense_slot_'.$p] = SiteSetting::get('adsense_slot_'.$p, (string) config('ads.adsense.slots.'.$p, ''));
+        }
+
+        $this->form->fill($fill);
     }
 
     public function form(Form $form): Form
     {
+        $placementSections = [];
+        $labels = AdConfig::placementLabels();
+
+        foreach (AdConfig::placements() as $p) {
+            $placementSections[] = Section::make($labels[$p] ?? $p)
+                ->description('Paste any ad network unit HTML/JS (AdSense, Media.net, Ezoic, Propeller, custom, etc.). If you only use AdSense slot IDs, fill the optional slot field instead.')
+                ->schema([
+                    Textarea::make('ads_code_'.$p)
+                        ->label('Ad code (HTML / JavaScript)')
+                        ->rows(5)
+                        ->columnSpanFull()
+                        ->helperText('Preferred. Paste the full snippet from your ad network. Leave empty to use the AdSense slot ID below.')
+                        ->extraInputAttributes(['class' => 'font-mono text-xs']),
+                    TextInput::make('adsense_slot_'.$p)
+                        ->label('Optional AdSense slot ID only')
+                        ->placeholder('1234567890')
+                        ->maxLength(32)
+                        ->helperText('Used only when the HTML box above is empty and a Publisher client ID is set.'),
+                ])
+                ->columns(1)
+                ->collapsed();
+        }
+
         return $form
             ->schema([
                 Section::make('Master controls')
-                    ->description('Turn ads on only after Google AdSense (or your network) has approved the site.')
                     ->schema([
+                        Placeholder::make('intro')
+                            ->content(new HtmlString(
+                                '<div class="text-sm text-gray-700 dark:text-gray-300 space-y-2 leading-relaxed">'
+                                .'<p>This works with <strong>any</strong> ad network. Paste full unit codes per placement, or use AdSense client + slot IDs.</p>'
+                                .'<p>Custom HTML takes priority over AdSense slot IDs for the same placement.</p>'
+                                .'</div>'
+                            )),
                         Toggle::make('ads_enabled')
                             ->label('Enable live ads')
-                            ->helperText('When on, AdSense scripts load on public pages that have a slot ID filled in.')
+                            ->helperText('When on, filled placements render on the public site.')
                             ->inline(false),
                         Toggle::make('ads_show_placeholders')
                             ->label('Show layout placeholders')
-                            ->helperText('Dashed boxes where ads will appear. Useful while designing; leave off for visitors.')
+                            ->helperText('Dashed boxes where ads will appear. Helpful while designing; turn off for visitors.')
                             ->inline(false),
                     ])
                     ->columns(2),
 
-                Section::make('Google AdSense')
+                Section::make('Global head scripts')
+                    ->description('Loaded once in &lt;head&gt; on public pages when ads are enabled. Use for AdSense auto ads, Ezoic, Mediavine, Raptive, or any loader script.')
                     ->schema([
+                        Textarea::make('ads_head_code')
+                            ->label('Head script / verification code')
+                            ->rows(6)
+                            ->columnSpanFull()
+                            ->extraInputAttributes(['class' => 'font-mono text-xs'])
+                            ->helperText('Example: AdSense script tag, or your network’s site-wide loader.'),
                         TextInput::make('adsense_client')
-                            ->label('Publisher client ID')
+                            ->label('Google AdSense publisher ID (optional)')
                             ->placeholder('ca-pub-xxxxxxxxxxxxxxxx')
-                            ->helperText('From AdSense — your ca-pub-… ID')
-                            ->maxLength(64),
-                        TextInput::make('adsense_slot_header')
-                            ->label('Header ad unit slot ID')
-                            ->placeholder('1234567890'),
-                        TextInput::make('adsense_slot_in_article')
-                            ->label('In-article ad unit slot ID')
-                            ->placeholder('1234567890'),
-                        TextInput::make('adsense_slot_sidebar')
-                            ->label('Sidebar ad unit slot ID')
-                            ->placeholder('1234567890'),
-                        TextInput::make('adsense_slot_footer')
-                            ->label('Footer ad unit slot ID')
-                            ->placeholder('1234567890'),
-                    ])
-                    ->columns(1),
+                            ->maxLength(64)
+                            ->helperText('Only needed if you use AdSense slot IDs instead of pasting full HTML units.'),
+                    ]),
 
-                Section::make('Domain registrar affiliates')
-                    ->description('Optional tracking IDs appended when users click Namecheap / Porkbun / GoDaddy from the domain tool. Clicks are logged under Engagement → Affiliate clicks.')
-                    ->schema([
-                        TextInput::make('affiliate_namecheap')
-                            ->label('Namecheap affiliate / aff code')
-                            ->maxLength(80),
-                        TextInput::make('affiliate_porkbun')
-                            ->label('Porkbun coupon / partner code')
-                            ->maxLength(80),
-                        TextInput::make('affiliate_godaddy')
-                            ->label('GoDaddy isc / track code')
-                            ->maxLength(80),
-                    ])
-                    ->columns(1)
-                    ->collapsed(),
+                ...$placementSections,
             ])
             ->statePath('data');
     }
@@ -109,24 +128,25 @@ class AdSettings extends Page implements HasForms
     {
         $state = $this->form->getState();
 
-        SiteSetting::setMany([
+        $payload = [
             'ads_enabled' => ! empty($state['ads_enabled']),
             'ads_show_placeholders' => ! empty($state['ads_show_placeholders']),
+            'ads_head_code' => (string) ($state['ads_head_code'] ?? ''),
             'adsense_client' => trim((string) ($state['adsense_client'] ?? '')),
-            'adsense_slot_header' => trim((string) ($state['adsense_slot_header'] ?? '')),
-            'adsense_slot_in_article' => trim((string) ($state['adsense_slot_in_article'] ?? '')),
-            'adsense_slot_sidebar' => trim((string) ($state['adsense_slot_sidebar'] ?? '')),
-            'adsense_slot_footer' => trim((string) ($state['adsense_slot_footer'] ?? '')),
-            'affiliate_namecheap' => trim((string) ($state['affiliate_namecheap'] ?? '')),
-            'affiliate_porkbun' => trim((string) ($state['affiliate_porkbun'] ?? '')),
-            'affiliate_godaddy' => trim((string) ($state['affiliate_godaddy'] ?? '')),
-        ]);
+        ];
+
+        foreach (AdConfig::placements() as $p) {
+            $payload['ads_code_'.$p] = (string) ($state['ads_code_'.$p] ?? '');
+            $payload['adsense_slot_'.$p] = trim((string) ($state['adsense_slot_'.$p] ?? ''));
+        }
+
+        SiteSetting::setMany($payload);
 
         Notification::make()
             ->title('Ad settings saved')
             ->body(
                 ! empty($state['ads_enabled'])
-                    ? 'Live ads are enabled on public pages with slot IDs.'
+                    ? 'Live ads are enabled for placements that have code or AdSense slots.'
                     : 'Live ads stay off. Placeholders follow your toggle.'
             )
             ->success()
