@@ -40,7 +40,7 @@ class AppServiceProvider extends ServiceProvider
         if (! is_dir($uploadsRoot)) {
             @mkdir($uploadsRoot, 0775, true);
         }
-        foreach (['logos', 'collections', 'gallery', 'general'] as $dir) {
+        foreach (['logos', 'collections', 'gallery', 'general', 'branding'] as $dir) {
             $path = $uploadsRoot.'/'.$dir;
             if (! is_dir($path)) {
                 @mkdir($path, 0775, true);
