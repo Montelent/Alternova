@@ -11,6 +11,7 @@ use App\Models\AlternativeSubmission;
 use App\Models\ContactMessage;
 use App\Models\IssueReport;
 use App\Models\OpenSourceAlternative;
+use App\Services\DuplicateAlternativeService;
 use App\Services\LinkHealthService;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -66,7 +67,9 @@ class NeedsAttentionPage extends Page
 
     public static function draftsCount(): int
     {
-        return OpenSourceAlternative::query()->where('is_published', false)->count();
+        return OpenSourceAlternative::query()
+            ->where('is_published', false)
+            ->count();
     }
 
     public static function brokenLinksCount(): int
@@ -75,9 +78,11 @@ class NeedsAttentionPage extends Page
             return 0;
         }
 
+        // Only count explicit failures (false), not "not checked yet" (null)
         return OpenSourceAlternative::query()
             ->where(function ($q) {
-                $q->where('repo_reachable', false)->orWhere('website_reachable', false);
+                $q->where('repo_reachable', false)
+                    ->orWhere('website_reachable', false);
             })
             ->count();
     }
@@ -114,19 +119,20 @@ class NeedsAttentionPage extends Page
                 return 0;
             }
 
-            return ContactMessage::query()
-                ->where(function ($q) {
-                    $q->whereNull('read_at');
-                    if (Schema::hasColumn('contact_messages', 'status')) {
-                        $q->orWhere('status', 'new')->orWhere('status', 'unread');
-                    }
-                })
-                ->where(function ($q) {
-                    if (Schema::hasColumn('contact_messages', 'status')) {
-                        $q->where('status', '!=', 'read')->orWhereNull('status');
-                    }
-                })
-                ->count();
+            $q = ContactMessage::query();
+
+            if (Schema::hasColumn('contact_messages', 'read_at')) {
+                $q->whereNull('read_at');
+            }
+
+            if (Schema::hasColumn('contact_messages', 'status')) {
+                $q->where(function ($inner) {
+                    $inner->whereNull('status')
+                        ->orWhereIn('status', ['new', 'unread', 'open', 'pending']);
+                });
+            }
+
+            return $q->count();
         } catch (\Throwable) {
             return 0;
         }
@@ -150,10 +156,15 @@ class NeedsAttentionPage extends Page
         }
     }
 
+    /**
+     * Number of alternatives involved in duplicate groups/pairs (not the array key count).
+     */
     public static function duplicateSuspectsCount(): int
     {
         try {
-            return count(app(\App\Services\DuplicateAlternativeService::class)->summaryCounts());
+            $counts = app(DuplicateAlternativeService::class)->summaryCounts();
+
+            return (int) array_sum($counts);
         } catch (\Throwable) {
             return 0;
         }
@@ -161,12 +172,6 @@ class NeedsAttentionPage extends Page
 
     public function summary(): array
     {
-        $dupCount = 0;
-        try {
-            $dupCount = array_sum(app(\App\Services\DuplicateAlternativeService::class)->summaryCounts());
-        } catch (\Throwable) {
-        }
-
         return [
             [
                 'label' => 'Draft alternatives',
@@ -212,7 +217,7 @@ class NeedsAttentionPage extends Page
             ],
             [
                 'label' => 'Possible duplicates',
-                'count' => $dupCount,
+                'count' => self::duplicateSuspectsCount(),
                 'hint' => 'Same repo URL or very similar names — review before publishing more.',
                 'href' => DuplicateAlternativesPage::getUrl(),
                 'cta' => 'Duplicate detector',

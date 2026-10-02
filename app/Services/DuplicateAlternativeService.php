@@ -12,6 +12,8 @@ use Illuminate\Support\Str;
 class DuplicateAlternativeService
 {
     /**
+     * Counts of alternatives involved (0 when clean).
+     *
      * @return array{same_repo: int, similar_name: int}
      */
     public function summaryCounts(): array
@@ -19,15 +21,23 @@ class DuplicateAlternativeService
         $groups = $this->sameRepoGroups();
         $pairs = $this->similarNamePairs();
 
+        // same_repo: total alternatives that share a repo with at least one other
+        $sameRepoItems = (int) $groups->sum(fn (Collection $g) => $g->count());
+
+        // similar_name: unique alternatives appearing in similar-name pairs
+        $similarIds = [];
+        foreach ($pairs as $pair) {
+            $similarIds[$pair['a']->id] = true;
+            $similarIds[$pair['b']->id] = true;
+        }
+
         return [
-            'same_repo' => $groups->sum(fn (Collection $g) => $g->count()),
-            'similar_name' => $pairs->count() * 2,
+            'same_repo' => $sameRepoItems,
+            'similar_name' => count($similarIds),
         ];
     }
 
     /**
-     * Groups of alternatives sharing the same normalized GitHub/repo URL.
-     *
      * @return Collection<string, Collection<int, OpenSourceAlternative>>
      */
     public function sameRepoGroups(): Collection
@@ -46,8 +56,6 @@ class DuplicateAlternativeService
     }
 
     /**
-     * Pairs with high name similarity (not already same-repo groups).
-     *
      * @return Collection<int, array{a: OpenSourceAlternative, b: OpenSourceAlternative, score: float}>
      */
     public function similarNamePairs(float $threshold = 85.0): Collection
@@ -59,8 +67,7 @@ class DuplicateAlternativeService
 
         $sameRepoIds = [];
         foreach ($this->sameRepoGroups() as $group) {
-            $ids = $group->pluck('id')->all();
-            foreach ($ids as $id) {
+            foreach ($group->pluck('id') as $id) {
                 $sameRepoIds[$id] = true;
             }
         }
@@ -77,12 +84,12 @@ class DuplicateAlternativeService
                 $b = $list[$j];
 
                 if (isset($sameRepoIds[$a->id], $sameRepoIds[$b->id])
-                    && $this->normalizeRepo($a->repo_url) === $this->normalizeRepo($b->repo_url)
-                    && $this->normalizeRepo($a->repo_url) !== '') {
+                    && $this->normalizeRepo((string) $a->repo_url) === $this->normalizeRepo((string) $b->repo_url)
+                ) {
                     continue;
                 }
 
-                $score = $this->nameSimilarity($a->name, $b->name);
+                $score = $this->similarity((string) $a->name, (string) $b->name);
                 if ($score >= $threshold) {
                     $pairs->push([
                         'a' => $a,
@@ -103,28 +110,28 @@ class DuplicateAlternativeService
         }
 
         $url = strtolower(trim($url));
-        $url = preg_replace('#^https?://#', '', $url) ?? $url;
-        $url = preg_replace('#^www\.#', '', $url) ?? $url;
-        $url = rtrim($url, '/');
+        $url = preg_replace('#^git\+#', '', $url) ?? $url;
         $url = preg_replace('#\.git$#', '', $url) ?? $url;
+        $url = preg_replace('#^https?://(www\.)?#', '', $url) ?? $url;
+        $url = rtrim($url, '/');
 
-        // github.com/owner/repo → owner/repo
-        if (preg_match('#github\.com/([^/]+/[^/]+)#', $url, $m)) {
-            return 'github.com/'.strtolower($m[1]);
+        if (str_starts_with($url, 'github.com/')) {
+            $parts = explode('/', $url);
+            if (count($parts) >= 3) {
+                return 'github.com/'.$parts[1].'/'.$parts[2];
+            }
         }
 
         return $url;
     }
 
-    public function nameSimilarity(string $a, string $b): float
+    public function similarity(string $a, string $b): float
     {
         $a = Str::lower(trim($a));
         $b = Str::lower(trim($b));
-
         if ($a === '' || $b === '') {
             return 0.0;
         }
-
         if ($a === $b) {
             return 100.0;
         }
