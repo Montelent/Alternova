@@ -1,42 +1,49 @@
 <a href="{{ route('alternatives.show', $alt) }}"
-    class="group rounded-2xl border border-white/10 bg-white/[0.04] p-6 hover:border-brand-400/50 hover:bg-white/[0.07] transition {{ method_exists($alt, 'hasActiveSponsorship') && $alt->hasActiveSponsorship() ? 'ring-1 ring-amber-400/40' : '' }}">
+    class="group flex flex-col h-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/80 p-5 sm:p-6 shadow-sm hover:border-brand-300 dark:hover:border-brand-500/60 hover:shadow-md transition {{ method_exists($alt, 'hasActiveSponsorship') && $alt->hasActiveSponsorship() ? 'ring-1 ring-amber-400/50' : '' }}">
     <div class="flex items-start justify-between gap-3">
-        <div>
+        <div class="min-w-0">
             <div class="flex flex-wrap items-center gap-2 mb-1">
                 @if(method_exists($alt, 'hasActiveSponsorship') && $alt->hasActiveSponsorship())
-                    <span class="rounded-full bg-amber-500/25 text-amber-200 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5">
+                    <span class="rounded-full bg-amber-100 dark:bg-amber-500/25 text-amber-800 dark:text-amber-200 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5">
                         {{ $alt->sponsor_label ?: 'Sponsored' }}
                     </span>
-                @elseif($alt->is_featured)
-                    <span class="rounded-full bg-brand-500/25 text-brand-200 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5">
+                @elseif($alt->is_featured ?? false)
+                    <span class="rounded-full bg-brand-50 dark:bg-brand-500/25 text-brand-700 dark:text-brand-200 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5">
                         Featured
                     </span>
                 @endif
             </div>
-            <h3 class="text-lg font-semibold text-white group-hover:text-brand-200 transition">{{ $alt->name }}</h3>
-            <p class="mt-1 text-sm text-slate-400">
+            <h3 class="text-lg font-semibold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-300 transition leading-snug">
+                {{ $alt->name }}
+            </h3>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 vs
                 @if($alt->proprietaryTool)
-                    <span class="text-slate-300">{{ $alt->proprietaryTool->name }}</span>
+                    <span class="text-slate-700 dark:text-slate-300">{{ $alt->proprietaryTool->name }}</span>
                 @else
                     proprietary tools
                 @endif
             </p>
         </div>
-        <span class="shrink-0 rounded-full bg-brand-500/20 text-brand-200 text-xs font-semibold px-2.5 py-1 border border-brand-400/20">
-            {{ number_format($alt->overall_health_score, 0) }}
+        <span class="shrink-0 rounded-full bg-brand-50 dark:bg-brand-500/20 text-brand-700 dark:text-brand-200 text-xs font-semibold px-2.5 py-1 border border-brand-100 dark:border-brand-400/20">
+            {{ number_format($alt->overall_health_score ?? 0, 0) }}
         </span>
     </div>
-    <p class="mt-3 text-sm text-slate-400 line-clamp-2">{{ $alt->description }}</p>
+    <p class="mt-3 text-sm text-slate-600 dark:text-slate-400 line-clamp-2 flex-1">
+        {{ \Illuminate\Support\Str::limit(strip_tags((string) ($alt->description ?? '')), 120) }}
+    </p>
     <div class="mt-4 flex flex-wrap gap-2">
         @if($alt->license_type)
-            <span class="text-xs rounded-full bg-white/10 text-slate-300 px-2 py-0.5">{{ $alt->license_type }}</span>
+            <span class="text-xs rounded-full bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 px-2 py-0.5">{{ $alt->license_type }}</span>
+        @endif
+        @if($alt->primary_language)
+            <span class="text-xs rounded-full bg-sky-50 dark:bg-sky-500/15 text-sky-800 dark:text-sky-200 px-2 py-0.5">{{ $alt->primary_language }}</span>
         @endif
         @if($alt->repoMetric)
-            <span class="text-xs rounded-full bg-white/10 text-slate-300 px-2 py-0.5">★ {{ number_format($alt->repoMetric->github_stars) }}</span>
+            <span class="text-xs rounded-full bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 px-2 py-0.5">★ {{ number_format($alt->repoMetric->github_stars) }}</span>
         @endif
         @if(($alt->votes_count ?? 0) > 0)
-            <span class="text-xs rounded-full bg-white/10 text-slate-300 px-2 py-0.5">{{ $alt->votes_count }} votes</span>
+            <span class="text-xs rounded-full bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 px-2 py-0.5">{{ $alt->votes_count }} votes</span>
         @endif
     </div>
 </a>
