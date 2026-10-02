@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\GitHubUrl;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -13,7 +14,7 @@ class DescriptionGeneratorService
      */
     public function fromGitHubRepo(string $repoUrl, ?string $proprietaryName = null): array
     {
-        $parsed = $this->parseGitHubUrl($repoUrl);
+        $parsed = GitHubUrl::parse($repoUrl);
 
         if (! $parsed) {
             return [
@@ -29,25 +30,34 @@ class DescriptionGeneratorService
         [$owner, $repo] = $parsed;
 
         try {
-            $request = Http::timeout(12)
+            $request = Http::timeout(15)
                 ->acceptJson()
-                ->withHeaders(['User-Agent' => 'Alternova-DescriptionBot/1.0']);
+                ->withHeaders([
+                    'User-Agent' => 'Alternova-DescriptionBot/1.0',
+                    'Accept' => 'application/vnd.github+json',
+                ]);
 
             $token = config('services.github.token') ?: env('GITHUB_TOKEN');
             if ($token) {
                 $request = $request->withToken($token);
             }
 
-            $response = $request->get("https://api.github.com/repos/{$owner}/{$repo}");
+            $response = $request->get(GitHubUrl::apiRepoUrl($owner, $repo));
 
             if (! $response->successful()) {
+                $hint = $response->status() === 404
+                    ? " Repo not found as {$owner}/{$repo}. Check the URL (dots in names like Rocket.Chat are supported)."
+                    : ($response->status() === 403
+                        ? ' Rate limited or blocked — add a GitHub token under Integrations.'
+                        : '');
+
                 return [
                     'description' => '',
                     'primary_language' => null,
                     'license_type' => null,
                     'website_url' => null,
                     'success' => false,
-                    'message' => 'GitHub API error: HTTP '.$response->status(),
+                    'message' => 'GitHub API error: HTTP '.$response->status().'.'.$hint,
                 ];
             }
 
@@ -75,7 +85,7 @@ class DescriptionGeneratorService
                 'license_type' => $license,
                 'website_url' => $homepage ?: null,
                 'success' => true,
-                'message' => 'Description generated from GitHub.',
+                'message' => 'Description generated from GitHub ('.$owner.'/'.$repo.').',
             ];
         } catch (\Throwable $e) {
             Log::warning('GitHub description fetch failed: '.$e->getMessage());
@@ -191,21 +201,6 @@ class DescriptionGeneratorService
         }
         if (preg_match('/<meta[^>]+property=["\']og:description["\'][^>]+content=["\']([^"\']+)["\']/i', $html, $m)) {
             return html_entity_decode(trim($m[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        }
-
-        return null;
-    }
-
-    /**
-     * @return array{0: string, 1: string}|null
-     */
-    protected function parseGitHubUrl(string $url): ?array
-    {
-        $url = trim($url);
-
-        // Use ~ delimiter so # in character class is safe
-        if (preg_match('~github\.com[:/]([^/\s]+)/([^/\s\.?#]+)~i', $url, $m)) {
-            return [$m[1], rtrim($m[2], '/')];
         }
 
         return null;
