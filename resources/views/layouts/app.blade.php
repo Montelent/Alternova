@@ -5,9 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @include('partials.seo-head')
-    <link rel="alternate" type="application/rss+xml" title="Alternova Alternatives" href="{{ url('/feed') }}">
+    @php
+        $__wlPrimary = \App\Support\WhiteLabelSettings::primary();
+        $__wlPalette = \App\Support\WhiteLabelSettings::palette();
+        $__wlName = \App\Support\WhiteLabelSettings::siteName();
+        $__wlLogo = \App\Support\WhiteLabelSettings::logoUrl();
+        $__wlFavicon = \App\Support\WhiteLabelSettings::faviconUrl();
+        $__wlLetter = \App\Support\WhiteLabelSettings::letter();
+    @endphp
+    <link rel="alternate" type="application/rss+xml" title="{{ $__wlName }} Alternatives" href="{{ url('/feed') }}">
     <link rel="manifest" href="{{ url('/manifest.webmanifest') }}">
-    <meta name="theme-color" content="#4f46e5">
+    <meta name="theme-color" content="{{ $__wlPrimary }}">
+    @if($__wlFavicon)
+        <link rel="icon" href="{{ $__wlFavicon }}">
+        <link rel="apple-touch-icon" href="{{ $__wlFavicon }}">
+    @endif
     @include('partials.adsense-head')
     <script>
         try {
@@ -25,8 +37,13 @@
                 extend: {
                     colors: {
                         brand: {
-                            50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8',
-                            500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 800: '#3730a3', 900: '#312e81', 950: '#1e1b4b',
+                            50: '{{ $__wlPalette['50'] ?? '#eef2ff' }}',
+                            100: '{{ $__wlPalette['100'] ?? '#e0e7ff' }}',
+                            200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8',
+                            500: '{{ $__wlPalette['500'] ?? '#6366f1' }}',
+                            600: '{{ $__wlPalette['600'] ?? '#4f46e5' }}',
+                            700: '{{ $__wlPalette['700'] ?? '#4338ca' }}',
+                            800: '#3730a3', 900: '#312e81', 950: '#1e1b4b',
                         }
                     },
                     fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
@@ -59,8 +76,12 @@
         <div class="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
             <div class="flex h-14 items-center justify-between gap-2">
                 <a href="{{ route('home') }}" class="flex items-center gap-2 font-bold text-slate-900 dark:text-white shrink-0 min-w-0">
-                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-white text-xs">A</span>
-                    <span class="truncate">Alternova</span>
+                    @if(!empty($__wlLogo))
+                        <img src="{{ $__wlLogo }}" alt="{{ $__wlName }}" class="h-8 w-8 shrink-0 rounded-lg object-contain">
+                    @else
+                        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white text-xs font-bold" style="background: {{ $__wlPrimary ?? '#4f46e5' }}">{{ $__wlLetter ?? 'A' }}</span>
+                    @endif
+                    <span class="truncate">{{ $__wlName ?? config('app.name', 'Alternova') }}</span>
                 </a>
                 <nav class="hidden lg:flex items-center gap-1 text-sm font-medium">
                     <a href="{{ route('finder') }}" class="px-3 py-1.5 rounded-lg {{ request()->routeIs('finder','alternatives.show','tools.show') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">Alternatives</a>
