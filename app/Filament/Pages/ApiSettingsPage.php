@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Support\ApiSettings;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Section;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
@@ -51,6 +52,8 @@ class ApiSettingsPage extends Page implements HasForms
         $this->form->fill([
             'api_globally_enabled' => ApiSettings::isGloballyEnabled(),
             'api_require_key' => ApiSettings::requireKey(),
+            'api_rate_limit_anon' => ApiSettings::rateLimitAnonymous(),
+            'api_rate_limit_key' => ApiSettings::rateLimitAuthenticated(),
         ]);
     }
 
@@ -67,17 +70,30 @@ class ApiSettingsPage extends Page implements HasForms
                             ->inline(false),
                         Toggle::make('api_require_key')
                             ->label('Require API key for all endpoints')
-                            ->helperText('On = anonymous requests without a key are rejected (401). Off = public read endpoints may work without a key.')
+                            ->helperText('On = anonymous requests without a key are rejected (401).')
                             ->inline(false),
-                        Placeholder::make('hint')
+                        TextInput::make('api_rate_limit_anon')
+                            ->label('Anonymous requests per minute')
+                            ->numeric()
+                            ->minValue(10)
+                            ->maxValue(1000)
+                            ->helperText('IP-based limit when no API key is sent.'),
+                        TextInput::make('api_rate_limit_key')
+                            ->label('API key requests per minute')
+                            ->numeric()
+                            ->minValue(30)
+                            ->maxValue(5000)
+                            ->helperText('Higher limit for valid keys.'),
+                        Placeholder::make('docs')
                             ->content(new HtmlString(
                                 '<p class="text-sm text-gray-600 dark:text-gray-300">'
-                                .'Per-user control: open <strong>System → Users</strong>, edit a user, and use '
-                                .'<strong>Allow API access</strong>. You can also revoke individual keys under '
-                                .'<strong>Engagement → API keys</strong>.'
+                                .'Public docs: <a class="text-primary-600 underline" href="'.e(url('/api-docs')).'" target="_blank">/api-docs</a>. '
+                                .'Per-user: <strong>System → Users → Allow API access</strong>. '
+                                .'Keys: <strong>Engagement → API keys</strong>.'
                                 .'</p>'
                             )),
-                    ]),
+                    ])
+                    ->columns(2),
             ])
             ->statePath('data');
     }
@@ -88,12 +104,16 @@ class ApiSettingsPage extends Page implements HasForms
 
         ApiSettings::setGloballyEnabled(! empty($state['api_globally_enabled']));
         ApiSettings::setRequireKey(! empty($state['api_require_key']));
+        ApiSettings::setRateLimits(
+            (int) ($state['api_rate_limit_anon'] ?? 60),
+            (int) ($state['api_rate_limit_key'] ?? 600)
+        );
 
         Notification::make()
             ->title('API settings saved')
             ->body(
                 ApiSettings::isGloballyEnabled()
-                    ? 'Public API is ON.'
+                    ? 'Public API is ON. Rate limits updated.'
                     : 'Public API is OFF — all /api routes return 503.'
             )
             ->success()
