@@ -3,11 +3,16 @@
         <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-10">
             <div class="max-w-sm">
                 <div class="flex items-center gap-2 font-bold text-slate-900 dark:text-white">
-                    <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-600 text-white text-xs">A</span>
-                    Alternova
+                    @php($wlLogo = \App\Support\WhiteLabelSettings::logoUrl())
+                    @if($wlLogo)
+                        <img src="{{ $wlLogo }}" alt="" class="h-7 w-7 rounded-lg object-contain">
+                    @else
+                        <span class="flex h-7 w-7 items-center justify-center rounded-lg text-white text-xs font-bold" style="background: {{ \App\Support\WhiteLabelSettings::primary() }}">{{ \App\Support\WhiteLabelSettings::letter() }}</span>
+                    @endif
+                    {{ \App\Support\WhiteLabelSettings::siteName() }}
                 </div>
                 <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                    {{ \App\Models\SiteSetting::get('site_tagline', 'Open-source alternatives and brandable domain ideas.') }}
+                    {{ \App\Support\WhiteLabelSettings::tagline() }}
                 </p>
                 <div class="mt-5">
                     <p class="text-sm font-semibold text-slate-900 dark:text-white mb-2">Get product updates</p>
@@ -57,6 +62,6 @@
                 </div>
             </div>
         </div>
-        <p class="mt-10 text-xs text-slate-400">&copy; {{ date('Y') }} {{ config('app.name', 'Alternova') }}</p>
+        <p class="mt-10 text-xs text-slate-400">{{ \App\Support\WhiteLabelSettings::footerText() }}</p>
     </div>
 </footer>
