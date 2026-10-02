@@ -66,18 +66,11 @@ class Page extends Model
 
     public function seoTitle(): string
     {
-        return $this->meta_title ?: ($this->title.' | Alternova');
+        return app(\App\Services\SeoManager::class)->cmsPageTitle($this);
     }
 
     public function seoDescription(): string
     {
-        if ($this->meta_description) {
-            return $this->meta_description;
-        }
-        if ($this->excerpt) {
-            return $this->excerpt;
-        }
-
-        return str(strip_tags((string) $this->body_html))->limit(155)->toString();
+        return app(\App\Services\SeoManager::class)->cmsPageDescription($this);
     }
 }
