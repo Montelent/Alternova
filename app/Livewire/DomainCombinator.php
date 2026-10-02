@@ -40,6 +40,8 @@ class DomainCombinator extends Component
 
     public bool $isGenerating = false;
 
+    public bool $isChecking = false;
+
     public array $saved = [];
 
     public string $errorMessage = '';
@@ -191,8 +193,8 @@ class DomainCombinator extends Component
         $this->errorMessage = '';
 
         $key = 'domain-gen:'.request()->ip();
-        if (RateLimiter::tooManyAttempts($key, 20)) {
-            $this->errorMessage = 'Rate limit: max 20 generations per hour from this network. Try later.';
+        if (RateLimiter::tooManyAttempts($key, 30)) {
+            $this->errorMessage = 'Rate limit: max 30 generations per hour from this network. Try later.';
 
             return;
         }
@@ -204,6 +206,7 @@ class DomainCombinator extends Component
         ]);
 
         $this->isGenerating = true;
+        $this->isChecking = false;
         $this->results = [];
 
         $raw = $this->combinator->generateCombinations(
@@ -234,7 +237,7 @@ class DomainCombinator extends Component
         }
 
         usort($filtered, fn ($a, $b) => $b['score'] <=> $a['score']);
-        $this->results = array_slice($filtered, 0, 60);
+        $this->results = array_slice($filtered, 0, 48);
 
         try {
             DomainSearchLog::create([
@@ -248,7 +251,11 @@ class DomainCombinator extends Component
         }
 
         $this->isGenerating = false;
+        $this->isChecking = count($this->results) > 0;
         $this->dispatch('domains-generated');
+
+        // Kick first batch in same request for snappier UX
+        $this->checkNextBatch();
     }
 
     public function checkDomain(string $domain): void
@@ -264,18 +271,49 @@ class DomainCombinator extends Component
                 break;
             }
         }
+        unset($item);
     }
 
     public function checkNextBatch(): void
     {
         $pending = collect($this->results)
             ->where('status', 'pending')
-            ->take(5)
-            ->pluck('domain');
+            ->take(10)
+            ->pluck('domain')
+            ->all();
 
-        foreach ($pending as $domain) {
-            $this->checkDomain($domain);
+        if ($pending === []) {
+            $this->isChecking = false;
+
+            return;
         }
+
+        $this->isChecking = true;
+
+        // Mark as checking for UI feedback
+        foreach ($this->results as &$item) {
+            if (in_array($item['domain'], $pending, true) && $item['status'] === 'pending') {
+                $item['status'] = 'checking';
+            }
+        }
+        unset($item);
+
+        $checked = $this->checker->checkMany($pending);
+
+        foreach ($this->results as &$item) {
+            $d = $item['domain'];
+            if (! isset($checked[$d])) {
+                continue;
+            }
+            $item['status'] = $checked[$d]['status'];
+            if ($checked[$d]['status'] === 'available') {
+                $item['affiliate'] = $this->checker->affiliateLinks($d);
+            }
+        }
+        unset($item);
+
+        $still = collect($this->results)->contains(fn ($r) => in_array($r['status'], ['pending', 'checking'], true));
+        $this->isChecking = $still;
     }
 
     public function exportCsv(): StreamedResponse
