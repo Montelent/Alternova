@@ -58,6 +58,19 @@
         .prose img { max-width: 100%; height: auto; }
         body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
         body.menu-locked { overflow: hidden; touch-action: none; }
+        /* Light mode: keep form controls readable when only dark: variants were set */
+        input:not([type=checkbox]):not([type=radio]), select, textarea {
+            color: #0f172a;
+            background-color: #fff;
+        }
+        .dark input:not([type=checkbox]):not([type=radio]),
+        .dark select,
+        .dark textarea {
+            color: #f1f5f9;
+            background-color: #1e293b;
+        }
+        ::placeholder { color: #94a3b8; opacity: 1; }
+        .dark ::placeholder { color: #64748b; opacity: 1; }
     </style>
 </head>
 <body
@@ -66,7 +79,6 @@
     @keydown.escape.window="mobileOpen = false"
     x-effect="document.body.classList.toggle('menu-locked', mobileOpen)"
 >
-    {{-- Dim page only (below header). Must stay UNDER the menu panel. --}}
     <div
         x-show="mobileOpen"
         x-cloak
@@ -87,6 +99,7 @@
 
                 <nav class="hidden lg:flex items-center gap-1 text-sm font-medium">
                     <a href="{{ route('finder') }}" class="px-3 py-1.5 rounded-lg {{ request()->routeIs('finder','alternatives.show','tools.show') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">Alternatives</a>
+                    <a href="{{ route('browse.type', 'categories') }}" class="px-3 py-1.5 rounded-lg {{ request()->routeIs('browse.*') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">Browse</a>
                     <a href="{{ route('collections.index') }}" class="px-3 py-1.5 rounded-lg {{ request()->routeIs('collections.*') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">Collections</a>
                     <a href="{{ route('trending') }}" class="px-3 py-1.5 rounded-lg {{ request()->routeIs('trending') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">Trending</a>
                     <a href="{{ route('domains') }}" class="px-3 py-1.5 rounded-lg {{ request()->routeIs('domains') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">Domains</a>
@@ -134,7 +147,6 @@
             </div>
         </div>
 
-        {{-- Menu panel: solid background, above the dim overlay (header is z-50, overlay is z-40) --}}
         <div id="mobile-nav"
             x-show="mobileOpen"
             x-cloak
@@ -147,6 +159,12 @@
             class="lg:hidden relative z-50 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl max-h-[min(80vh,calc(100dvh-3.5rem))] overflow-y-auto overscroll-contain">
             <nav class="px-3 py-3 space-y-0.5 text-sm font-medium" @click.stop>
                 <a href="{{ route('finder') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 {{ request()->routeIs('finder','alternatives.*','tools.*') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-700 dark:text-slate-200 active:bg-slate-100 dark:active:bg-slate-800' }}">Alternatives</a>
+                <a href="{{ route('browse.type', 'categories') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 {{ request()->routeIs('browse.*') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-700 dark:text-slate-200 active:bg-slate-100 dark:active:bg-slate-800' }}">Browse hubs</a>
+                <div class="pl-3 pb-1 flex flex-wrap gap-2">
+                    <a href="{{ route('browse.type', 'categories') }}" @click="mobileOpen=false" class="rounded-full border border-slate-200 dark:border-slate-700 px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-slate-300">Categories</a>
+                    <a href="{{ route('browse.type', 'languages') }}" @click="mobileOpen=false" class="rounded-full border border-slate-200 dark:border-slate-700 px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-slate-300">Languages</a>
+                    <a href="{{ route('browse.type', 'licenses') }}" @click="mobileOpen=false" class="rounded-full border border-slate-200 dark:border-slate-700 px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-slate-300">Licenses</a>
+                </div>
                 <a href="{{ route('collections.index') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 {{ request()->routeIs('collections.*') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-700 dark:text-slate-200 active:bg-slate-100 dark:active:bg-slate-800' }}">Collections</a>
                 <a href="{{ route('trending') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 {{ request()->routeIs('trending') ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200' : 'text-slate-700 dark:text-slate-200 active:bg-slate-100 dark:active:bg-slate-800' }}">Trending</a>
                 <a href="{{ route('leaderboard') }}" @click="mobileOpen=false" class="flex items-center rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 active:bg-slate-100 dark:active:bg-slate-800">Rankings</a>
@@ -204,6 +222,9 @@
                         <p class="font-semibold text-slate-900 dark:text-white mb-3">Product</p>
                         <ul class="space-y-2 text-slate-500 dark:text-slate-400">
                             <li><a href="{{ route('finder') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Alternatives</a></li>
+                            <li><a href="{{ route('browse.type', 'categories') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Browse by category</a></li>
+                            <li><a href="{{ route('browse.type', 'languages') }}" class="hover:text-slate-800 dark:hover:text-slate-200">By language</a></li>
+                            <li><a href="{{ route('browse.type', 'licenses') }}" class="hover:text-slate-800 dark:hover:text-slate-200">By license</a></li>
                             <li><a href="{{ route('collections.index') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Collections</a></li>
                             <li><a href="{{ route('trending') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Trending</a></li>
                             <li><a href="{{ route('leaderboard') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Rankings</a></li>
@@ -246,42 +267,25 @@
                     </div>
                 </div>
             </div>
-            <div class="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-400">
-                © {{ date('Y') }} Alternova. All trademarks belong to their owners.
-            </div>
+            <p class="mt-10 text-center text-xs text-slate-400">&copy; {{ date('Y') }} {{ config('app.name', 'Alternova') }}</p>
         </div>
     </footer>
 
-    @include('partials.cookie-consent')
-
+    @livewireScripts
     <script>
         function themeApp() {
             return {
-                dark: false,
+                dark: document.documentElement.classList.contains('dark'),
                 init() {
-                    const saved = localStorage.getItem('alternova-theme');
-                    if (saved === 'dark') this.dark = true;
-                    else if (saved === 'light') this.dark = false;
-                    else this.dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                    this.apply();
+                    this.dark = document.documentElement.classList.contains('dark');
                 },
                 toggle() {
                     this.dark = !this.dark;
-                    localStorage.setItem('alternova-theme', this.dark ? 'dark' : 'light');
-                    this.apply();
-                },
-                apply() {
                     document.documentElement.classList.toggle('dark', this.dark);
+                    try { localStorage.setItem('alternova-theme', this.dark ? 'dark' : 'light'); } catch (e) {}
                 }
             }
         }
-
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function () {
-                navigator.serviceWorker.register('{{ url('/sw.js') }}').catch(function () {});
-            });
-        }
     </script>
-    @livewireScripts
 </body>
 </html>
