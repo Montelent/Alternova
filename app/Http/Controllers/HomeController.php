@@ -15,9 +15,16 @@ class HomeController extends Controller
     public function __invoke(): View
     {
         $hasSponsored = Schema::hasColumn('open_source_alternatives', 'is_sponsored');
+        $with = ['proprietaryTool', 'repoMetric'];
+        try {
+            if (Schema::hasTable('alternative_proprietary_tool')) {
+                $with[] = 'proprietaryTools';
+            }
+        } catch (\Throwable) {
+        }
 
         $featuredQuery = OpenSourceAlternative::query()
-            ->with(['proprietaryTool', 'repoMetric'])
+            ->with($with)
             ->where('is_published', true);
 
         if ($hasSponsored) {
@@ -35,7 +42,7 @@ class HomeController extends Controller
 
         if ($featured->isEmpty() || (! $hasSponsored && $featured->where('is_featured', true)->isEmpty())) {
             $featured = OpenSourceAlternative::query()
-                ->with(['proprietaryTool', 'repoMetric'])
+                ->with($with)
                 ->where('is_published', true)
                 ->orderByDesc('overall_health_score')
                 ->orderByDesc('updated_at')
@@ -44,21 +51,21 @@ class HomeController extends Controller
         }
 
         $recent = OpenSourceAlternative::query()
-            ->with(['proprietaryTool', 'repoMetric'])
+            ->with($with)
             ->where('is_published', true)
             ->orderByDesc('created_at')
             ->limit(6)
             ->get();
 
         $popular = OpenSourceAlternative::query()
-            ->with(['proprietaryTool', 'repoMetric'])
+            ->with($with)
             ->where('is_published', true)
             ->where('votes_count', '>', 0)
             ->orderByDesc('votes_count')
             ->limit(6)
             ->get();
 
-        $trending = $this->trending(6);
+        $trending = $this->trending(6, $with);
 
         $tools = ProprietaryTool::query()
             ->where('is_published', true)
@@ -73,22 +80,10 @@ class HomeController extends Controller
             if (Schema::hasTable('collections')) {
                 $collections = Collection::query()
                     ->where('is_published', true)
-                    ->where('is_featured', true)
                     ->withCount('items')
-                    ->orderBy('sort_order')
-                    ->orderBy('name')
+                    ->orderByDesc('updated_at')
                     ->limit(6)
                     ->get();
-
-                if ($collections->isEmpty()) {
-                    $collections = Collection::query()
-                        ->where('is_published', true)
-                        ->withCount('items')
-                        ->orderBy('sort_order')
-                        ->orderByDesc('updated_at')
-                        ->limit(4)
-                        ->get();
-                }
             }
         } catch (\Throwable) {
         }
@@ -96,47 +91,49 @@ class HomeController extends Controller
         $stats = [
             'alternatives' => OpenSourceAlternative::query()->where('is_published', true)->count(),
             'tools' => ProprietaryTool::query()->where('is_published', true)->count(),
-            'featured' => OpenSourceAlternative::query()->where('is_published', true)->where('is_featured', true)->count(),
         ];
 
-        return view('welcome', compact('featured', 'recent', 'popular', 'trending', 'tools', 'collections', 'stats'));
+        return view('welcome', compact(
+            'featured',
+            'recent',
+            'popular',
+            'trending',
+            'tools',
+            'collections',
+            'stats'
+        ));
     }
 
-    protected function trending(int $limit = 6)
+    protected function trending(int $limit = 6, array $with = ['proprietaryTool', 'repoMetric'])
     {
         try {
             if (! Schema::hasTable('alternative_votes')) {
                 return collect();
             }
 
-            $counts = AlternativeVote::query()
-                ->where('created_at', '>=', now()->subDays(7))
-                ->select('open_source_alternative_id', DB::raw('COUNT(*) as period_votes'))
+            $ids = AlternativeVote::query()
+                ->select('open_source_alternative_id', DB::raw('COUNT(*) as c'))
+                ->where('created_at', '>=', now()->subDays(14))
                 ->groupBy('open_source_alternative_id')
-                ->orderByDesc('period_votes')
+                ->orderByDesc('c')
                 ->limit($limit)
-                ->pluck('period_votes', 'open_source_alternative_id');
+                ->pluck('open_source_alternative_id');
 
-            if ($counts->isEmpty()) {
-                return collect();
+            if ($ids->isEmpty()) {
+                return OpenSourceAlternative::query()
+                    ->with($with)
+                    ->where('is_published', true)
+                    ->orderByDesc('votes_count')
+                    ->limit($limit)
+                    ->get();
             }
 
-            $alts = OpenSourceAlternative::query()
-                ->with(['proprietaryTool', 'repoMetric'])
+            return OpenSourceAlternative::query()
+                ->with($with)
                 ->where('is_published', true)
-                ->whereIn('id', $counts->keys())
-                ->get()
-                ->keyBy('id');
-
-            return $counts->map(function ($votes, $id) use ($alts) {
-                $alt = $alts->get($id);
-                if (! $alt) {
-                    return null;
-                }
-                $alt->period_votes = (int) $votes;
-
-                return $alt;
-            })->filter()->values();
+                ->whereIn('id', $ids)
+                ->orderByRaw('FIELD(id, '.$ids->implode(',').')')
+                ->get();
         } catch (\Throwable) {
             return collect();
         }
