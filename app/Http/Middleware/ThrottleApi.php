@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\ApiSettings;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -14,10 +15,10 @@ class ThrottleApi
         $apiKey = $request->attributes->get('api_key');
 
         if ($apiKey) {
-            $limit = 600; // authenticated: 600/min
+            $limit = ApiSettings::rateLimitAuthenticated();
             $bucket = 'api-key:'.$apiKey->id;
         } else {
-            $limit = 60; // anonymous: 60/min
+            $limit = ApiSettings::rateLimitAnonymous();
             $bucket = 'api-ip:'.$request->ip();
         }
 
