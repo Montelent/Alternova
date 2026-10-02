@@ -1,1 +1,1 @@
-SEE_FILE2
+@include('livewire.partials.alternative-detail-body')
