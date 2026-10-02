@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class SupportTicketService
 {
@@ -58,16 +59,18 @@ class SupportTicketService
 
         $this->notifyUser($ticket, 'created', $data['message'], config('app.name', 'Support'));
 
-        // Notify admins (users with is_admin if present, else skip)
         try {
             $admins = User::query()
-                ->when(Schema::hasColumn('users', 'is_admin'), fn ($q) => $q->where('is_admin', true))
-                ->when(Schema::hasColumn('users', 'role'), fn ($q) => $q->orWhereIn('role', ['admin', 'editor']))
+                ->when(Schema::hasColumn('users', 'role'), fn ($q) => $q->whereIn('role', ['admin', 'editor']))
                 ->limit(20)
                 ->get();
 
+            if ($admins->isEmpty()) {
+                $admins = User::query()->orderBy('id')->limit(3)->get();
+            }
+
             foreach ($admins as $admin) {
-                if (! $admin->email || strcasecmp($admin->email, $ticket->email) === 0) {
+                if (! $admin->email || strcasecmp((string) $admin->email, $ticket->email) === 0) {
                     continue;
                 }
                 try {
@@ -84,8 +87,8 @@ class SupportTicketService
                     app(UserNotificationService::class)->create(
                         $admin,
                         'support_ticket',
-                        'New support ticket '.$ticket->public_id,
-                        StrLimit($ticket->subject ?: $data['message'], 120),
+                        'New support ticket '.($ticket->public_id ?: '#'.$ticket->id),
+                        Str::limit($ticket->subject ?: $data['message'], 120),
                         url('/admin/contact-messages/'.$ticket->id),
                         ['ticket_id' => $ticket->id]
                     );
@@ -121,13 +124,16 @@ class SupportTicketService
             'is_internal' => $internal,
         ]);
 
-        $ticket->forceFill([
+        $updates = [
             'status' => 'read',
-            'ticket_status' => $internal ? ($ticket->ticket_status ?? 'open') : 'awaiting_user',
             'last_reply_at' => now(),
             'last_reply_by' => 'staff',
             'read_at' => $ticket->read_at ?? now(),
-        ])->save();
+        ];
+        if (Schema::hasColumn('contact_messages', 'ticket_status') && ! $internal) {
+            $updates['ticket_status'] = 'awaiting_user';
+        }
+        $ticket->forceFill($updates)->save();
 
         if (! $internal) {
             $this->notifyUser($ticket, 'staff_reply', $body, $staff?->name ?? 'Support');
@@ -157,21 +163,20 @@ class SupportTicketService
             'is_internal' => false,
         ]);
 
-        if (! $ticket->user_id) {
-            $ticket->user_id = $user->id;
-        }
-
-        $ticket->forceFill([
+        $updates = [
             'status' => 'unread',
-            'ticket_status' => 'awaiting_staff',
             'last_reply_at' => now(),
             'last_reply_by' => 'user',
-        ])->save();
+        ];
+        if (Schema::hasColumn('contact_messages', 'user_id') && ! $ticket->user_id) {
+            $updates['user_id'] = $user->id;
+        }
+        if (Schema::hasColumn('contact_messages', 'ticket_status')) {
+            $updates['ticket_status'] = 'awaiting_staff';
+        }
+        $ticket->forceFill($updates)->save();
 
-        // Email site admins about user reply
         $this->notifyAdminsOfUserReply($ticket, $body, $user);
-
-        // Confirm to user
         $this->notifyUser($ticket, 'user_reply', $body, $user->name);
 
         return $reply;
@@ -179,10 +184,11 @@ class SupportTicketService
 
     public function close(ContactMessage $ticket): void
     {
-        $ticket->forceFill([
-            'ticket_status' => 'closed',
-            'status' => 'archived',
-        ])->save();
+        $updates = ['status' => 'archived'];
+        if (Schema::hasColumn('contact_messages', 'ticket_status')) {
+            $updates['ticket_status'] = 'closed';
+        }
+        $ticket->forceFill($updates)->save();
 
         $this->notifyUser($ticket, 'closed', 'This ticket was marked closed. Open a new contact message if you need more help.');
     }
@@ -205,17 +211,17 @@ class SupportTicketService
         if ($user) {
             try {
                 $title = match ($event) {
-                    'created' => 'Ticket '.$ticket->public_id.' created',
-                    'staff_reply' => 'Support replied on '.$ticket->public_id,
-                    'user_reply' => 'Your reply was posted on '.$ticket->public_id,
-                    'closed' => 'Ticket '.$ticket->public_id.' closed',
+                    'created' => 'Ticket '.($ticket->public_id ?: '#'.$ticket->id).' created',
+                    'staff_reply' => 'Support replied on '.($ticket->public_id ?: '#'.$ticket->id),
+                    'user_reply' => 'Your reply was posted on '.($ticket->public_id ?: '#'.$ticket->id),
+                    'closed' => 'Ticket '.($ticket->public_id ?: '#'.$ticket->id).' closed',
                     default => 'Ticket update',
                 };
                 app(UserNotificationService::class)->create(
                     $user,
                     'support_ticket',
                     $title,
-                    StrLimit($body, 160),
+                    Str::limit($body, 160),
                     $ticket->publicUrl(),
                     ['ticket_id' => $ticket->id, 'event' => $event]
                 );
@@ -242,20 +248,22 @@ class SupportTicketService
                     continue;
                 }
                 try {
-                    Mail::to($admin->email)->send(new SupportTicketMail(
-                        $ticket,
-                        'user_reply',
-                        $body,
-                        $user->name
-                    ));
+                    if ($admin->email) {
+                        Mail::to($admin->email)->send(new SupportTicketMail(
+                            $ticket,
+                            'user_reply',
+                            $body,
+                            $user->name
+                        ));
+                    }
                 } catch (\Throwable) {
                 }
                 try {
                     app(UserNotificationService::class)->create(
                         $admin,
                         'support_ticket',
-                        'User replied on '.$ticket->public_id,
-                        StrLimit($body, 120),
+                        'User replied on '.($ticket->public_id ?: '#'.$ticket->id),
+                        Str::limit($body, 120),
                         url('/admin/contact-messages/'.$ticket->id),
                         ['ticket_id' => $ticket->id]
                     );
@@ -266,15 +274,4 @@ class SupportTicketService
             Log::debug('Admin user-reply notify: '.$e->getMessage());
         }
     }
-}
-
-/** @internal */
-function StrLimit(string $value, int $limit): string
-{
-    $value = trim(preg_replace('/\s+/', ' ', $value) ?? '');
-    if (mb_strlen($value) <= $limit) {
-        return $value;
-    }
-
-    return mb_substr($value, 0, $limit - 1).'…';
 }

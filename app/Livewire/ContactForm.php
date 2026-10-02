@@ -2,7 +2,8 @@
 
 namespace App\Livewire;
 
-use App\Models\ContactMessage;
+use App\Services\SupportTicketService;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Component;
 
@@ -19,6 +20,18 @@ class ContactForm extends Component
     public string $website = '';
 
     public bool $sent = false;
+
+    public ?string $ticketPublicId = null;
+
+    public ?string $ticketUrl = null;
+
+    public function mount(): void
+    {
+        if (Auth::check()) {
+            $this->name = (string) (Auth::user()->name ?? '');
+            $this->email = (string) (Auth::user()->email ?? '');
+        }
+    }
 
     protected function rules(): array
     {
@@ -52,13 +65,18 @@ class ContactForm extends Component
 
         RateLimiter::hit($key, 3600);
 
-        ContactMessage::create([
+        $ticket = app(SupportTicketService::class)->createTicket([
             ...$data,
-            'status' => 'unread',
             'ip_address' => request()->ip(),
-        ]);
+        ], Auth::user());
 
+        $this->ticketPublicId = $ticket->public_id;
+        $this->ticketUrl = $ticket->publicUrl();
         $this->reset(['name', 'email', 'subject', 'message', 'website']);
+        if (Auth::check()) {
+            $this->name = (string) Auth::user()->name;
+            $this->email = (string) Auth::user()->email;
+        }
         $this->sent = true;
     }
 
@@ -66,8 +84,9 @@ class ContactForm extends Component
     {
         return view('livewire.contact-form')
             ->layout('layouts.app', [
-                'title' => 'Contact — Alternova',
-                'description' => 'Contact the Alternova team for feedback, corrections, or partnership inquiries.',
+                'title' => 'Contact — '.config('app.name', 'Alternova'),
+                'description' => 'Open a support ticket for feedback, corrections, or partnership inquiries.',
+                'canonical' => route('contact'),
             ]);
     }
 }
