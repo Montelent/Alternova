@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\FavoriteService;
 use App\Services\SeoManager;
 use App\Services\WatchlistService;
+use App\Support\ApiSettings;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -100,10 +101,22 @@ class AccountPage extends Component
             return;
         }
 
-        $this->validate(['apiKeyName' => ['required', 'string', 'max:80']]);
+        if (! ApiSettings::isGloballyEnabled()) {
+            $this->apiKeyMessage = 'The public API is disabled by the site administrator.';
+
+            return;
+        }
 
         /** @var User $user */
         $user = Auth::user();
+        if (! $user->hasApiAccess()) {
+            $this->apiKeyMessage = 'API access is disabled for your account. Contact the site administrator.';
+
+            return;
+        }
+
+        $this->validate(['apiKeyName' => ['required', 'string', 'max:80']]);
+
         $issued = ApiKey::issue($user, trim($this->apiKeyName));
         $this->newPlainKey = $issued['plain'];
         $this->apiKeyName = '';
