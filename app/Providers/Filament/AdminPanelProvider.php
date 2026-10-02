@@ -39,6 +39,8 @@ class AdminPanelProvider extends PanelProvider
             ->font('Inter')
             ->sidebarCollapsibleOnDesktop()
             ->sidebarFullyCollapsibleOnDesktop()
+            ->sidebarWidth('17.5rem')
+            ->collapsedSidebarWidth('4.5rem')
             ->maxContentWidth(MaxWidth::Full)
             ->globalSearchKeyBindings(['command+k', 'ctrl+k'])
             ->navigationGroups([
@@ -46,6 +48,7 @@ class AdminPanelProvider extends PanelProvider
                 'Open Source Finder',
                 'Engagement',
                 'System',
+                'Monetization',
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
