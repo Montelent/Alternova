@@ -8,14 +8,13 @@ use App\Services\DomainCheckService;
 use App\Services\DomainCombinatorService;
 use App\Services\SeoManager;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
-use Livewire\Attributes\Url;
 use Livewire\Component;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DomainCombinator extends Component
 {
-    #[Url]
     public array $keywords = [];
 
     public string $keywordInput = '';
@@ -26,7 +25,7 @@ class DomainCombinator extends Component
 
     public array $prefixes = ['get', 'my', 'the', 'try', 'use'];
 
-    public array $suffixes = ['ly', 'ify', 'hub', 'app', 'hq', 'io'];
+    public array $suffixes = ['ly', 'ify', 'hub', 'app', 'hq'];
 
     public array $selectedTlds = ['com', 'io', 'dev', 'app', 'co'];
 
@@ -34,7 +33,7 @@ class DomainCombinator extends Component
 
     public int $maxSyllables = 4;
 
-    public int $minBrandability = 50;
+    public int $minBrandability = 40;
 
     public array $results = [];
 
@@ -46,24 +45,24 @@ class DomainCombinator extends Component
 
     public string $errorMessage = '';
 
-    protected DomainCombinatorService $combinator;
-
-    protected DomainCheckService $checker;
-
-    public function boot(DomainCombinatorService $combinator, DomainCheckService $checker): void
-    {
-        $this->combinator = $combinator;
-        $this->checker = $checker;
-    }
-
     public function mount(): void
     {
         $this->loadSaved();
     }
 
+    protected function combinator(): DomainCombinatorService
+    {
+        return app(DomainCombinatorService::class);
+    }
+
+    protected function checker(): DomainCheckService
+    {
+        return app(DomainCheckService::class);
+    }
+
     protected function sessionKey(): string
     {
-        return substr(hash('sha256', session()->getId() ?: request()->ip()), 0, 64);
+        return substr(hash('sha256', session()->getId() ?: (string) request()->ip()), 0, 64);
     }
 
     public function loadSaved(): void
@@ -97,59 +96,68 @@ class DomainCombinator extends Component
 
     public function toggleSave(string $domain, int $score = 0, string $status = ''): void
     {
-        $sid = $this->sessionKey();
-        $uid = Auth::id();
+        try {
+            $sid = $this->sessionKey();
+            $uid = Auth::id();
 
-        $q = SavedDomain::query()->where('domain', $domain);
-        if ($uid) {
-            $q->where(function ($inner) use ($uid, $sid) {
-                $inner->where('user_id', $uid)->orWhere('session_id', $sid);
-            });
-        } else {
-            $q->where('session_id', $sid);
+            $q = SavedDomain::query()->where('domain', $domain);
+            if ($uid) {
+                $q->where(function ($inner) use ($uid, $sid) {
+                    $inner->where('user_id', $uid)->orWhere('session_id', $sid);
+                });
+            } else {
+                $q->where('session_id', $sid);
+            }
+
+            $existing = $q->first();
+
+            if ($existing) {
+                $existing->delete();
+            } else {
+                SavedDomain::create([
+                    'session_id' => $sid,
+                    'user_id' => $uid,
+                    'domain' => $domain,
+                    'brandability' => $score ?: null,
+                    'status' => $status ?: null,
+                ]);
+            }
+
+            $this->loadSaved();
+        } catch (\Throwable $e) {
+            $this->errorMessage = 'Could not save domain: '.$e->getMessage();
         }
-
-        $existing = $q->first();
-
-        if ($existing) {
-            $existing->delete();
-        } else {
-            SavedDomain::create([
-                'session_id' => $sid,
-                'user_id' => $uid,
-                'domain' => $domain,
-                'brandability' => $score ?: null,
-                'status' => $status ?: null,
-            ]);
-        }
-
-        $this->loadSaved();
     }
 
     public function clearSaved(): void
     {
-        $q = SavedDomain::query();
-        if (Auth::id()) {
-            $q->where(function ($inner) {
-                $inner->where('user_id', Auth::id())
-                    ->orWhere('session_id', $this->sessionKey());
-            });
-        } else {
-            $q->where('session_id', $this->sessionKey());
+        try {
+            $q = SavedDomain::query();
+            if (Auth::id()) {
+                $q->where(function ($inner) {
+                    $inner->where('user_id', Auth::id())
+                        ->orWhere('session_id', $this->sessionKey());
+                });
+            } else {
+                $q->where('session_id', $this->sessionKey());
+            }
+            $q->delete();
+            $this->saved = [];
+        } catch (\Throwable) {
+            $this->saved = [];
         }
-        $q->delete();
-        $this->saved = [];
     }
 
     public function isSaved(string $domain): bool
     {
-        return collect($this->saved)->contains(fn ($s) => $s['domain'] === $domain);
+        return collect($this->saved)->contains(fn ($s) => ($s['domain'] ?? '') === $domain);
     }
 
     public function addKeyword(): void
     {
-        $kw = trim(strtolower($this->keywordInput));
-        if ($kw && ! in_array($kw, $this->keywords) && count($this->keywords) < 8) {
+        $kw = strtolower(trim(preg_replace('/[^a-z0-9\s-]/i', '', $this->keywordInput) ?? ''));
+        $kw = str_replace([' ', '-'], '', $kw);
+        if ($kw !== '' && ! in_array($kw, $this->keywords, true) && count($this->keywords) < 8) {
             $this->keywords[] = $kw;
         }
         $this->keywordInput = '';
@@ -162,8 +170,8 @@ class DomainCombinator extends Component
 
     public function addPrefix(): void
     {
-        $p = trim(strtolower(preg_replace('/[^a-z0-9]/i', '', $this->prefixInput) ?? ''));
-        if ($p && ! in_array($p, $this->prefixes, true) && count($this->prefixes) < 12) {
+        $p = strtolower(trim(preg_replace('/[^a-z0-9]/i', '', $this->prefixInput) ?? ''));
+        if ($p !== '' && ! in_array($p, $this->prefixes, true) && count($this->prefixes) < 12) {
             $this->prefixes[] = $p;
         }
         $this->prefixInput = '';
@@ -176,8 +184,8 @@ class DomainCombinator extends Component
 
     public function addSuffix(): void
     {
-        $s = trim(strtolower(preg_replace('/[^a-z0-9]/i', '', $this->suffixInput) ?? ''));
-        if ($s && ! in_array($s, $this->suffixes, true) && count($this->suffixes) < 12) {
+        $s = strtolower(trim(preg_replace('/[^a-z0-9]/i', '', $this->suffixInput) ?? ''));
+        if ($s !== '' && ! in_array($s, $this->suffixes, true) && count($this->suffixes) < 12) {
             $this->suffixes[] = $s;
         }
         $this->suffixInput = '';
@@ -188,97 +196,109 @@ class DomainCombinator extends Component
         $this->suffixes = array_values(array_filter($this->suffixes, fn ($x) => $x !== $suffix));
     }
 
+    /**
+     * Generate names only (no network). Availability runs in checkNextBatch via poll.
+     */
     public function generate(): void
     {
         $this->errorMessage = '';
-
-        $key = 'domain-gen:'.request()->ip();
-        if (RateLimiter::tooManyAttempts($key, 30)) {
-            $this->errorMessage = 'Rate limit: max 30 generations per hour from this network. Try later.';
-
-            return;
-        }
-        RateLimiter::hit($key, 3600);
-
-        $this->validate([
-            'keywords' => 'required|array|min:1|max:8',
-            'selectedTlds' => 'required|array|min:1',
-        ]);
-
-        $this->isGenerating = true;
-        $this->isChecking = false;
         $this->results = [];
-
-        $raw = $this->combinator->generateCombinations(
-            $this->keywords,
-            $this->prefixes,
-            $this->suffixes,
-            $this->selectedTlds
-        );
-
-        $filtered = [];
-        foreach ($raw as $domain) {
-            $name = explode('.', $domain)[0];
-            if (strlen($name) > $this->maxLength) {
-                continue;
-            }
-
-            $score = $this->combinator->calculateBrandabilityScore($domain);
-            if ($score < $this->minBrandability) {
-                continue;
-            }
-
-            $filtered[] = [
-                'domain' => $domain,
-                'score' => $score,
-                'status' => 'pending',
-                'affiliate' => [],
-            ];
-        }
-
-        usort($filtered, fn ($a, $b) => $b['score'] <=> $a['score']);
-        $this->results = array_slice($filtered, 0, 48);
+        $this->isChecking = false;
 
         try {
-            DomainSearchLog::create([
-                'seed_keywords' => $this->keywords,
-                'selected_tlds' => $this->selectedTlds,
-                'domain_generated_count' => count($this->results),
-                'ip_address' => request()->ip(),
-                'user_id' => auth()->id(),
-            ]);
-        } catch (\Throwable) {
-        }
+            $key = 'domain-gen:'.(request()->ip() ?: 'cli');
+            if (RateLimiter::tooManyAttempts($key, 40)) {
+                $this->errorMessage = 'Rate limit: max 40 generations per hour from this network. Try later.';
 
-        $this->isGenerating = false;
-        $this->isChecking = count($this->results) > 0;
-        $this->dispatch('domains-generated');
-
-        // Kick first batch in same request for snappier UX
-        $this->checkNextBatch();
-    }
-
-    public function checkDomain(string $domain): void
-    {
-        $result = $this->checker->check($domain);
-
-        foreach ($this->results as &$item) {
-            if ($item['domain'] === $domain) {
-                $item['status'] = $result['status'];
-                if ($result['status'] === 'available') {
-                    $item['affiliate'] = $this->checker->affiliateLinks($domain);
-                }
-                break;
+                return;
             }
+            RateLimiter::hit($key, 3600);
+
+            // Auto-add typed keyword if user forgot to click Add
+            if ($this->keywordInput !== '') {
+                $this->addKeyword();
+            }
+
+            if (count($this->keywords) < 1) {
+                $this->errorMessage = 'Add at least one seed keyword, then click Generate.';
+
+                return;
+            }
+
+            if (count($this->selectedTlds) < 1) {
+                $this->errorMessage = 'Select at least one TLD (e.g. .com).';
+
+                return;
+            }
+
+            $raw = $this->combinator()->generateCombinations(
+                $this->keywords,
+                $this->prefixes,
+                $this->suffixes,
+                $this->selectedTlds
+            );
+
+            $filtered = [];
+            foreach ($raw as $domain) {
+                $name = explode('.', $domain)[0] ?? '';
+                if ($name === '' || strlen($name) > $this->maxLength) {
+                    continue;
+                }
+
+                $score = $this->combinator()->calculateBrandabilityScore($domain);
+                if ($score < $this->minBrandability) {
+                    continue;
+                }
+
+                $filtered[] = [
+                    'domain' => $domain,
+                    'score' => $score,
+                    'status' => 'pending',
+                    'affiliate' => [],
+                ];
+            }
+
+            usort($filtered, fn ($a, $b) => $b['score'] <=> $a['score']);
+            $this->results = array_slice($filtered, 0, 36);
+
+            if ($this->results === []) {
+                $this->errorMessage = 'No names matched your filters. Try lowering min brandability or increasing max length.';
+
+                return;
+            }
+
+            try {
+                DomainSearchLog::create([
+                    'seed_keywords' => $this->keywords,
+                    'selected_tlds' => $this->selectedTlds,
+                    'domain_generated_count' => count($this->results),
+                    'ip_address' => request()->ip(),
+                    'user_id' => auth()->id(),
+                ]);
+            } catch (\Throwable) {
+            }
+
+            // Availability is checked in follow-up requests (poll), not here — avoids PHP timeouts.
+            $this->isChecking = true;
+        } catch (\Throwable $e) {
+            Log::warning('Domain generate failed: '.$e->getMessage());
+            $this->errorMessage = 'Generation failed: '.$e->getMessage();
+            $this->results = [];
+            $this->isChecking = false;
         }
-        unset($item);
     }
 
     public function checkNextBatch(): void
     {
+        if ($this->results === []) {
+            $this->isChecking = false;
+
+            return;
+        }
+
         $pending = collect($this->results)
             ->where('status', 'pending')
-            ->take(10)
+            ->take(5)
             ->pluck('domain')
             ->all();
 
@@ -290,30 +310,46 @@ class DomainCombinator extends Component
 
         $this->isChecking = true;
 
-        // Mark as checking for UI feedback
         foreach ($this->results as &$item) {
-            if (in_array($item['domain'], $pending, true) && $item['status'] === 'pending') {
+            if (in_array($item['domain'], $pending, true) && ($item['status'] ?? '') === 'pending') {
                 $item['status'] = 'checking';
             }
         }
         unset($item);
 
-        $checked = $this->checker->checkMany($pending);
+        try {
+            $checked = $this->checker()->checkMany($pending);
+        } catch (\Throwable $e) {
+            Log::debug('Domain batch check error: '.$e->getMessage());
+            // Mark as unknown so UI does not spin forever
+            foreach ($this->results as &$item) {
+                if (in_array($item['domain'], $pending, true)) {
+                    $item['status'] = 'unknown';
+                }
+            }
+            unset($item);
+            $this->isChecking = collect($this->results)->contains(
+                fn ($r) => in_array($r['status'] ?? '', ['pending', 'checking'], true)
+            );
+
+            return;
+        }
 
         foreach ($this->results as &$item) {
             $d = $item['domain'];
             if (! isset($checked[$d])) {
                 continue;
             }
-            $item['status'] = $checked[$d]['status'];
-            if ($checked[$d]['status'] === 'available') {
-                $item['affiliate'] = $this->checker->affiliateLinks($d);
+            $item['status'] = $checked[$d]['status'] ?? 'unknown';
+            if (($item['status'] ?? '') === 'available') {
+                $item['affiliate'] = $this->checker()->affiliateLinks($d);
             }
         }
         unset($item);
 
-        $still = collect($this->results)->contains(fn ($r) => in_array($r['status'], ['pending', 'checking'], true));
-        $this->isChecking = $still;
+        $this->isChecking = collect($this->results)->contains(
+            fn ($r) => in_array($r['status'] ?? '', ['pending', 'checking'], true)
+        );
     }
 
     public function exportCsv(): StreamedResponse

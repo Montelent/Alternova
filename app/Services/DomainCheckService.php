@@ -9,17 +9,16 @@ use Illuminate\Support\Facades\Log;
 class DomainCheckService
 {
     /**
-     * Fast availability check: DNS first (local), RDAP only if needed, 24h cache.
+     * Fast availability check: DNS first, optional short RDAP, 24h cache.
      *
      * @return array{domain: string, available: bool|null, status: string, checked_at: string}
      */
     public function check(string $domain): array
     {
         $domain = strtolower(trim($domain));
-        $cacheKey = 'domain_check:v2:'.$domain;
+        $cacheKey = 'domain_check:v3:'.$domain;
 
         return Cache::remember($cacheKey, now()->addHours(24), function () use ($domain) {
-            // DNS is local and fast — enough to mark most taken domains
             if ($this->hasDnsRecords($domain)) {
                 return [
                     'domain' => $domain,
@@ -29,6 +28,7 @@ class DomainCheckService
                 ];
             }
 
+            // Short RDAP only — never block the UI for long
             $rdap = $this->checkRdap($domain);
 
             if ($rdap === true) {
@@ -40,7 +40,6 @@ class DomainCheckService
                 ];
             }
 
-            // No DNS + RDAP not found (or unknown) → treat as available for idea hunting
             return [
                 'domain' => $domain,
                 'available' => true,
@@ -51,8 +50,6 @@ class DomainCheckService
     }
 
     /**
-     * Check many domains; results keyed by domain. Uses cache aggressively.
-     *
      * @param  list<string>  $domains
      * @return array<string, array{domain: string, available: bool|null, status: string, checked_at: string}>
      */
@@ -60,7 +57,17 @@ class DomainCheckService
     {
         $out = [];
         foreach ($domains as $domain) {
-            $out[$domain] = $this->check($domain);
+            try {
+                $out[$domain] = $this->check($domain);
+            } catch (\Throwable $e) {
+                Log::debug('Domain check error '.$domain.': '.$e->getMessage());
+                $out[$domain] = [
+                    'domain' => $domain,
+                    'available' => null,
+                    'status' => 'unknown',
+                    'checked_at' => now()->toIso8601String(),
+                ];
+            }
         }
 
         return $out;
@@ -83,19 +90,19 @@ class DomainCheckService
     protected function hasDnsRecords(string $domain): bool
     {
         try {
-            // Fast path: gethostbyname
             $ip = @gethostbyname($domain);
             if ($ip && $ip !== $domain && filter_var($ip, FILTER_VALIDATE_IP)) {
                 return true;
             }
 
-            foreach (['A', 'AAAA', 'NS', 'MX'] as $type) {
-                $const = 'DNS_'.$type;
-                if (! defined($const)) {
-                    continue;
+            // Only A/NS — skip slow multi-type scans
+            if (function_exists('dns_get_record')) {
+                $a = @dns_get_record($domain, DNS_A);
+                if (! empty($a)) {
+                    return true;
                 }
-                $records = @dns_get_record($domain, constant($const));
-                if (! empty($records)) {
+                $ns = @dns_get_record($domain, DNS_NS);
+                if (! empty($ns)) {
                     return true;
                 }
             }
@@ -114,31 +121,35 @@ class DomainCheckService
         $tld = $this->extractTld($domain);
         $endpoints = $this->rdapEndpoints($tld);
 
-        foreach (array_slice($endpoints, 0, 2) as $base) {
-            try {
-                $url = rtrim($base, '/').'/domain/'.$domain;
-                $response = Http::timeout(2.5)
-                    ->connectTimeout(1.5)
-                    ->withHeaders(['Accept' => 'application/rdap+json, application/json'])
-                    ->get($url);
+        // One endpoint only, very short timeout for shared hosting
+        $base = $endpoints[0] ?? null;
+        if (! $base) {
+            return null;
+        }
 
-                if ($response->status() === 404) {
-                    return false;
-                }
+        try {
+            $url = rtrim($base, '/').'/domain/'.$domain;
+            $response = Http::timeout(1.8)
+                ->connectTimeout(1.2)
+                ->withHeaders(['Accept' => 'application/rdap+json, application/json'])
+                ->get($url);
 
-                if ($response->successful()) {
-                    $body = $response->json();
-                    if (is_array($body) && (
-                        isset($body['objectClassName'])
-                        || isset($body['ldhName'])
-                        || isset($body['handle'])
-                    )) {
-                        return true;
-                    }
-                }
-            } catch (\Throwable $e) {
-                Log::debug('RDAP check failed for '.$domain.': '.$e->getMessage());
+            if ($response->status() === 404) {
+                return false;
             }
+
+            if ($response->successful()) {
+                $body = $response->json();
+                if (is_array($body) && (
+                    isset($body['objectClassName'])
+                    || isset($body['ldhName'])
+                    || isset($body['handle'])
+                )) {
+                    return true;
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::debug('RDAP check failed for '.$domain.': '.$e->getMessage());
         }
 
         return null;
@@ -165,9 +176,6 @@ class DomainCheckService
             'ai' => ['https://rdap.nic.ai'],
         ];
 
-        $list = $map[$tld] ?? [];
-        $list[] = 'https://rdap.org';
-
-        return $list;
+        return $map[$tld] ?? ['https://rdap.org'];
     }
 }
