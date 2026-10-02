@@ -77,6 +77,16 @@ class ApiKeyResource extends Resource
                         $record->revoke();
                         Notification::make()->title('API key revoked')->success()->send();
                     }),
+                Tables\Actions\Action::make('reactivate')
+                    ->label('Reactivate')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->visible(fn (ApiKey $record) => ! $record->isActive())
+                    ->action(function (ApiKey $record) {
+                        $record->forceFill(['revoked_at' => null])->save();
+                        Notification::make()->title('API key reactivated')->success()->send();
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
