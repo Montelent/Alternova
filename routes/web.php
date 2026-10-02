@@ -54,47 +54,42 @@ Route::get('/browse/{type}/{slug}', BrowseHub::class)->whereIn('type', ['categor
 Route::get('/alternatives/compare', CompareAlternatives::class)->name('alternatives.compare');
 Route::get('/leaderboard', Leaderboard::class)->name('leaderboard');
 Route::get('/trending', TrendingPage::class)->name('trending');
+Route::get('/whats-new', WhatsNewController::class)->name('whats-new');
 Route::get('/collections', CollectionIndex::class)->name('collections.index');
 Route::get('/collections/{slug}', CollectionShow::class)->name('collections.show');
 Route::get('/alternatives/{slug}', AlternativeDetail::class)->name('alternatives.show');
-
 Route::get('/alternativesto/{slug}', ProprietaryToolShow::class)->name('alternativesto.show');
-Route::get('/tools/{slug}', function (string $slug) {
-    return redirect()->route('alternativesto.show', $slug, 301);
-})->name('tools.show');
-
-Route::get('/embed/tools/{slug}', [EmbedController::class, 'tool'])->name('embed.tool');
-
-Route::get('/og/alternative/{slug}', [OgImageController::class, 'alternative'])->where('slug', '.*')->name('og.alternative');
-Route::get('/og/tool/{slug}', [OgImageController::class, 'tool'])->where('slug', '.*')->name('og.tool');
-Route::get('/og/collection/{slug}', [OgImageController::class, 'collection'])->where('slug', '.*')->name('og.collection');
-Route::get('/og/compare/{a}/{b}', [OgImageController::class, 'compare'])
-    ->where('a', '[A-Za-z0-9\-_]+')
-    ->where('b', '[A-Za-z0-9\-_.]+')
-    ->name('og.compare');
-
-Route::get('/whats-new', WhatsNewController::class)->name('whats-new');
-Route::get('/favorites', FavoritesPage::class)->name('favorites');
-
-Route::get('/login', Login::class)->name('login')->middleware('guest');
-Route::get('/register', Register::class)->name('register')->middleware('guest');
-Route::get('/forgot-password', ForgotPassword::class)->name('password.request')->middleware('guest');
-Route::get('/reset-password/{token}', ResetPassword::class)->name('password.reset')->middleware('guest');
-Route::get('/account', AccountPage::class)->name('account');
-Route::get('/notifications', NotificationsPage::class)->name('notifications');
-Route::get('/account/export/favorites', [AccountExportController::class, 'favorites'])->middleware('auth')->name('account.export.favorites');
-Route::get('/account/export/watchlist', [AccountExportController::class, 'watchlist'])->middleware('auth')->name('account.export.watchlist');
-
-Route::get('/badge/{slug}/health.svg', [BadgeController::class, 'health'])->name('badge.health');
-
 Route::get('/domains', DomainCombinator::class)->name('domains');
-Route::get('/go/{provider}', AffiliateRedirectController::class)
-    ->whereIn('provider', ['namecheap', 'porkbun', 'godaddy'])
-    ->middleware('throttle:60,1')
-    ->name('affiliate.go');
+
+Route::get('/go/{provider}/{domain}', AffiliateRedirectController::class)->name('affiliate.go');
+Route::get('/badge/{slug}.svg', [BadgeController::class, 'svg'])->name('badge.svg');
+Route::get('/embed/{slug}', [EmbedController::class, 'show'])->name('embed.show');
+Route::get('/og/{type}/{slug}.png', [OgImageController::class, 'show'])->name('og.image');
+
+Route::middleware('auth')->group(function () {
+    Route::get('/account', AccountPage::class)->name('account');
+    Route::get('/account/export', AccountExportController::class)->name('account.export');
+    Route::get('/favorites', FavoritesPage::class)->name('favorites');
+    Route::get('/notifications', NotificationsPage::class)->name('notifications');
+});
+
+Route::middleware('guest')->group(function () {
+    Route::get('/login', Login::class)->name('login');
+    Route::get('/register', Register::class)->name('register');
+    Route::get('/forgot-password', ForgotPassword::class)->name('password.request');
+    Route::get('/reset-password/{token}', ResetPassword::class)->name('password.reset');
+});
+
+Route::post('/logout', function () {
+    auth()->logout();
+    request()->session()->invalidate();
+    request()->session()->regenerateToken();
+
+    return redirect('/');
+})->middleware('auth')->name('logout');
 
 Route::get('/suggest', SuggestAlternative::class)->name('suggest');
-Route::get('/suggest/collection', SuggestCollection::class)->name('suggest.collection');
+Route::get('/suggest-collection', SuggestCollection::class)->name('suggest.collection');
 Route::get('/submissions/{token}', SubmissionStatusController::class)->name('submissions.status');
 Route::get('/collection-submissions/{token}', CollectionSubmissionStatusController::class)->name('collection-submissions.status');
 Route::get('/contact', ContactForm::class)->name('contact');
@@ -120,6 +115,12 @@ Route::prefix('api')->middleware(['api.key', 'api.throttle'])->group(function ()
 });
 
 Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
+Route::get('/sitemap-static.xml', [SitemapController::class, 'staticPages'])->name('sitemap.static');
+Route::get('/sitemap-pages.xml', [SitemapController::class, 'pages'])->name('sitemap.pages');
+Route::get('/sitemap-tools.xml', [SitemapController::class, 'tools'])->name('sitemap.tools');
+Route::get('/sitemap-alternatives.xml', [SitemapController::class, 'alternatives'])->name('sitemap.alternatives');
+Route::get('/sitemap-categories.xml', [SitemapController::class, 'categories'])->name('sitemap.categories');
+Route::get('/sitemap-collections.xml', [SitemapController::class, 'collections'])->name('sitemap.collections');
 
 Route::get('/ads.txt', function () {
     $path = public_path('ads.txt');
