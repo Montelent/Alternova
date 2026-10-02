@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Forms\Components\TinyEditor;
 use App\Filament\Forms\ImageField;
 use App\Filament\Forms\SeoForm;
+use App\Filament\Forms\TagsField;
 use App\Filament\Resources\ProprietaryToolResource\Pages;
 use App\Models\ProprietaryTool;
 use App\Services\DescriptionGeneratorService;
@@ -80,7 +81,7 @@ class ProprietaryToolResource extends Resource
                                     ->send();
                             }),
                     ])->columnSpanFull(),
-                    Forms\Components\TagsInput::make('key_features')->columnSpanFull(),
+                    TagsField::make('key_features', 'Key features')->columnSpanFull(),
                     Forms\Components\TextInput::make('target_audience'),
                     Forms\Components\Toggle::make('is_published')
                         ->label('Published')
