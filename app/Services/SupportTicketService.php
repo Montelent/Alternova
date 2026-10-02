@@ -1,0 +1,280 @@
+<?php
+
+namespace App\Services;
+
+use App\Mail\SupportTicketMail;
+use App\Models\ContactMessage;
+use App\Models\ContactMessageReply;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
+
+class SupportTicketService
+{
+    public function ready(): bool
+    {
+        try {
+            return Schema::hasTable('contact_messages');
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    public function repliesReady(): bool
+    {
+        try {
+            return Schema::hasTable('contact_message_replies');
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * @param  array{name:string,email:string,subject?:string,message:string,ip_address?:string}  $data
+     */
+    public function createTicket(array $data, ?User $user = null): ContactMessage
+    {
+        $user = $user ?: Auth::user();
+
+        $payload = [
+            'name' => $data['name'],
+            'email' => strtolower(trim($data['email'])),
+            'subject' => $data['subject'] ?? null,
+            'message' => $data['message'],
+            'status' => 'unread',
+            'ip_address' => $data['ip_address'] ?? request()->ip(),
+        ];
+
+        if (Schema::hasColumn('contact_messages', 'user_id')) {
+            $payload['user_id'] = $user?->id;
+        }
+        if (Schema::hasColumn('contact_messages', 'ticket_status')) {
+            $payload['ticket_status'] = 'open';
+        }
+
+        $ticket = ContactMessage::create($payload);
+
+        $this->notifyUser($ticket, 'created', $data['message'], config('app.name', 'Support'));
+
+        // Notify admins (users with is_admin if present, else skip)
+        try {
+            $admins = User::query()
+                ->when(Schema::hasColumn('users', 'is_admin'), fn ($q) => $q->where('is_admin', true))
+                ->when(Schema::hasColumn('users', 'role'), fn ($q) => $q->orWhereIn('role', ['admin', 'editor']))
+                ->limit(20)
+                ->get();
+
+            foreach ($admins as $admin) {
+                if (! $admin->email || strcasecmp($admin->email, $ticket->email) === 0) {
+                    continue;
+                }
+                try {
+                    Mail::to($admin->email)->send(new SupportTicketMail(
+                        $ticket,
+                        'user_reply',
+                        $data['message'],
+                        $ticket->name
+                    ));
+                } catch (\Throwable $e) {
+                    Log::debug('Admin ticket mail failed: '.$e->getMessage());
+                }
+                try {
+                    app(UserNotificationService::class)->create(
+                        $admin,
+                        'support_ticket',
+                        'New support ticket '.$ticket->public_id,
+                        StrLimit($ticket->subject ?: $data['message'], 120),
+                        url('/admin/contact-messages/'.$ticket->id),
+                        ['ticket_id' => $ticket->id]
+                    );
+                } catch (\Throwable) {
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::debug('Admin notify failed: '.$e->getMessage());
+        }
+
+        return $ticket;
+    }
+
+    public function replyAsStaff(ContactMessage $ticket, string $body, ?User $staff = null, bool $internal = false): ?ContactMessageReply
+    {
+        if (! $this->repliesReady()) {
+            return null;
+        }
+
+        $staff = $staff ?: Auth::user();
+        $body = trim($body);
+        if ($body === '') {
+            return null;
+        }
+
+        $reply = ContactMessageReply::create([
+            'contact_message_id' => $ticket->id,
+            'user_id' => $staff?->id,
+            'author_type' => 'staff',
+            'author_name' => $staff?->name ?? 'Support',
+            'author_email' => $staff?->email,
+            'body' => $body,
+            'is_internal' => $internal,
+        ]);
+
+        $ticket->forceFill([
+            'status' => 'read',
+            'ticket_status' => $internal ? ($ticket->ticket_status ?? 'open') : 'awaiting_user',
+            'last_reply_at' => now(),
+            'last_reply_by' => 'staff',
+            'read_at' => $ticket->read_at ?? now(),
+        ])->save();
+
+        if (! $internal) {
+            $this->notifyUser($ticket, 'staff_reply', $body, $staff?->name ?? 'Support');
+        }
+
+        return $reply;
+    }
+
+    public function replyAsUser(ContactMessage $ticket, string $body, User $user): ?ContactMessageReply
+    {
+        if (! $this->repliesReady() || ! $ticket->canBeRepliedBy($user)) {
+            return null;
+        }
+
+        $body = trim($body);
+        if ($body === '') {
+            return null;
+        }
+
+        $reply = ContactMessageReply::create([
+            'contact_message_id' => $ticket->id,
+            'user_id' => $user->id,
+            'author_type' => 'user',
+            'author_name' => $user->name,
+            'author_email' => $user->email,
+            'body' => $body,
+            'is_internal' => false,
+        ]);
+
+        if (! $ticket->user_id) {
+            $ticket->user_id = $user->id;
+        }
+
+        $ticket->forceFill([
+            'status' => 'unread',
+            'ticket_status' => 'awaiting_staff',
+            'last_reply_at' => now(),
+            'last_reply_by' => 'user',
+        ])->save();
+
+        // Email site admins about user reply
+        $this->notifyAdminsOfUserReply($ticket, $body, $user);
+
+        // Confirm to user
+        $this->notifyUser($ticket, 'user_reply', $body, $user->name);
+
+        return $reply;
+    }
+
+    public function close(ContactMessage $ticket): void
+    {
+        $ticket->forceFill([
+            'ticket_status' => 'closed',
+            'status' => 'archived',
+        ])->save();
+
+        $this->notifyUser($ticket, 'closed', 'This ticket was marked closed. Open a new contact message if you need more help.');
+    }
+
+    protected function notifyUser(ContactMessage $ticket, string $event, string $body, string $actor = 'Support'): void
+    {
+        if ($ticket->email) {
+            try {
+                Mail::to($ticket->email)->send(new SupportTicketMail($ticket, $event, $body, $actor));
+            } catch (\Throwable $e) {
+                Log::warning('Ticket email failed: '.$e->getMessage());
+            }
+        }
+
+        $user = $ticket->user;
+        if (! $user && $ticket->email) {
+            $user = User::query()->where('email', $ticket->email)->first();
+        }
+
+        if ($user) {
+            try {
+                $title = match ($event) {
+                    'created' => 'Ticket '.$ticket->public_id.' created',
+                    'staff_reply' => 'Support replied on '.$ticket->public_id,
+                    'user_reply' => 'Your reply was posted on '.$ticket->public_id,
+                    'closed' => 'Ticket '.$ticket->public_id.' closed',
+                    default => 'Ticket update',
+                };
+                app(UserNotificationService::class)->create(
+                    $user,
+                    'support_ticket',
+                    $title,
+                    StrLimit($body, 160),
+                    $ticket->publicUrl(),
+                    ['ticket_id' => $ticket->id, 'event' => $event]
+                );
+            } catch (\Throwable $e) {
+                Log::debug('Ticket in-app notify failed: '.$e->getMessage());
+            }
+        }
+    }
+
+    protected function notifyAdminsOfUserReply(ContactMessage $ticket, string $body, User $user): void
+    {
+        try {
+            $admins = User::query()
+                ->when(Schema::hasColumn('users', 'role'), fn ($q) => $q->whereIn('role', ['admin', 'editor']))
+                ->limit(15)
+                ->get();
+
+            if ($admins->isEmpty()) {
+                $admins = User::query()->orderBy('id')->limit(3)->get();
+            }
+
+            foreach ($admins as $admin) {
+                if ((int) $admin->id === (int) $user->id) {
+                    continue;
+                }
+                try {
+                    Mail::to($admin->email)->send(new SupportTicketMail(
+                        $ticket,
+                        'user_reply',
+                        $body,
+                        $user->name
+                    ));
+                } catch (\Throwable) {
+                }
+                try {
+                    app(UserNotificationService::class)->create(
+                        $admin,
+                        'support_ticket',
+                        'User replied on '.$ticket->public_id,
+                        StrLimit($body, 120),
+                        url('/admin/contact-messages/'.$ticket->id),
+                        ['ticket_id' => $ticket->id]
+                    );
+                } catch (\Throwable) {
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::debug('Admin user-reply notify: '.$e->getMessage());
+        }
+    }
+}
+
+/** @internal */
+function StrLimit(string $value, int $limit): string
+{
+    $value = trim(preg_replace('/\s+/', ' ', $value) ?? '');
+    if (mb_strlen($value) <= $limit) {
+        return $value;
+    }
+
+    return mb_substr($value, 0, $limit - 1).'…';
+}
