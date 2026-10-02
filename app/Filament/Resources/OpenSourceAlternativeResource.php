@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Forms\Components\TinyEditor;
 use App\Filament\Forms\ImageField;
 use App\Filament\Forms\SeoForm;
+use App\Filament\Forms\TagsField;
 use App\Filament\Resources\OpenSourceAlternativeResource\Pages;
 use App\Jobs\SyncGitHubMetricsJob;
 use App\Models\LicenseType;
@@ -196,14 +197,14 @@ class OpenSourceAlternativeResource extends Resource
                         ->datalist(['PHP', 'JavaScript', 'TypeScript', 'Python', 'Go', 'Rust', 'Java', 'Ruby', 'C#', 'Swift', 'Kotlin']),
                     Forms\Components\TextInput::make('overall_health_score')->numeric()->disabled(),
                     Forms\Components\Textarea::make('docker_compose_blueprint')->rows(10)->columnSpanFull(),
-                    Forms\Components\TagsInput::make('pros')->columnSpanFull(),
-                    Forms\Components\TagsInput::make('cons')->columnSpanFull(),
+                    TagsField::make('pros', 'Pros')->columnSpanFull(),
+                    TagsField::make('cons', 'Cons')->columnSpanFull(),
                     TinyEditor::make('editor_note')->label('Editor note')->height(220)->columnSpanFull(),
                     TinyEditor::make('changelog')->label('Public changelog / notes')->height(280)->columnSpanFull(),
                     ImageField::multiple('gallery_paths', 'Screenshots (upload)', 'gallery', 12),
-                    Forms\Components\TagsInput::make('gallery_urls')
-                        ->label('Extra screenshot URLs')
-                        ->placeholder('https://…')
+                    TagsField::make('gallery_urls', 'Extra screenshot URLs')
+                        ->placeholder('https://example.com/shot.png')
+                        ->helperText('Paste multiple image URLs separated by commas')
                         ->columnSpanFull(),
                 ])->columns(2),
 
