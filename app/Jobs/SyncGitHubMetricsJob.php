@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\OpenSourceAlternative;
 use App\Models\RepoMetric;
+use App\Support\GitHubUrl;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -30,16 +31,15 @@ class SyncGitHubMetricsJob implements ShouldQueue
         $this->alternative->refresh();
 
         $repoUrl = trim((string) $this->alternative->repo_url);
+        $parsed = GitHubUrl::parse($repoUrl);
 
-        if (! preg_match('~github\.com[/:]([^/\s]+)/([^/\s\.?#]+)~i', $repoUrl, $matches)) {
+        if (! $parsed) {
             Log::warning("Invalid GitHub URL for alternative {$this->alternative->id}: {$repoUrl}");
 
             return;
         }
 
-        $owner = $matches[1];
-        $repo = rtrim($matches[2], '/');
-        $repo = preg_replace('/\.git$/i', '', $repo);
+        [$owner, $repo] = $parsed;
 
         $token = config('services.github.token') ?: env('GITHUB_TOKEN');
 
@@ -57,7 +57,7 @@ class SyncGitHubMetricsJob implements ShouldQueue
         }
 
         try {
-            $response = $request->get("https://api.github.com/repos/{$owner}/{$repo}");
+            $response = $request->get(GitHubUrl::apiRepoUrl($owner, $repo));
 
             if ($response->failed()) {
                 Log::error("GitHub API failed for {$owner}/{$repo}", [
@@ -72,7 +72,7 @@ class SyncGitHubMetricsJob implements ShouldQueue
 
             $languages = [];
             try {
-                $languagesResponse = $request->get("https://api.github.com/repos/{$owner}/{$repo}/languages");
+                $languagesResponse = $request->get(GitHubUrl::apiRepoUrl($owner, $repo).'/languages');
                 if ($languagesResponse->successful()) {
                     $languages = $languagesResponse->json() ?: [];
                 }
