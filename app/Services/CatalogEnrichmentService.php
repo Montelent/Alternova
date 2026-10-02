@@ -17,7 +17,11 @@ class CatalogEnrichmentService
 {
     protected static bool $running = false;
 
-    public function enrichAlternative(OpenSourceAlternative $alt, bool $forceDescription = false): array
+    /**
+     * @param  array{repo_changed?: bool, website_changed?: bool, force_description?: bool}  $opts
+     * @return array<string, mixed>
+     */
+    public function enrichAlternative(OpenSourceAlternative $alt, array $opts = []): array
     {
         if (static::$running) {
             return ['skipped' => true];
@@ -25,6 +29,10 @@ class CatalogEnrichmentService
 
         static::$running = true;
         $notes = [];
+
+        $repoChanged = (bool) ($opts['repo_changed'] ?? false);
+        $websiteChanged = (bool) ($opts['website_changed'] ?? false);
+        $forceDescription = (bool) ($opts['force_description'] ?? false);
 
         try {
             $alt->refresh();
@@ -61,15 +69,11 @@ class CatalogEnrichmentService
 
             // 2) Health score / GitHub metrics when repo URL present
             if ($alt->repo_url && GitHubUrl::parse((string) $alt->repo_url)) {
-                $needsMetrics = $alt->overall_health_score === null
-                    || (float) $alt->overall_health_score <= 0
-                    || $alt->wasChanged('repo_url')
-                    || ! $alt->repoMetric;
-
-                // wasChanged only works mid-request; after refresh check relation
-                if (! $needsMetrics) {
-                    $needsMetrics = ! $alt->repoMetric()->exists();
-                }
+                $hasMetric = $alt->repoMetric()->exists();
+                $needsMetrics = $repoChanged
+                    || ! $hasMetric
+                    || $alt->overall_health_score === null
+                    || (float) $alt->overall_health_score <= 0;
 
                 if ($needsMetrics) {
                     try {
@@ -84,8 +88,8 @@ class CatalogEnrichmentService
 
             // 3) Link health when URLs exist and never checked, or URLs changed
             $needsLinkCheck = $alt->links_checked_at === null
-                || $alt->wasChanged('repo_url')
-                || $alt->wasChanged('website_url');
+                || $repoChanged
+                || $websiteChanged;
 
             if ($needsLinkCheck && ($alt->repo_url || $alt->website_url)) {
                 try {
@@ -103,7 +107,11 @@ class CatalogEnrichmentService
         }
     }
 
-    public function enrichProprietaryTool(ProprietaryTool $tool, bool $forceDescription = false): array
+    /**
+     * @param  array{force_description?: bool}  $opts
+     * @return array<string, mixed>
+     */
+    public function enrichProprietaryTool(ProprietaryTool $tool, array $opts = []): array
     {
         if (static::$running) {
             return ['skipped' => true];
@@ -111,6 +119,7 @@ class CatalogEnrichmentService
 
         static::$running = true;
         $notes = [];
+        $forceDescription = (bool) ($opts['force_description'] ?? false);
 
         try {
             $tool->refresh();

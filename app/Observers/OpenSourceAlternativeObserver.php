@@ -11,18 +11,29 @@ class OpenSourceAlternativeObserver
 {
     public function created(OpenSourceAlternative $alternative): void
     {
-        $this->enrich($alternative);
+        $this->enrich($alternative, [
+            'repo_changed' => true,
+            'website_changed' => true,
+        ]);
     }
 
     public function updated(OpenSourceAlternative $alternative): void
     {
-        // Enrich when key fields change or still missing enrichment data
-        if ($alternative->wasChanged(['repo_url', 'website_url', 'description', 'is_published'])
+        $repoChanged = $alternative->wasChanged('repo_url');
+        $websiteChanged = $alternative->wasChanged('website_url');
+
+        $should = $repoChanged
+            || $websiteChanged
+            || $alternative->wasChanged(['description', 'is_published'])
             || $alternative->overall_health_score === null
             || (float) $alternative->overall_health_score <= 0
-            || $alternative->links_checked_at === null
-        ) {
-            $this->enrich($alternative);
+            || $alternative->links_checked_at === null;
+
+        if ($should) {
+            $this->enrich($alternative, [
+                'repo_changed' => $repoChanged,
+                'website_changed' => $websiteChanged,
+            ]);
         }
     }
 
@@ -53,10 +64,11 @@ class OpenSourceAlternativeObserver
             ->delete();
     }
 
-    protected function enrich(OpenSourceAlternative $alternative): void
+    /** @param  array{repo_changed?: bool, website_changed?: bool}  $opts */
+    protected function enrich(OpenSourceAlternative $alternative, array $opts = []): void
     {
         try {
-            app(CatalogEnrichmentService::class)->enrichAlternative($alternative);
+            app(CatalogEnrichmentService::class)->enrichAlternative($alternative, $opts);
         } catch (\Throwable $e) {
             Log::warning('Catalog enrichment (alternative) failed: '.$e->getMessage());
         }
