@@ -26,6 +26,7 @@ class User extends Authenticatable implements FilamentUser, CanResetPasswordCont
         'email',
         'password',
         'role',
+        'is_active',
         'email_verified_at',
     ];
 
@@ -39,6 +40,7 @@ class User extends Authenticatable implements FilamentUser, CanResetPasswordCont
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_active' => 'boolean',
         ];
     }
 
@@ -64,12 +66,22 @@ class User extends Authenticatable implements FilamentUser, CanResetPasswordCont
 
     public function canAccessPanel(Panel $panel): bool
     {
+        if (! $this->isActive()) {
+            return false;
+        }
+
         if (($this->role ?? '') === self::ROLE_MEMBER) {
             return false;
         }
 
         return in_array($this->role, [self::ROLE_ADMIN, self::ROLE_EDITOR], true)
             || $this->role === null;
+    }
+
+    public function isActive(): bool
+    {
+        // Default true if column missing / null (legacy installs)
+        return ($this->is_active ?? true) === true;
     }
 
     public function isAdmin(): bool

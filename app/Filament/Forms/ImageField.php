@@ -2,15 +2,18 @@
 
 namespace App\Filament\Forms;
 
+use App\Services\ImageOptimizer;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Group;
 use Filament\Forms\Components\TextInput;
+use Illuminate\Support\Facades\Storage;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 class ImageField
 {
     /**
      * Upload into {app}/uploads/{directory} — served at /uploads/...
-     * Uses the dedicated "uploads" disk (base_path, not public/).
+     * Auto-converts heavy JPEG/PNG to WebP when GD supports it.
      */
     public static function make(
         string $name,
@@ -29,7 +32,7 @@ class ImageField
                 '16:9',
                 '4:3',
             ])
-            ->maxSize(5120)
+            ->maxSize(8192)
             ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'])
             ->disk('uploads')
             ->directory($directory)
@@ -38,7 +41,15 @@ class ImageField
             ->openable()
             ->previewable()
             ->imagePreviewHeight('120')
-            ->helperText('Saved to /uploads/'.$directory.'/ (site root). Max 5MB.')
+            ->helperText('Saved to /uploads/'.$directory.'/. JPEG/PNG auto-optimized to WebP when possible. Max 8MB.')
+            ->saveUploadedFileUsing(function (TemporaryUploadedFile $file, $component) use ($directory) {
+                $disk = 'uploads';
+                $filename = $file->hashName();
+                $path = trim($directory, '/').'/'.$filename;
+                $file->storeAs(trim($directory, '/'), $filename, $disk);
+
+                return app(ImageOptimizer::class)->optimizeStored($disk, $path);
+            })
             ->columnSpanFull();
 
         if (! $withUrlFallback) {
@@ -71,7 +82,7 @@ class ImageField
             ->reorderable()
             ->maxFiles($max)
             ->imageEditor()
-            ->maxSize(5120)
+            ->maxSize(8192)
             ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
             ->disk('uploads')
             ->directory($directory)
@@ -79,7 +90,15 @@ class ImageField
             ->downloadable()
             ->openable()
             ->previewable()
-            ->helperText("Saved to /uploads/{$directory}/. Up to {$max} images, max 5MB each.")
+            ->helperText("Saved to /uploads/{$directory}/. Auto WebP for large JPEG/PNG. Up to {$max} images.")
+            ->saveUploadedFileUsing(function (TemporaryUploadedFile $file) use ($directory) {
+                $disk = 'uploads';
+                $filename = $file->hashName();
+                $path = trim($directory, '/').'/'.$filename;
+                $file->storeAs(trim($directory, '/'), $filename, $disk);
+
+                return app(ImageOptimizer::class)->optimizeStored($disk, $path);
+            })
             ->columnSpanFull();
     }
 }
