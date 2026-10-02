@@ -16,8 +16,8 @@ return new class extends Migration
             if (! Schema::hasColumn('open_source_alternatives', 'logo_path')) {
                 $table->string('logo_path', 500)->nullable()->after('slug');
             }
-            if (! Schema::hasColumn('open_source_alternatives', 'logo_url')) {
-                $table->string('logo_url', 500)->nullable()->after('logo_path');
+            if (! Schema::hasColumn('open_source_alternatives', 'external_logo_url')) {
+                $table->string('external_logo_url', 500)->nullable()->after('logo_path');
             }
         });
     }
@@ -29,8 +29,8 @@ return new class extends Migration
         }
 
         Schema::table('open_source_alternatives', function (Blueprint $table) {
-            if (Schema::hasColumn('open_source_alternatives', 'logo_url')) {
-                $table->dropColumn('logo_url');
+            if (Schema::hasColumn('open_source_alternatives', 'external_logo_url')) {
+                $table->dropColumn('external_logo_url');
             }
             if (Schema::hasColumn('open_source_alternatives', 'logo_path')) {
                 $table->dropColumn('logo_path');
