@@ -59,9 +59,16 @@ class UserResource extends Resource
 
         if (Schema::hasColumn('users', 'is_active')) {
             $schema[] = Forms\Components\Toggle::make('is_active')
-                ->label('Active')
+                ->label('Account active')
                 ->default(true)
-                ->helperText('Inactive users cannot sign in to the admin panel.');
+                ->helperText('Off = user cannot sign in (admin or frontend).');
+        }
+
+        if (Schema::hasColumn('users', 'api_enabled')) {
+            $schema[] = Forms\Components\Toggle::make('api_enabled')
+                ->label('Allow API access')
+                ->default(true)
+                ->helperText('Off = this user’s API keys are rejected even if not revoked. Global API must also be on (System → API access).');
         }
 
         return $form->schema([
@@ -93,11 +100,41 @@ class UserResource extends Resource
             ]);
         }
 
+        if (Schema::hasColumn('users', 'api_enabled')) {
+            $columns[] = Tables\Columns\IconColumn::make('api_enabled')
+                ->label('API')
+                ->boolean()
+                ->sortable();
+        }
+
         return $table
             ->columns($columns)
             ->defaultSort('name')
             ->actions([
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\Action::make('enableApi')
+                    ->label('Enable API')
+                    ->icon('heroicon-o-signal')
+                    ->color('success')
+                    ->visible(fn (User $record) => Schema::hasColumn('users', 'api_enabled')
+                        && ! ($record->api_enabled ?? true))
+                    ->action(function (User $record) {
+                        $record->forceFill(['api_enabled' => true])->save();
+                        Notification::make()->title('API access enabled')->success()->send();
+                    }),
+                Tables\Actions\Action::make('disableApi')
+                    ->label('Disable API')
+                    ->icon('heroicon-o-signal-slash')
+                    ->color('warning')
+                    ->requiresConfirmation()
+                    ->modalHeading('Disable API for this user?')
+                    ->modalDescription('Their API keys will stop working immediately. Keys are not deleted.')
+                    ->visible(fn (User $record) => Schema::hasColumn('users', 'api_enabled')
+                        && ($record->api_enabled ?? true))
+                    ->action(function (User $record) {
+                        $record->forceFill(['api_enabled' => false])->save();
+                        Notification::make()->title('API access disabled')->success()->send();
+                    }),
                 Tables\Actions\Action::make('activate')
                     ->label('Activate')
                     ->icon('heroicon-o-check-circle')
