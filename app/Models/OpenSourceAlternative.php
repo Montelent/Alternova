@@ -147,9 +147,19 @@ class OpenSourceAlternative extends Model
         return $this->hasOne(RepoMetric::class);
     }
 
+    public function votes(): HasMany
+    {
+        return $this->hasMany(AlternativeVote::class);
+    }
+
     public function healthSnapshots(): HasMany
     {
         return $this->hasMany(HealthScoreSnapshot::class);
+    }
+
+    public function watches(): HasMany
+    {
+        return $this->hasMany(WatchedAlternative::class);
     }
 
     public function comments(): HasMany
@@ -162,9 +172,9 @@ class OpenSourceAlternative extends Model
         return $this->hasMany(AlternativeProsCon::class);
     }
 
-    public function votes(): HasMany
+    public function getRouteKeyName(): string
     {
-        return $this->hasMany(AlternativeVote::class);
+        return 'slug';
     }
 
     public function scopePublished(Builder $query): Builder
@@ -172,14 +182,7 @@ class OpenSourceAlternative extends Model
         return $query->where('is_published', true);
     }
 
-    public function getRouteKeyName(): string
-    {
-        return 'slug';
-    }
-
     /**
-     * All screenshot URLs: uploaded files (gallery_paths) + external URLs (gallery_urls).
-     *
      * @return list<string>
      */
     public function galleryImageUrls(): array
@@ -208,6 +211,39 @@ class OpenSourceAlternative extends Model
         return array_values(array_unique($urls));
     }
 
+    public function hasActiveSponsorship(): bool
+    {
+        if (! $this->is_sponsored) {
+            return false;
+        }
+
+        if ($this->sponsored_until && $this->sponsored_until->isPast()) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public function scopeActivelySponsored(Builder $query): Builder
+    {
+        return $query->where('is_sponsored', true)
+            ->where(function (Builder $q) {
+                $q->whereNull('sponsored_until')
+                    ->orWhere('sponsored_until', '>', now());
+            });
+    }
+
+    public function resolveRouteBinding($value, $field = null)
+    {
+        $field = $field ?: $this->getRouteKeyName();
+
+        return $this->where($field, $value)
+            ->where(function (Builder $q) {
+                $q->where('is_published', true)->orWhereNull('is_published');
+            })
+            ->first();
+    }
+
     public function toSearchableArray(): array
     {
         return [
@@ -224,5 +260,25 @@ class OpenSourceAlternative extends Model
     public function shouldBeSearchable(): bool
     {
         return (bool) $this->is_published;
+    }
+
+    public function seoTitle(): string
+    {
+        return app(SeoManager::class)->alternativeTitle($this);
+    }
+
+    public function seoDescription(): string
+    {
+        return app(SeoManager::class)->alternativeDescription($this);
+    }
+
+    public function hasBrokenLinks(): bool
+    {
+        return $this->repo_reachable === false || $this->website_reachable === false;
+    }
+
+    public function recalculateHealthScore(): float
+    {
+        return app(HealthHistoryService::class)->recalculate($this);
     }
 }
