@@ -1,5 +1,6 @@
 <div class="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+        <x-ad-slot slot="domain_page" class="mb-6" />
         <div class="text-center mb-8 sm:mb-10">
             <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 dark:text-white tracking-tight">Domain Name Idea Combinator</h1>
             <p class="mt-3 text-base sm:text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
@@ -130,18 +131,16 @@
 
                             @if($item['status'] === 'available' && !empty($item['affiliate']))
                                 <div class="flex flex-wrap gap-2 text-xs">
-                                    <a href="{{ $item['affiliate']['namecheap'] ?? '#' }}" target="_blank" rel="noopener sponsored"
-                                        class="text-brand-600 hover:underline">Namecheap</a>
-                                    <a href="{{ $item['affiliate']['porkbun'] ?? '#' }}" target="_blank" rel="noopener sponsored"
-                                        class="text-brand-600 hover:underline">Porkbun</a>
-                                    <a href="{{ $item['affiliate']['godaddy'] ?? '#' }}" target="_blank" rel="noopener sponsored"
-                                        class="text-brand-600 hover:underline">GoDaddy</a>
+                                    <a href="{{ $item['affiliate']['namecheap'] ?? '#' }}" target="_blank" rel="noopener sponsored" class="text-brand-600 hover:underline">Namecheap</a>
+                                    <a href="{{ $item['affiliate']['porkbun'] ?? '#' }}" target="_blank" rel="noopener sponsored" class="text-brand-600 hover:underline">Porkbun</a>
+                                    <a href="{{ $item['affiliate']['godaddy'] ?? '#' }}" target="_blank" rel="noopener sponsored" class="text-brand-600 hover:underline">GoDaddy</a>
                                 </div>
                             @endif
                         </div>
                     </div>
                 @endforeach
             </div>
+            <x-ad-slot slot="between_list" class="my-8" />
         @endif
     </div>
 </div>
