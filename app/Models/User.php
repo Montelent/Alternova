@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Schema;
 
 class User extends Authenticatable implements FilamentUser, CanResetPasswordContract
 {
@@ -27,6 +28,7 @@ class User extends Authenticatable implements FilamentUser, CanResetPasswordCont
         'password',
         'role',
         'is_active',
+        'api_enabled',
         'email_verified_at',
     ];
 
@@ -41,6 +43,7 @@ class User extends Authenticatable implements FilamentUser, CanResetPasswordCont
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'api_enabled' => 'boolean',
         ];
     }
 
@@ -82,6 +85,23 @@ class User extends Authenticatable implements FilamentUser, CanResetPasswordCont
     {
         // Default true if column missing / null (legacy installs)
         return ($this->is_active ?? true) === true;
+    }
+
+    /**
+     * Whether this account may use the public API (keys still must be valid).
+     * Defaults to true when the column is missing (pre-migration installs).
+     */
+    public function hasApiAccess(): bool
+    {
+        try {
+            if (! Schema::hasColumn('users', 'api_enabled')) {
+                return true;
+            }
+        } catch (\Throwable) {
+            return true;
+        }
+
+        return ($this->api_enabled ?? true) === true;
     }
 
     public function isAdmin(): bool
