@@ -3,7 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\ApiKey;
-use App\Models\FavoriteAlternative;
+use App\Models\ContactMessage;
 use App\Models\OpenSourceAlternative;
 use App\Models\SavedDomain;
 use App\Models\User;
@@ -57,7 +57,6 @@ class AccountPage extends Component
     public function updateProfile(): void
     {
         $this->profileMessage = '';
-
         /** @var User $user */
         $user = Auth::user();
 
@@ -77,7 +76,6 @@ class AccountPage extends Component
     public function updatePassword(): void
     {
         $this->passwordMessage = '';
-
         /** @var User $user */
         $user = Auth::user();
 
@@ -86,10 +84,7 @@ class AccountPage extends Component
             'password' => ['required', 'confirmed', Password::defaults()],
         ]);
 
-        $user->forceFill([
-            'password' => Hash::make($this->password),
-        ])->save();
-
+        $user->forceFill(['password' => Hash::make($this->password)])->save();
         $this->reset('current_password', 'password', 'password_confirmation');
         $this->passwordMessage = 'Password updated.';
     }
@@ -105,9 +100,7 @@ class AccountPage extends Component
             return;
         }
 
-        $this->validate([
-            'apiKeyName' => ['required', 'string', 'max:80'],
-        ]);
+        $this->validate(['apiKeyName' => ['required', 'string', 'max:80']]);
 
         /** @var User $user */
         $user = Auth::user();
@@ -123,11 +116,7 @@ class AccountPage extends Component
             return;
         }
 
-        $key = ApiKey::query()
-            ->where('user_id', Auth::id())
-            ->where('id', $id)
-            ->first();
-
+        $key = ApiKey::query()->where('user_id', Auth::id())->where('id', $id)->first();
         if ($key && $key->revoked_at === null) {
             $key->revoke();
             $this->apiKeyMessage = 'API key revoked.';
@@ -150,10 +139,7 @@ class AccountPage extends Component
 
     public function removeDomain(int $id): void
     {
-        SavedDomain::query()
-            ->where('user_id', Auth::id())
-            ->where('id', $id)
-            ->delete();
+        SavedDomain::query()->where('user_id', Auth::id())->where('id', $id)->delete();
     }
 
     protected function apiKeysReady(): bool
@@ -172,11 +158,7 @@ class AccountPage extends Component
             return collect();
         }
 
-        return ApiKey::query()
-            ->where('user_id', Auth::id())
-            ->orderByDesc('created_at')
-            ->limit(50)
-            ->get();
+        return ApiKey::query()->where('user_id', Auth::id())->orderByDesc('created_at')->limit(50)->get();
     }
 
     /** @return Collection<int, OpenSourceAlternative> */
@@ -207,10 +189,31 @@ class AccountPage extends Component
                 return collect();
             }
 
-            return SavedDomain::query()
-                ->where('user_id', Auth::id())
-                ->orderByDesc('created_at')
-                ->limit(50)
+            return SavedDomain::query()->where('user_id', Auth::id())->orderByDesc('created_at')->limit(50)->get();
+        } catch (\Throwable) {
+            return collect();
+        }
+    }
+
+    /** @return Collection<int, ContactMessage> */
+    protected function loadTickets(): Collection
+    {
+        try {
+            if (! Schema::hasTable('contact_messages')) {
+                return collect();
+            }
+
+            $email = Auth::user()->email;
+
+            return ContactMessage::query()
+                ->where(function ($q) use ($email) {
+                    $q->where('user_id', Auth::id());
+                    if ($email) {
+                        $q->orWhere('email', $email);
+                    }
+                })
+                ->orderByDesc('updated_at')
+                ->limit(30)
                 ->get();
         } catch (\Throwable) {
             return collect();
@@ -229,9 +232,10 @@ class AccountPage extends Component
             'favorites' => $this->loadFavorites(),
             'watched' => $this->loadWatched(),
             'domains' => $this->loadDomains(),
+            'tickets' => $this->loadTickets(),
         ])->layout('layouts.app', [
             'title' => 'Your account | '.config('app.name', 'Alternova'),
-            'description' => 'Manage your account, favorites, and watchlist.',
+            'description' => 'Manage your account, tickets, favorites, and watchlist.',
             'robots' => $robots,
             'canonical' => route('account'),
         ]);
