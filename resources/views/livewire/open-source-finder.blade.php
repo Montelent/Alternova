@@ -8,35 +8,35 @@
                 Discover high-quality, self-hostable open-source alternatives to popular proprietary tools.
             </p>
             <div class="mt-4 flex flex-wrap justify-center gap-3 text-sm">
-                <a href="{{ route('alternatives.compare') }}" class="font-semibold text-brand-600 hover:underline">Compare tools</a>
-                <span class="text-slate-300">·</span>
-                <a href="{{ route('suggest') }}" class="font-semibold text-slate-500 hover:underline">Suggest one</a>
+                <a href="{{ route('browse.type', 'categories') }}" class="font-semibold text-brand-600 dark:text-brand-400 hover:underline">Browse hubs</a>
+                <span class="text-slate-300 dark:text-slate-600">·</span>
+                <a href="{{ route('alternatives.compare') }}" class="font-semibold text-brand-600 dark:text-brand-400 hover:underline">Compare tools</a>
+                <span class="text-slate-300 dark:text-slate-600">·</span>
+                <a href="{{ route('suggest') }}" class="font-semibold text-slate-500 dark:text-slate-400 hover:underline">Suggest one</a>
             </div>
         </div>
 
-        {{-- Categories --}}
         <div class="mb-4">
-            <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 text-center mb-2">Categories</p>
+            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 text-center mb-2">Categories</p>
             <div class="flex flex-wrap gap-2 justify-center">
                 @foreach($chipCategories as $cat)
                     <button type="button" wire:click="toggleCategory({{ json_encode($cat) }})"
                         class="rounded-full px-3 py-1.5 text-xs font-semibold border transition
-                            {{ in_array($cat, $categories) ? 'bg-brand-600 text-white border-brand-600' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700' }}">
+                            {{ in_array($cat, $categories) ? 'bg-brand-600 text-white border-brand-600' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700' }}">
                         {{ $cat }}
                     </button>
                 @endforeach
             </div>
         </div>
 
-        {{-- Licenses --}}
         @if(count($availableLicenses))
         <div class="mb-4">
-            <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 text-center mb-2">License types</p>
+            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 text-center mb-2">License types</p>
             <div class="flex flex-wrap gap-2 justify-center">
                 @foreach($availableLicenses as $lic)
                     <button type="button" wire:click="toggleLicense({{ json_encode($lic) }})"
                         class="rounded-full px-3 py-1.5 text-xs font-semibold border transition
-                            {{ in_array($lic, $licenses) ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700' }}">
+                            {{ in_array($lic, $licenses) ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700' }}">
                         {{ $lic }}
                     </button>
                 @endforeach
@@ -44,15 +44,14 @@
         </div>
         @endif
 
-        {{-- Languages --}}
         @if(count($availableLanguages))
         <div class="mb-6">
-            <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 text-center mb-2">Languages</p>
+            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 text-center mb-2">Languages</p>
             <div class="flex flex-wrap gap-2 justify-center">
                 @foreach($availableLanguages as $lang)
                     <button type="button" wire:click="toggleLanguage({{ json_encode($lang) }})"
                         class="rounded-full px-3 py-1.5 text-xs font-semibold border transition
-                            {{ in_array($lang, $languages) ? 'bg-sky-600 text-white border-sky-600' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700' }}">
+                            {{ in_array($lang, $languages) ? 'bg-sky-600 text-white border-sky-600' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700' }}">
                         {{ $lang }}
                     </button>
                 @endforeach
@@ -65,17 +64,17 @@
                 <div class="flex-1">
                     <input wire:model.live.debounce.300ms="search" type="search"
                         placeholder="Search tools, languages, features..."
-                        class="block w-full px-4 py-3 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-brand-500 text-sm">
+                        class="block w-full px-4 py-3 border border-slate-300 dark:border-slate-700 bg-white text-slate-900 dark:bg-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-brand-500 text-sm">
                 </div>
                 <div class="flex flex-wrap gap-3 items-center">
                     <select wire:model.live="toolSlug"
-                        class="rounded-xl border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white text-sm max-w-[12rem]">
+                        class="rounded-xl border border-slate-300 dark:border-slate-700 bg-white text-slate-900 dark:bg-slate-800 dark:text-white text-sm max-w-[12rem]">
                         <option value="">All products</option>
                         @foreach($tools as $tool)
                             <option value="{{ $tool->slug }}">{{ $tool->name }}</option>
                         @endforeach
                     </select>
-                    <select wire:model.live="sort" class="rounded-xl border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white text-sm">
+                    <select wire:model.live="sort" class="rounded-xl border border-slate-300 dark:border-slate-700 bg-white text-slate-900 dark:bg-slate-800 dark:text-white text-sm">
                         <option value="health">Best Health Score</option>
                         <option value="stars">Most Stars</option>
                         <option value="votes">Most Votes</option>
@@ -83,7 +82,7 @@
                         <option value="name">Name A-Z</option>
                     </select>
                     @if($search || count($licenses) || count($difficulties) || count($categories) || count($languages) || $toolSlug)
-                        <button type="button" wire:click="clearFilters" class="text-sm font-medium text-slate-500 hover:text-slate-800 dark:hover:text-white">Clear</button>
+                        <button type="button" wire:click="clearFilters" class="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">Clear</button>
                     @endif
                 </div>
             </div>
@@ -97,7 +96,7 @@
                         <div class="flex items-start justify-between gap-2">
                             <div class="min-w-0">
                                 <h3 class="text-lg font-semibold text-slate-900 dark:text-white group-hover:text-brand-600 transition">{{ $alt->name }}</h3>
-                                <p class="text-sm text-slate-500 mt-0.5">
+                                <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
                                     Alternative to
                                     @php
                                         $toolsList = $alt->relationLoaded('proprietaryTools') && $alt->proprietaryTools->isNotEmpty()
@@ -123,7 +122,7 @@
                             @endif
                         </div>
                         @if($alt->repoMetric)
-                            <div class="mt-4 flex items-center gap-4 text-sm text-slate-500">
+                            <div class="mt-4 flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
                                 <span>★ {{ number_format($alt->repoMetric->github_stars) }}</span>
                                 @if($alt->votes_count)
                                     <span>{{ $alt->votes_count }} votes</span>
@@ -135,7 +134,7 @@
             @empty
                 <div class="col-span-full text-center py-16">
                     <h3 class="text-lg font-medium text-slate-900 dark:text-white">No alternatives found</h3>
-                    <button type="button" wire:click="clearFilters" class="mt-4 text-sm font-semibold text-brand-600">Clear filters</button>
+                    <button type="button" wire:click="clearFilters" class="mt-4 text-sm font-semibold text-brand-600 dark:text-brand-400">Clear filters</button>
                 </div>
             @endforelse
         </div>

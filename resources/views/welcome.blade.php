@@ -23,6 +23,7 @@
             </p>
             <div class="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
                 <a href="{{ route('finder') }}" class="inline-flex justify-center rounded-xl bg-brand-600 hover:bg-brand-500 px-6 py-3.5 text-sm font-semibold text-white transition">Browse alternatives</a>
+                <a href="{{ route('browse.type', 'categories') }}" class="inline-flex justify-center rounded-xl border border-white/15 hover:border-white/30 bg-white/5 px-6 py-3.5 text-sm font-semibold text-white transition">Browse by category</a>
                 <a href="{{ route('domains') }}" class="inline-flex justify-center rounded-xl border border-white/15 hover:border-white/30 bg-white/5 px-6 py-3.5 text-sm font-semibold text-white transition">Generate domains</a>
             </div>
         </div>
@@ -40,6 +41,38 @@
         </div>
     </section>
     @endif
+
+    <section class="py-12 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
+        <div class="mx-auto max-w-6xl px-4 sm:px-6">
+            <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-900 dark:text-white">Browse the catalog</h2>
+                    <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">Jump in by category, language, or license — built for discovery and SEO.</p>
+                </div>
+                <a href="{{ route('browse.type', 'categories') }}" class="text-sm font-semibold text-brand-600 dark:text-brand-400 hover:underline shrink-0">All hubs →</a>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <a href="{{ route('browse.type', 'categories') }}"
+                    class="group rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-5 hover:border-brand-300 dark:hover:border-brand-600 transition">
+                    <p class="text-xs font-bold uppercase tracking-wide text-brand-600 dark:text-brand-400">Categories</p>
+                    <p class="mt-2 text-lg font-semibold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-300">By product type</p>
+                    <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">CRM, notes, chat, analytics, and more.</p>
+                </a>
+                <a href="{{ route('browse.type', 'languages') }}"
+                    class="group rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-5 hover:border-brand-300 dark:hover:border-brand-600 transition">
+                    <p class="text-xs font-bold uppercase tracking-wide text-sky-600 dark:text-sky-400">Languages</p>
+                    <p class="mt-2 text-lg font-semibold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-300">By stack</p>
+                    <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">PHP, TypeScript, Python, Go, Rust…</p>
+                </a>
+                <a href="{{ route('browse.type', 'licenses') }}"
+                    class="group rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-5 hover:border-brand-300 dark:hover:border-brand-600 transition">
+                    <p class="text-xs font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Licenses</p>
+                    <p class="mt-2 text-lg font-semibold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-300">By license</p>
+                    <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">MIT, Apache-2.0, AGPL, and others.</p>
+                </a>
+            </div>
+        </div>
+    </section>
 
     @if(isset($trending) && $trending->isNotEmpty())
     <section class="py-12 border-b border-slate-200 dark:border-slate-800">
@@ -105,7 +138,7 @@
     <section class="py-12 border-b border-slate-200 dark:border-slate-800">
         <div class="mx-auto max-w-6xl px-4 sm:px-6">
             <h2 class="text-2xl font-bold text-slate-900 dark:text-white mb-2">Browse by product</h2>
-            <p class="text-sm text-slate-500 mb-6">Open-source options listed for each proprietary product.</p>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">Open-source options listed for each proprietary product.</p>
             <div class="flex flex-wrap gap-3">
                 @foreach($tools as $tool)
                     <a href="{{ route('alternativesto.show', $tool->slug) }}"
