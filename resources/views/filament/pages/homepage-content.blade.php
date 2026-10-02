@@ -13,12 +13,12 @@
     </form>
 
     <x-filament::section class="mt-8">
-        <x-slot name="heading">Tips for script buyers</x-slot>
+        <x-slot name="heading">Tips for beginners</x-slot>
         <ul class="list-disc list-inside space-y-2 text-sm text-gray-600 dark:text-gray-300">
-            <li>Rewrite the hero and guide so your niche (e.g. DevOps, education, marketing) is obvious.</li>
-            <li>Keep FAQ answers accurate for <em>your</em> policies (submissions, hosting, affiliates).</li>
-            <li>Empty fields fall back to safe defaults shipped with the script.</li>
-            <li>Long-form guide helps AdSense and SEO; turn it off only if you replace it with CMS pages.</li>
+            <li><strong>FAQ:</strong> use <em>Add FAQ item</em> — type a question and answer. Drag the handle to reorder. Delete with the trash icon.</li>
+            <li>Rewrite the hero so your niche is clear (e.g. DevOps tools, education software).</li>
+            <li>Empty text fields fall back to safe defaults shipped with the script.</li>
+            <li>The long-form guide helps AdSense and SEO; turn it off only if you replace it with CMS pages.</li>
         </ul>
     </x-filament::section>
 </x-filament-panels::page>

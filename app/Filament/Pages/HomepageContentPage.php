@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\SiteSetting;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -47,7 +48,6 @@ class HomepageContentPage extends Page implements HasForms
             return false;
         }
 
-        // Admins and editors (script operators) need this for white-label copy
         if (method_exists($user, 'canManageSystem') && $user->canManageSystem()) {
             return true;
         }
@@ -60,7 +60,6 @@ class HomepageContentPage extends Page implements HasForms
             return true;
         }
 
-        // Legacy installs without role column: allow any authenticated panel user
         if (! isset($user->role) || $user->role === null || $user->role === '') {
             return true;
         }
@@ -68,7 +67,7 @@ class HomepageContentPage extends Page implements HasForms
         return false;
     }
 
-    /** @return array<string, string> */
+    /** @return array<string, mixed> */
     public static function defaults(): array
     {
         $name = config('app.name', 'Alternova');
@@ -113,14 +112,56 @@ class HomepageContentPage extends Page implements HasForms
         ];
     }
 
+    /**
+     * @return list<array{q: string, a: string}>
+     */
+    public static function defaultFaqs(): array
+    {
+        $decoded = json_decode((string) (static::defaults()['home_faq_json'] ?? '[]'), true);
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    /**
+     * @return list<array{q: string, a: string}>
+     */
+    public static function loadFaqs(): array
+    {
+        $raw = SiteSetting::get('home_faq_json', static::defaults()['home_faq_json'] ?? '[]');
+        $decoded = json_decode((string) $raw, true);
+
+        if (! is_array($decoded)) {
+            return static::defaultFaqs();
+        }
+
+        $items = [];
+        foreach ($decoded as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $q = trim((string) ($row['q'] ?? $row['question'] ?? ''));
+            $a = trim((string) ($row['a'] ?? $row['answer'] ?? ''));
+            if ($q === '' && $a === '') {
+                continue;
+            }
+            $items[] = ['q' => $q, 'a' => $a];
+        }
+
+        return $items !== [] ? $items : static::defaultFaqs();
+    }
+
     public function mount(): void
     {
         $defaults = static::defaults();
         $fill = [];
         foreach ($defaults as $key => $default) {
+            if ($key === 'home_faq_json') {
+                continue;
+            }
             $fill[$key] = SiteSetting::get($key, $default);
         }
         $fill['home_editorial_enabled'] = SiteSetting::getBool('home_editorial_enabled', true);
+        $fill['home_faqs'] = static::loadFaqs();
         $this->form->fill($fill);
     }
 
@@ -133,9 +174,9 @@ class HomepageContentPage extends Page implements HasForms
                         Placeholder::make('intro')
                             ->content(new HtmlString(
                                 '<p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">'
-                                .'Edit every visible homepage string so each customer install can sound unique. '
-                                .'Leave a field empty to fall back to the built-in default. '
-                                .'FAQ uses JSON: an array of objects with <code class="text-xs">q</code> and <code class="text-xs">a</code> keys.'
+                                .'Edit every visible homepage string so each install can sound unique. '
+                                .'Leave a field empty to use the built-in default. '
+                                .'FAQ items are simple question + answer rows — add, edit, reorder, or delete.'
                                 .'</p>'
                             )),
                     ]),
@@ -186,15 +227,9 @@ class HomepageContentPage extends Page implements HasForms
                         TextInput::make('home_editorial_title')->label('Guide title')->maxLength(120)->columnSpanFull(),
                         Textarea::make('home_editorial_intro')->label('Intro paragraph')->rows(4)->columnSpanFull(),
                         Textarea::make('home_editorial_body')
-                            ->label('Body (use blank lines between paragraphs; first line of a block can be a heading)')
+                            ->label('Body (blank line between paragraphs; a short single line can be a heading)')
                             ->rows(12)
-                            ->columnSpanFull()
-                            ->helperText('Plain text. Separate paragraphs with a blank line. A short single line can render as a subheading.'),
-                        Textarea::make('home_faq_json')
-                            ->label('FAQ JSON')
-                            ->rows(10)
-                            ->columnSpanFull()
-                            ->extraInputAttributes(['class' => 'font-mono text-xs']),
+                            ->columnSpanFull(),
                         TextInput::make('home_checklist_title')->label('Checklist title')->maxLength(80)->columnSpanFull(),
                         Textarea::make('home_checklist_items')
                             ->label('Checklist items (one per line)')
@@ -202,6 +237,31 @@ class HomepageContentPage extends Page implements HasForms
                             ->columnSpanFull(),
                     ])
                     ->columns(2),
+
+                Section::make('Homepage FAQ')
+                    ->description('Add questions visitors ask. Click “Add FAQ item”, type the question and answer, drag to reorder. No JSON required.')
+                    ->schema([
+                        Repeater::make('home_faqs')
+                            ->label('Questions & answers')
+                            ->schema([
+                                TextInput::make('q')
+                                    ->label('Question')
+                                    ->required()
+                                    ->maxLength(200)
+                                    ->columnSpanFull(),
+                                Textarea::make('a')
+                                    ->label('Answer')
+                                    ->required()
+                                    ->rows(3)
+                                    ->columnSpanFull(),
+                            ])
+                            ->defaultItems(0)
+                            ->addActionLabel('Add FAQ item')
+                            ->reorderable()
+                            ->collapsible()
+                            ->itemLabel(fn (array $state): ?string => $state['q'] ?? 'New question')
+                            ->columnSpanFull(),
+                    ]),
             ])
             ->statePath('data');
     }
@@ -210,22 +270,28 @@ class HomepageContentPage extends Page implements HasForms
     {
         $data = $this->form->getState();
 
-        if (! empty($data['home_faq_json'])) {
-            $decoded = json_decode((string) $data['home_faq_json'], true);
-            if (! is_array($decoded)) {
-                Notification::make()->title('FAQ JSON is invalid')->danger()->send();
-
-                return;
+        $faqs = [];
+        foreach ($data['home_faqs'] ?? [] as $row) {
+            if (! is_array($row)) {
+                continue;
             }
-            $data['home_faq_json'] = json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+            $q = trim((string) ($row['q'] ?? ''));
+            $a = trim((string) ($row['a'] ?? ''));
+            if ($q === '') {
+                continue;
+            }
+            $faqs[] = ['q' => $q, 'a' => $a];
         }
 
+        unset($data['home_faqs']);
+        $data['home_faq_json'] = json_encode($faqs, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
         $data['home_editorial_enabled'] = ! empty($data['home_editorial_enabled']);
 
         SiteSetting::setMany($data);
 
         Notification::make()
             ->title('Homepage content saved')
+            ->body(count($faqs).' FAQ item(s) stored.')
             ->success()
             ->send();
     }
