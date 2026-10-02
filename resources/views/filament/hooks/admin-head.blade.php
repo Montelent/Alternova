@@ -1,4 +1,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+{{-- TinyMCE always available in admin (avoids race on Livewire SPA navigations) --}}
+<script>
+(function () {
+    if (window.__alternovaTinymceLoading || window.tinymce) return;
+    window.__alternovaTinymceLoading = true;
+    var s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/tinymce@7.4.1/tinymce.min.js';
+    s.referrerPolicy = 'origin';
+    s.onload = function () { window.__alternovaTinymceLoading = false; };
+    s.onerror = function () { window.__alternovaTinymceLoading = false; };
+    document.head.appendChild(s);
+})();
+</script>
 <style>
 /* Alternova admin — mobile-first polish */
 @media (max-width: 768px) {
