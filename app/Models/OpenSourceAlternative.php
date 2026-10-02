@@ -6,6 +6,7 @@ use App\Services\HealthHistoryService;
 use App\Services\SeoManager;
 use App\Services\WatchlistService;
 use App\Services\WebhookDispatcher;
+use App\Support\MediaUrl;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -14,7 +15,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Storage;
 use Laravel\Scout\Searchable;
 use Spatie\Tags\HasTags;
 
@@ -146,18 +146,32 @@ class OpenSourceAlternative extends Model
         return 'slug';
     }
 
-    /** @return list<string> */
+    /**
+     * All screenshot URLs: uploaded files (gallery_paths) + external URLs (gallery_urls).
+     *
+     * @return list<string>
+     */
     public function galleryImageUrls(): array
     {
         $urls = [];
+
         foreach ((array) ($this->gallery_paths ?? []) as $path) {
-            if ($path) {
-                $urls[] = Storage::disk('public')->url($path);
+            if (! $path) {
+                continue;
             }
-        }
-        foreach ((array) ($this->gallery_urls ?? []) as $url) {
+            // Uploads disk is the correct store for ImageField::multiple()
+            $url = MediaUrl::make(is_string($path) ? $path : null, 'uploads');
             if ($url) {
                 $urls[] = $url;
+            }
+        }
+
+        foreach ((array) ($this->gallery_urls ?? []) as $url) {
+            if (is_string($url) && trim($url) !== '') {
+                $resolved = MediaUrl::make($url, 'uploads');
+                if ($resolved) {
+                    $urls[] = $resolved;
+                }
             }
         }
 
@@ -200,6 +214,18 @@ class OpenSourceAlternative extends Model
             return $record;
         }
 
+        try {
+            $redirect = eSlugRedirect::query()->where('old_slug', $value)->first();
+            if ($redirect) {
+                return static::query()
+                    ->where('slug', $redirect->new_slug)
+                    ->where('is_published', true)
+                    ->first();
+            }
+        } catch (\Throwable) {
+        }
+
+        // Fallback without typo class name
         try {
             $redirect = SlugRedirect::query()->where('old_slug', $value)->first();
             if ($redirect) {

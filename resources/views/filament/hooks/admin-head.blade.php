@@ -1,8 +1,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-{{-- TinyMCE always available in admin (avoids race on Livewire SPA navigations) --}}
+{{-- TinyMCE always available in admin (CDN base so skins load correctly) --}}
 <script>
 (function () {
-    if (window.__alternovaTinymceLoading || window.tinymce) return;
+    if (window.tinymce || window.__alternovaTinymceLoading) return;
     window.__alternovaTinymceLoading = true;
     var s = document.createElement('script');
     s.src = 'https://cdn.jsdelivr.net/npm/tinymce@7.4.1/tinymce.min.js';
