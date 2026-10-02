@@ -25,6 +25,7 @@
                         <li><a href="{{ route('collections.index') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Collections</a></li>
                         <li><a href="{{ route('trending') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Trending</a></li>
                         <li><a href="{{ route('domains') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Domains</a></li>
+                        <li><a href="{{ route('api.docs') }}" class="hover:text-slate-800 dark:hover:text-slate-200">API docs</a></li>
                         <li><a href="{{ route('suggest') }}" class="hover:text-slate-800 dark:hover:text-slate-200">Suggest tool</a></li>
                     </ul>
                 </div>
