@@ -20,14 +20,10 @@
         <div class="space-y-3">
             @foreach($this->steps() as $step)
                 <div class="rounded-xl border p-4 sm:p-5
-                    {{ $step['done']
-                        ? 'border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/80 dark:bg-emerald-950/30'
-                        : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900' }}">
-                    <div class="flex flex-col sm:flex-row sm:items-start gap-3">
+                    {{ $step['done'] ? 'border-emerald-300 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900' }}">
+                    <div class="flex gap-3 sm:gap-4">
                         <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold
-                            {{ $step['done']
-                                ? 'bg-emerald-600 text-white'
-                                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' }}">
+                            {{ $step['done'] ? 'bg-emerald-600 text-white' : 'bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-200' }}">
                             @if($step['done'])
                                 ✓
                             @else
@@ -55,7 +51,15 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
             <a href="{{ \App\Filament\Pages\SystemTools::getUrl() }}" class="rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:border-primary-400 transition text-gray-900 dark:text-gray-100">
                 <span class="font-semibold">System tools</span>
-                <p class="mt-1 text-gray-600 dark:text-gray-400">Migrations, metrics sync, CSV import</p>
+                <p class="mt-1 text-gray-600 dark:text-gray-400">Migrations, metrics sync, caches</p>
+            </a>
+            <a href="{{ \App\Filament\Pages\DemoContentPage::getUrl() }}" class="rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:border-primary-400 transition text-gray-900 dark:text-gray-100">
+                <span class="font-semibold">Demo content</span>
+                <p class="mt-1 text-gray-600 dark:text-gray-400">One-click sample tools &amp; alternatives</p>
+            </a>
+            <a href="{{ \App\Filament\Pages\CatalogImportExportPage::getUrl() }}" class="rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:border-primary-400 transition text-gray-900 dark:text-gray-100">
+                <span class="font-semibold">Catalog CSV</span>
+                <p class="mt-1 text-gray-600 dark:text-gray-400">Import / export tools and alternatives</p>
             </a>
             <a href="{{ \App\Filament\Pages\LinkHealthPage::getUrl() }}" class="rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:border-primary-400 transition text-gray-900 dark:text-gray-100">
                 <span class="font-semibold">Link health</span>
