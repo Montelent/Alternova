@@ -22,7 +22,6 @@
                         <p class="text-sm font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-300 mb-3">Open-source alternative</p>
                         <h1 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-[1.15]">{{ $heading }}</h1>
 
-                        {{-- Clickable proprietary tool(s) --}}
                         <p class="mt-3 text-lg text-slate-600 dark:text-slate-300 font-medium">
                             The open-source alternative to
                             @php
@@ -122,7 +121,8 @@
 
         <x-health-chart :series="$healthSeries" :points="$healthPoints" :trend="$healthTrend" />
 
-        {{-- Admin-curated Pros & Cons (from Filament Tags fields) --}}
+        @include('livewire.partials.changelog-gallery', ['alternative' => $alternative])
+
         @php
             $curatedPros = array_values(array_filter((array) ($alternative->pros ?? [])));
             $curatedCons = array_values(array_filter((array) ($alternative->cons ?? [])));
