@@ -23,19 +23,49 @@ class HomepageContentPage extends Page implements HasForms
 
     protected static ?string $navigationLabel = 'Homepage content';
 
-    protected static ?string $navigationGroup = 'Site';
+    protected static ?string $navigationGroup = 'System';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 11;
 
     protected static string $view = 'filament.pages.homepage-content';
 
     protected static ?string $title = 'Homepage content';
 
+    protected static ?string $slug = 'homepage-content';
+
     public ?array $data = [];
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canAccess();
+    }
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->canManageSystem() ?? false;
+        $user = auth()->user();
+        if (! $user) {
+            return false;
+        }
+
+        // Admins and editors (script operators) need this for white-label copy
+        if (method_exists($user, 'canManageSystem') && $user->canManageSystem()) {
+            return true;
+        }
+
+        if (method_exists($user, 'isAdmin') && $user->isAdmin()) {
+            return true;
+        }
+
+        if (method_exists($user, 'isEditor') && $user->isEditor()) {
+            return true;
+        }
+
+        // Legacy installs without role column: allow any authenticated panel user
+        if (! isset($user->role) || $user->role === null || $user->role === '') {
+            return true;
+        }
+
+        return false;
     }
 
     /** @return array<string, string> */
@@ -180,7 +210,6 @@ class HomepageContentPage extends Page implements HasForms
     {
         $data = $this->form->getState();
 
-        // Validate FAQ JSON if provided
         if (! empty($data['home_faq_json'])) {
             $decoded = json_decode((string) $data['home_faq_json'], true);
             if (! is_array($decoded)) {
