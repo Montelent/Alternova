@@ -1,28 +1,29 @@
 @props([
-    'slot' => 'in_article',
+    'placement' => 'in_article',
     'class' => '',
 ])
 
 @php
     use App\Support\AdSettings;
 
-    $placement = $slot;
-    $enabled = AdSettings::enabled();
+    // Never use $slot here — it is reserved by Blade for component content (ComponentSlot).
+    $name = is_string($placement) ? $placement : 'in_article';
+    $extraClass = is_string($class) ? $class : '';
+
     $showPlaceholder = AdSettings::showPlaceholders();
-    $custom = AdSettings::code($placement);
+    $custom = AdSettings::code($name);
     $client = AdSettings::client();
-    $slotId = AdSettings::slot($placement);
-    $canRender = AdSettings::canRender($placement);
-    $label = AdSettings::placementLabels()[$placement] ?? str_replace('_', ' ', $placement);
+    $slotId = AdSettings::slot($name);
+    $canRender = AdSettings::canRender($name);
+    $label = AdSettings::placementLabels()[$name] ?? str_replace('_', ' ', $name);
 @endphp
 
 @if($canRender && $custom !== '')
-    {{-- Any network: paste full unit HTML/JS in Admin → Ad settings --}}
-    <div {{ $attributes->merge(['class' => 'ad-slot ad-slot-'.$placement.' '.$class, 'data-ad-slot' => $placement]) }}>
+    <div {{ $attributes->merge(['class' => trim('ad-slot ad-slot-'.$name.' '.$extraClass), 'data-ad-slot' => $name]) }}>
         {!! $custom !!}
     </div>
 @elseif($canRender && $client !== '' && $slotId !== '')
-    <div {{ $attributes->merge(['class' => 'ad-slot ad-slot-'.$placement.' '.$class, 'data-ad-slot' => $placement]) }}>
+    <div {{ $attributes->merge(['class' => trim('ad-slot ad-slot-'.$name.' '.$extraClass), 'data-ad-slot' => $name]) }}>
         <ins class="adsbygoogle"
             style="display:block"
             data-ad-client="{{ $client }}"
@@ -34,8 +35,7 @@
         </script>
     </div>
 @elseif($showPlaceholder)
-    <div {{ $attributes->merge(['class' => 'ad-slot-placeholder border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 text-xs text-center rounded-xl py-6 px-4 '.$class]) }}
-        data-ad-slot="{{ $placement }}"
+    <div {{ $attributes->merge(['class' => trim('ad-slot-placeholder border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 text-xs text-center rounded-xl py-6 px-4 '.$extraClass), 'data-ad-slot' => $name]) }}
         role="presentation">
         Ad: {{ $label }} (preview — paste code or AdSense slot in Admin → Ad settings)
     </div>

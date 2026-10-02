@@ -1,1 +1,1 @@
-<x-ad-slot slot="in_article" class="my-6" />
+<x-ad-slot placement="in_article" class="my-6" />
