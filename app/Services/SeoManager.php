@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\OpenSourceAlternative;
+use App\Models\Page;
 use App\Models\ProprietaryTool;
 use App\Models\SiteSetting;
 use Illuminate\Support\Str;
@@ -59,6 +60,17 @@ class SeoManager
         return SiteSetting::getBool('seo_site_noindex', false);
     }
 
+    public function plainText(?string $html): string
+    {
+        if ($html === null || $html === '') {
+            return '';
+        }
+
+        $text = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        return trim(preg_replace('/\s+/u', ' ', $text) ?? $text);
+    }
+
     public function replace(string $template, array $vars = []): string
     {
         $defaults = [
@@ -102,8 +114,8 @@ class SeoManager
 
     public function alternativeTitle(OpenSourceAlternative $alt): string
     {
-        if ($alt->meta_title) {
-            return $alt->meta_title;
+        if (filled($alt->meta_title)) {
+            return (string) $alt->meta_title;
         }
 
         $tpl = SiteSetting::get(
@@ -122,11 +134,12 @@ class SeoManager
 
     public function alternativeDescription(OpenSourceAlternative $alt): string
     {
-        if ($alt->meta_description) {
-            return $alt->meta_description;
+        if (filled($alt->meta_description)) {
+            return Str::limit((string) $alt->meta_description, 160);
         }
 
         $tpl = SiteSetting::get('seo_desc_alternative', '');
+        $excerpt = $this->plainText((string) $alt->description);
 
         if ($tpl) {
             return Str::limit($this->replace((string) $tpl, [
@@ -135,22 +148,26 @@ class SeoManager
                 '%license%' => $alt->license_type ?? 'open-source',
                 '%language%' => $alt->primary_language ?? '',
                 '%health%' => (string) round((float) $alt->overall_health_score),
-                '%excerpt%' => Str::limit(strip_tags((string) $alt->description), 120),
+                '%excerpt%' => Str::limit($excerpt, 120),
             ]), 160);
+        }
+
+        // Auto from description body first, then a solid fallback sentence
+        if ($excerpt !== '') {
+            return Str::limit($excerpt, 155);
         }
 
         return Str::limit(
             $alt->name.' is a free, self-hostable open-source alternative to '
-            .($alt->proprietaryTool?->name ?? 'proprietary software').'. '
-            .strip_tags((string) ($alt->description ?? '')),
+            .($alt->proprietaryTool?->name ?? 'proprietary software').'.',
             155
         );
     }
 
     public function toolTitle(ProprietaryTool $tool, ?int $count = null): string
     {
-        if ($tool->meta_title) {
-            return $tool->meta_title;
+        if (filled($tool->meta_title)) {
+            return (string) $tool->meta_title;
         }
 
         $tpl = SiteSetting::get(
@@ -166,24 +183,56 @@ class SeoManager
 
     public function toolDescription(ProprietaryTool $tool): string
     {
-        if ($tool->meta_description) {
-            return $tool->meta_description;
+        if (filled($tool->meta_description)) {
+            return Str::limit((string) $tool->meta_description, 160);
         }
 
         $tpl = SiteSetting::get('seo_desc_tool', '');
+        $excerpt = $this->plainText((string) $tool->description);
 
         if ($tpl) {
             return Str::limit($this->replace((string) $tpl, [
                 '%title%' => $tool->name,
-                '%excerpt%' => Str::limit(strip_tags((string) $tool->description), 120),
+                '%excerpt%' => Str::limit($excerpt, 120),
             ]), 160);
         }
 
+        if ($excerpt !== '') {
+            return Str::limit($excerpt, 155);
+        }
+
         return Str::limit(
-            'Browse free, self-hostable open-source alternatives to '.$tool->name.'. '
-            .strip_tags((string) ($tool->description ?? '')),
+            'Browse free, self-hostable open-source alternatives to '.$tool->name.'.',
             155
         );
+    }
+
+    public function cmsPageTitle(Page $page): string
+    {
+        if (filled($page->meta_title)) {
+            return (string) $page->meta_title;
+        }
+
+        return $this->replace('%page% %sep% %sitename%', ['%page%' => $page->title]);
+    }
+
+    public function cmsPageDescription(Page $page): string
+    {
+        if (filled($page->meta_description)) {
+            return Str::limit((string) $page->meta_description, 160);
+        }
+
+        $excerpt = $this->plainText((string) ($page->excerpt ?? ''));
+        if ($excerpt !== '') {
+            return Str::limit($excerpt, 155);
+        }
+
+        $body = $this->plainText((string) ($page->body_html ?? ''));
+        if ($body !== '') {
+            return Str::limit($body, 155);
+        }
+
+        return $this->defaultDescription();
     }
 
     public function pageTitle(string $pageKey, string $fallback): string
@@ -211,7 +260,6 @@ class SeoManager
             ?: 'index,follow,max-image-preview:large,max-snippet:-1';
     }
 
-    /** Private / account surfaces that should not be indexed. */
     public function privateRobots(): string
     {
         return SiteSetting::get('seo_private_robots', 'noindex,nofollow') ?: 'noindex,nofollow';
@@ -262,12 +310,12 @@ class SeoManager
 
         return [
             'title' => $title,
-            'description' => Str::limit($description, 160),
+            'description' => Str::limit($this->plainText($description) ?: $description, 160),
             'canonical' => $canonical,
             'robots' => $robots,
             'ogType' => $page['ogType'] ?? 'website',
             'ogTitle' => $page['ogTitle'] ?? $title,
-            'ogDescription' => Str::limit($page['ogDescription'] ?? $description, 160),
+            'ogDescription' => Str::limit($this->plainText($page['ogDescription'] ?? $description) ?: ($page['ogDescription'] ?? $description), 160),
             'ogImage' => $ogImage,
             'ogSiteName' => $this->siteName(),
             'twitterCard' => $this->twitterCard(),
