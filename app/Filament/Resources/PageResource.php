@@ -46,14 +46,27 @@ class PageResource extends Resource
                 Forms\Components\TextInput::make('title')
                     ->required()
                     ->maxLength(200)
-                    ->live(debounce: 300)
-                    ->afterStateUpdated(fn ($state, Set $set, ?Page $record) => $record ? null : $set('slug', Str::slug((string) $state))),
+                    // Only update related fields when leaving the input (not on every keypress).
+                    // live(debounce) + $set('slug') was re-rendering and wiping partial titles.
+                    ->live(onBlur: true)
+                    ->afterStateUpdated(function ($state, Set $set, Forms\Get $get, string $operation): void {
+                        if ($operation !== 'create') {
+                            return;
+                        }
+                        $title = trim((string) $state);
+                        if ($title === '') {
+                            return;
+                        }
+                        // Auto-fill slug only when still empty so custom slugs are not overwritten
+                        if (trim((string) $get('slug')) === '') {
+                            $set('slug', Str::slug($title));
+                        }
+                    }),
                 Forms\Components\TextInput::make('slug')
                     ->required()
                     ->maxLength(180)
                     ->unique(ignoreRecord: true)
-                    ->live(debounce: 300)
-                    ->helperText('URL path: /about, /privacy, or /p/your-slug for custom pages.'),
+                    ->helperText('URL: /about, /privacy, or /p/your-slug. Tab out of the title field to auto-fill when slug is empty, or type the slug yourself.'),
                 Forms\Components\Select::make('template')
                     ->options([
                         'default' => 'Default article',
@@ -65,7 +78,7 @@ class PageResource extends Resource
                 Forms\Components\Textarea::make('excerpt')
                     ->rows(2)
                     ->maxLength(300)
-                    ->live(debounce: 400)
+                    ->live(onBlur: true)
                     ->columnSpanFull()
                     ->helperText('Short summary for SEO and listings. Also used as meta description when SEO meta is empty.'),
                 TinyEditor::make('body_html')
@@ -99,13 +112,8 @@ class PageResource extends Resource
                 Tables\Filters\TernaryFilter::make('show_in_footer'),
             ])
             ->actions([
-                Tables\Actions\Action::make('view')
-                    ->label('View')
-                    ->icon('heroicon-o-arrow-top-right-on-square')
-                    ->url(fn (Page $record) => $record->publicUrl(), shouldOpenInNewTab: true)
-                    ->visible(fn (Page $record) => $record->is_published),
+                Tables\Actions\EditAction::make(),
                 Tables\Actions\Action::make('duplicate')
-                    ->label('Duplicate')
                     ->icon('heroicon-o-document-duplicate')
                     ->action(function (Page $record) {
                         $copy = $record->replicate(['slug', 'is_published', 'published_at']);
@@ -116,19 +124,10 @@ class PageResource extends Resource
                         $copy->save();
                         Notification::make()->title('Page duplicated as draft')->success()->send();
                     }),
-                Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\BulkAction::make('publish')
-                        ->label('Publish')
-                        ->icon('heroicon-o-eye')
-                        ->action(fn ($records) => $records->each->update(['is_published' => true, 'published_at' => now()])),
-                    Tables\Actions\BulkAction::make('unpublish')
-                        ->label('Unpublish')
-                        ->icon('heroicon-o-eye-slash')
-                        ->action(fn ($records) => $records->each->update(['is_published' => false])),
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
