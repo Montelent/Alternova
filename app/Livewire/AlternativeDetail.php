@@ -55,14 +55,7 @@ class AlternativeDetail extends Component
             try {
                 $redirect = null;
                 if (class_exists(SlugRedirect::class)) {
-                    $redirect = SlugRedirect::query()
-                        ->where('old_slug', $requestedSlug)
-                        ->where(function ($q) {
-                            $q->where('model_type', 'alternative')
-                                ->orWhereNull('model_type')
-                                ->orWhere('model_type', '');
-                        })
-                        ->first();
+                    $redirect = the_slug_redirect($requestedSlug);
                 }
 
                 if ($redirect) {
@@ -130,8 +123,8 @@ class AlternativeDetail extends Component
             $basket = app(CompareBasket::class);
             $this->inCompare = $basket->has($this->alternative->slug);
             $state = $basket->state();
-            $this->compareUrl = $state['url'];
-            $this->compareMessage = $state['count'] === 1 && $this->inCompare
+            $this->compareUrl = $state['url'] ?? null;
+            $this->compareMessage = (($state['count'] ?? 0) === 1 && $this->inCompare)
                 ? 'Pick one more alternative to compare'
                 : '';
         } catch (\Throwable) {
@@ -143,41 +136,58 @@ class AlternativeDetail extends Component
 
     public function toggleCompare(): void
     {
-        $basket = app(CompareBasket::class);
+        try {
+            $basket = app(CompareBasket::class);
 
-        if ($basket->has($this->alternative->slug)) {
-            $state = $basket->remove($this->alternative->slug);
-        } else {
-            $state = $basket->add($this->alternative->slug);
+            if ($basket->has($this->alternative->slug)) {
+                $state = $basket->remove($this->alternative->slug);
+            } else {
+                $state = $basket->add($this->alternative->slug);
+            }
+
+            $this->inCompare = $basket->has($this->alternative->slug);
+            $this->compareUrl = $state['url'] ?? null;
+            $this->compareMessage = $state['message'] ?? '';
+        } catch (\Throwable $e) {
+            $this->compareMessage = 'Could not update compare list.';
         }
-
-        $this->inCompare = $basket->has($this->alternative->slug);
-        $this->compareUrl = $state['url'];
-        $this->compareMessage = $state['message'];
     }
 
     public function vote(): void
     {
-        $key = 'vote:'.request()->ip();
-        if (RateLimiter::tooManyAttempts($key, 30)) {
-            $this->voteMessage = 'Too many votes from this network. Try later.';
+        try {
+            $key = 'vote:'.request()->ip();
+            if (RateLimiter::tooManyAttempts($key, 30)) {
+                $this->voteMessage = 'Too many votes from this network. Try later.';
 
-            return;
+                return;
+            }
+            RateLimiter::hit($key, 3600);
+
+            $voterKey = app(VoteService::class)->voterKey(session()->getId(), request()->ip());
+            $result = app(VoteService::class)->toggle($this->alternative, $voterKey, request()->ip());
+            $this->hasVoted = (bool) ($result['voted'] ?? false);
+            $this->votesCount = (int) ($result['count'] ?? $this->votesCount);
+            $this->voteMessage = $result['message'] ?? ($this->hasVoted ? 'Thanks for the vote.' : 'Vote removed.');
+        } catch (\Throwable) {
+            $this->voteMessage = 'Could not record vote. Please refresh and try again.';
         }
-        RateLimiter::hit($key, 3600);
-
-        $voterKey = app(VoteService::class)->voterKey(session()->getId(), request()->ip());
-        $result = app(VoteService::class)->toggle($this->alternative, $voterKey, request()->ip());
-        $this->hasVoted = $result['voted'];
-        $this->votesCount = $result['count'];
-        $this->voteMessage = $result['message'] ?? ($this->hasVoted ? 'Thanks for the vote.' : 'Vote removed.');
     }
 
     public function toggleFavorite(): void
     {
-        $on = app(FavoriteService::class)->toggle($this->alternative);
-        $this->isFavorited = $on;
-        $this->favoriteMessage = $on ? 'Saved to favorites.' : 'Removed from favorites.';
+        try {
+            $result = app(FavoriteService::class)->toggle($this->alternative);
+            if (is_array($result)) {
+                $this->isFavorited = (bool) ($result['favorited'] ?? false);
+                $this->favoriteMessage = (string) ($result['message'] ?? '');
+            } else {
+                $this->isFavorited = (bool) $result;
+                $this->favoriteMessage = $this->isFavorited ? 'Saved to favorites.' : 'Removed from favorites.';
+            }
+        } catch (\Throwable) {
+            $this->favoriteMessage = 'Could not update favorites. Please refresh and try again.';
+        }
     }
 
     public function toggleWatch(): void
@@ -188,9 +198,13 @@ class AlternativeDetail extends Component
             return;
         }
 
-        $on = app(WatchlistService::class)->toggle($this->alternative);
-        $this->isWatching = $on;
-        $this->watchMessage = $on ? 'Watching for health drops.' : 'Removed from watchlist.';
+        try {
+            $on = app(WatchlistService::class)->toggle($this->alternative);
+            $this->isWatching = (bool) $on;
+            $this->watchMessage = $on ? 'Watching for health drops.' : 'Removed from watchlist.';
+        } catch (\Throwable) {
+            $this->watchMessage = 'Could not update watchlist. Please refresh and try again.';
+        }
     }
 
     public function render()
@@ -339,5 +353,19 @@ class AlternativeDetail extends Component
         ];
 
         return [$software, $breadcrumb];
+    }
+}
+
+if (! function_exists('the_slug_redirect')) {
+    function the_slug_redirect(string $requestedSlug)
+    {
+        return \App\Models\SlugRedirect::query()
+            ->where('old_slug', $requestedSlug)
+            ->where(function ($q) {
+                $q->where('model_type', 'alternative')
+                    ->orWhereNull('model_type')
+                    ->orWhere('model_type', '');
+            })
+            ->first();
     }
 }
