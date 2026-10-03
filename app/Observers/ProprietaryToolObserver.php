@@ -10,22 +10,28 @@ class ProprietaryToolObserver
 {
     public function created(ProprietaryTool $tool): void
     {
-        $this->enrich($tool);
+        $this->scheduleEnrich($tool->id);
     }
 
     public function updated(ProprietaryTool $tool): void
     {
         if ($tool->wasChanged(['website_url', 'description', 'name', 'is_published'])) {
-            $this->enrich($tool);
+            $this->scheduleEnrich($tool->id);
         }
     }
 
-    protected function enrich(ProprietaryTool $tool): void
+    protected function scheduleEnrich(int $toolId): void
     {
-        try {
-            app(CatalogEnrichmentService::class)->enrichProprietaryTool($tool);
-        } catch (\Throwable $e) {
-            Log::warning('Catalog enrichment (proprietary) failed: '.$e->getMessage());
-        }
+        dispatch(function () use ($toolId) {
+            try {
+                $tool = ProprietaryTool::query()->find($toolId);
+                if (! $tool) {
+                    return;
+                }
+                app(CatalogEnrichmentService::class)->enrichProprietaryTool($tool);
+            } catch (\Throwable $e) {
+                Log::warning('Catalog enrichment (proprietary) failed: '.$e->getMessage());
+            }
+        })->afterResponse();
     }
 }

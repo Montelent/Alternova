@@ -11,7 +11,7 @@ class OpenSourceAlternativeObserver
 {
     public function created(OpenSourceAlternative $alternative): void
     {
-        $this->enrich($alternative, [
+        $this->scheduleEnrich($alternative->id, [
             'repo_changed' => true,
             'website_changed' => true,
         ]);
@@ -30,7 +30,7 @@ class OpenSourceAlternativeObserver
             || $alternative->links_checked_at === null;
 
         if ($should) {
-            $this->enrich($alternative, [
+            $this->scheduleEnrich($alternative->id, [
                 'repo_changed' => $repoChanged,
                 'website_changed' => $websiteChanged,
             ]);
@@ -55,7 +55,7 @@ class OpenSourceAlternativeObserver
             ['new_slug' => $new, 'model_type' => 'OpenSourceAlternative']
         );
 
-        SlugRedirect::query()
+       SlugRedirect::query()
             ->where('new_slug', $old)
             ->update(['new_slug' => $new]);
 
@@ -64,13 +64,23 @@ class OpenSourceAlternativeObserver
             ->delete();
     }
 
-    /** @param  array{repo_changed?: bool, website_changed?: bool}  $opts */
-    protected function enrich(OpenSourceAlternative $alternative, array $opts = []): void
+    /**
+     * Run GitHub/link enrichment after the HTTP response so admin Save is fast.
+     *
+     * @param  array{repo_changed?: bool, website_changed?: bool}  $opts
+     */
+    protected function scheduleEnrich(int $alternativeId, array $opts = []): void
     {
-        try {
-            app(CatalogEnrichmentService::class)->enrichAlternative($alternative, $opts);
-        } catch (\Throwable $e) {
-            Log::warning('Catalog enrichment (alternative) failed: '.$e->getMessage());
-        }
+        dispatch(function () use ($alternativeId, $opts) {
+            try {
+                $alt = OpenSourceAlternative::query()->find($alternativeId);
+                if (! $alt) {
+                    return;
+                }
+                app(CatalogEnrichmentService::class)->enrichAlternative($alt, $opts);
+            } catch (\Throwable $e) {
+                Log::warning('Catalog enrichment (alternative) failed: '.$e->getMessage());
+            }
+        })->afterResponse();
     }
 }

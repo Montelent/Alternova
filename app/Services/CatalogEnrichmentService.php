@@ -12,6 +12,8 @@ use Illuminate\Support\Str;
 /**
  * After save/publish: fill empty descriptions, sync health metrics, check links.
  * Never overwrites a description the admin already wrote.
+ *
+ * Called after the HTTP response when triggered from model observers so admin saves stay fast.
  */
 class CatalogEnrichmentService
 {
@@ -77,8 +79,14 @@ class CatalogEnrichmentService
 
                 if ($needsMetrics) {
                     try {
-                        SyncGitHubMetricsJob::dispatchSync($alt->fresh());
-                        $notes[] = 'metrics_synced';
+                        // Prefer async queue; fall back to sync if queue is unavailable
+                        try {
+                            SyncGitHubMetricsJob::dispatch($alt->fresh());
+                            $notes[] = 'metrics_queued';
+                        } catch (\Throwable) {
+                            SyncGitHubMetricsJob::dispatchSync($alt->fresh());
+                            $notes[] = 'metrics_synced';
+                        }
                     } catch (\Throwable $e) {
                         Log::warning('Auto metrics sync failed: '.$e->getMessage());
                         $notes[] = 'metrics_failed: '.$e->getMessage();

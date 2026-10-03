@@ -30,8 +30,8 @@ class LinkHealthService
     public function isReachable(string $url): bool
     {
         try {
-            $response = Http::timeout(8)
-                ->connectTimeout(5)
+            $response = Http::timeout(4)
+                ->connectTimeout(3)
                 ->withHeaders(['User-Agent' => 'Alternova-LinkChecker/1.0'])
                 ->withOptions(['allow_redirects' => true])
                 ->head($url);
@@ -40,9 +40,9 @@ class LinkHealthService
                 return true;
             }
 
-            // Some hosts block HEAD — try GET
-            $get = Http::timeout(8)
-                ->connectTimeout(5)
+            // Some hosts block HEAD — try GET once with short timeout
+            $get = Http::timeout(4)
+                ->connectTimeout(3)
                 ->withHeaders(['User-Agent' => 'Alternova-LinkChecker/1.0'])
                 ->get($url);
 

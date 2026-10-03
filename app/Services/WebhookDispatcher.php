@@ -29,6 +29,21 @@ class WebhookDispatcher
             return;
         }
 
+        // Deliver after the HTTP response so admin publish/save is not blocked by outbound POSTs
+        dispatch(function () use ($event, $payload) {
+            $this->dispatchNow($event, $payload);
+        })->afterResponse();
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function dispatchNow(string $event, array $payload): void
+    {
+        if (! $this->ready()) {
+            return;
+        }
+
         try {
             $hooks = Webhook::query()
                 ->where('is_active', true)
@@ -63,7 +78,6 @@ class WebhookDispatcher
 
         $body = $delivery->decodedPayload();
         if ($body === null) {
-            // Legacy rows without payload: send a minimal retry envelope
             $body = [
                 'event' => $delivery->event,
                 'timestamp' => now()->toIso8601String(),
@@ -105,7 +119,8 @@ class WebhookDispatcher
         $error = null;
 
         try {
-            $response = Http::timeout(8)
+            $response = Http::timeout(6)
+                ->connectTimeout(3)
                 ->withHeaders($headers)
                 ->withBody($json ?: '{}', 'application/json')
                 ->post($hook->url);
