@@ -95,6 +95,7 @@ class ProprietaryToolResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->defaultSort('updated_at', 'desc')
             ->columns([
                 Tables\Columns\ImageColumn::make('logo_path')
                     ->label('Logo')
@@ -109,7 +110,7 @@ class ProprietaryToolResource extends Resource
                 Tables\Columns\TextColumn::make('open_source_alternatives_count')
                     ->counts('openSourceAlternatives')
                     ->label('Alternatives'),
-                Tables\Columns\TextColumn::make('updated_at')->dateTime()->sortable()->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('updated_at')->dateTime()->sortable()->label('Updated')->toggleable(),
             ])
             ->filters([
                 Tables\Filters\TernaryFilter::make('is_published'),
