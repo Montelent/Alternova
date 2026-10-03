@@ -9,6 +9,7 @@ use App\Observers\ProprietaryToolObserver;
 use App\Support\IntegrationsSettings;
 use App\Support\MailSettings;
 use App\View\Composers\CmsNavComposer;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -34,6 +35,21 @@ class AppServiceProvider extends ServiceProvider
         try {
             IntegrationsSettings::apply();
         } catch (\Throwable) {
+        }
+
+        // Harden cookies + force HTTPS URL generation in production
+        if ($this->app->environment('production')) {
+            $https = str_starts_with(strtolower((string) config('app.url')), 'https://');
+
+            config([
+                'session.http_only' => true,
+                'session.same_site' => 'lax',
+                'session.secure' => $https || (bool) config('session.secure'),
+            ]);
+
+            if ($https) {
+                URL::forceScheme('https');
+            }
         }
 
         $uploadsRoot = base_path('uploads');
