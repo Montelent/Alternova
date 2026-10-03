@@ -98,9 +98,45 @@ class OpenSourceAlternativeResource extends Resource
                     ->live(onBlur: true)
                     ->afterStateUpdated(fn ($state, Set $set) => $set('slug', Str::slug($state))),
                 Forms\Components\TextInput::make('slug')->required()->unique(ignoreRecord: true),
-                Forms\Components\TextInput::make('repo_url')->url()->required(),
+                Forms\Components\TextInput::make('repo_url')->url()->required()->helperText('https://github.com/owner/repo'),
                 Forms\Components\TextInput::make('website_url')->url(),
                 TinyEditor::make('description')->label('Description')->height(320)->columnSpanFull(),
+                Forms\Components\Actions::make([
+                    Forms\Components\Actions\Action::make('generateDescription')
+                        ->label('Generate from GitHub')
+                        ->icon('heroicon-o-sparkles')
+                        ->color('gray')
+                        ->action(function (Get $get, Set $set) {
+                            $repo = $get('repo_url');
+                            if (! $repo) {
+                                Notification::make()->title('Add a repo URL first')->warning()->send();
+
+                                return;
+                            }
+                            $propName = null;
+                            if ($id = $get('proprietary_tool_id')) {
+                                $propName = ProprietaryTool::query()->find($id)?->name;
+                            }
+                            $result = app(DescriptionGeneratorService::class)->fromGitHubRepo($repo, $propName);
+                            if ($result['description']) {
+                                $set('description', $result['description']);
+                            }
+                            if ($result['primary_language'] && ! $get('primary_language')) {
+                                $set('primary_language', $result['primary_language']);
+                            }
+                            if ($result['license_type'] && ! $get('license_type')) {
+                                $set('license_type', $result['license_type']);
+                            }
+                            if ($result['website_url'] && ! $get('website_url')) {
+                                $set('website_url', $result['website_url']);
+                            }
+                            Notification::make()
+                                ->title($result['success'] ? 'Description generated' : 'Partial result')
+                                ->body($result['message'])
+                                ->{$result['success'] ? 'success' : 'warning'}()
+                                ->send();
+                        }),
+                ])->columnSpanFull(),
                 Forms\Components\Select::make('category_tags')
                     ->label('Categories')
                     ->multiple()
@@ -116,7 +152,11 @@ class OpenSourceAlternativeResource extends Resource
             Forms\Components\Section::make('Publishing')->schema([
                 Forms\Components\Toggle::make('is_published')->label('Published')->default(false),
                 Forms\Components\Toggle::make('is_featured')->label('Featured')->default(false),
-                Forms\Components\Toggle::make('is_sponsored')->label('Sponsored')->default(false),
+                Forms\Components\Toggle::make('is_sponsored')->label('Sponsored')->live()->default(false),
+                Forms\Components\DateTimePicker::make('sponsored_until')->native(false)
+                    ->visible(fn (Get $get) => (bool) $get('is_sponsored')),
+                Forms\Components\TextInput::make('sponsor_label')->maxLength(40)
+                    ->visible(fn (Get $get) => (bool) $get('is_sponsored')),
             ])->columns(3),
 
             Forms\Components\Section::make('Technical')->schema([
@@ -124,11 +164,19 @@ class OpenSourceAlternativeResource extends Resource
                 Forms\Components\Select::make('self_host_difficulty')
                     ->options([1 => '1 - Very Easy', 2 => '2 - Easy', 3 => '3 - Moderate', 4 => '4 - Hard', 5 => '5 - Expert'])
                     ->default(3),
-                Forms\Components\TextInput::make('primary_language'),
+                Forms\Components\TextInput::make('primary_language')
+                    ->datalist(['PHP', 'JavaScript', 'TypeScript', 'Python', 'Go', 'Rust', 'Java', 'Ruby', 'C#', 'Swift', 'Kotlin']),
                 Forms\Components\TextInput::make('overall_health_score')->numeric()->disabled(),
+                Forms\Components\Textarea::make('docker_compose_blueprint')->rows(10)->columnSpanFull(),
                 TagsField::make('pros', 'Pros')->columnSpanFull(),
                 TagsField::make('cons', 'Cons')->columnSpanFull(),
                 TinyEditor::make('editor_note')->label('Editor note')->height(220)->columnSpanFull(),
+                TinyEditor::make('changelog')->label('Public changelog / notes')->height(280)->columnSpanFull(),
+                ImageField::multiple('gallery_paths', 'Screenshots (upload)', 'gallery', 12),
+                TagsField::make('gallery_urls', 'Extra screenshot URLs')
+                    ->placeholder('https://example.com/shot.png')
+                    ->helperText('Paste multiple image URLs separated by commas')
+                    ->columnSpanFull(),
             ])->columns(2),
 
             ...SeoForm::schema('open-source alternative', 'slug'),
