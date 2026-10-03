@@ -8,7 +8,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Browser security headers for all responses.
- * Embed routes allow framing; everything else is same-origin only.
+ * Embed routes allow framing; OG images allow cross-origin for social crawlers.
  */
 class SecurityHeaders
 {
@@ -21,6 +21,7 @@ class SecurityHeaders
         $response->headers->remove('Server');
 
         $isEmbed = $request->is('embed', 'embed/*');
+        $isOgImage = $request->is('og', 'og/*');
         $isSecure = $request->isSecure()
             || str_starts_with(strtolower((string) config('app.url')), 'https://');
 
@@ -43,7 +44,12 @@ class SecurityHeaders
         );
 
         $response->headers->set('Cross-Origin-Opener-Policy', 'same-origin');
-        $response->headers->set('Cross-Origin-Resource-Policy', $isEmbed ? 'cross-origin' : 'same-site');
+
+        // Social crawlers (WhatsApp, X, Facebook) fetch og:image cross-origin
+        $response->headers->set(
+            'Cross-Origin-Resource-Policy',
+            ($isEmbed || $isOgImage) ? 'cross-origin' : 'same-site'
+        );
 
         if ($isSecure) {
             $response->headers->set(
@@ -53,7 +59,6 @@ class SecurityHeaders
         }
 
         // Pragmatic CSP: allow self + TinyMCE CDN + data/blob images used by admin uploads
-        // 'unsafe-inline' / 'unsafe-eval' required for Livewire, Alpine, Filament, TinyMCE
         $frameAncestors = $isEmbed ? '*' : "'self'";
         $csp = [
             "default-src 'self'",
@@ -61,8 +66,8 @@ class SecurityHeaders
             "form-action 'self'",
             "object-src 'none'",
             "frame-ancestors {$frameAncestors}",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net",
-            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdn.tailwindcss.com",
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.tailwindcss.com",
             "img-src 'self' data: blob: https:",
             "font-src 'self' data: https://cdn.jsdelivr.net",
             "connect-src 'self'",
@@ -75,12 +80,10 @@ class SecurityHeaders
             $csp[] = 'upgrade-insecure-requests';
         }
 
-        // Do not overwrite a stricter CSP if something else already set one
         if (! $response->headers->has('Content-Security-Policy')) {
             $response->headers->set('Content-Security-Policy', implode('; ', $csp));
         }
 
-        // Reduce caching of authenticated / admin HTML
         if ($request->is('admin', 'admin/*', 'account', 'account/*', 'login', 'register', 'password/*')) {
             $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
             $response->headers->set('Pragma', 'no-cache');
