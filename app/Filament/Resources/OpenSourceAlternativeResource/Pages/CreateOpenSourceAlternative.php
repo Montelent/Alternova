@@ -7,6 +7,7 @@ use App\Models\AdminActivityLog;
 use App\Models\OpenSourceAlternative;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Support\Str;
 
 class CreateOpenSourceAlternative extends CreateRecord
 {
@@ -14,6 +15,10 @@ class CreateOpenSourceAlternative extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
+        if (empty($data['slug']) && ! empty($data['name'])) {
+            $data['slug'] = Str::slug((string) $data['name']);
+        }
+
         if (! empty($data['repo_url'])) {
             $normalized = rtrim(strtolower(trim($data['repo_url'])), '/');
             $existing = OpenSourceAlternative::query()
