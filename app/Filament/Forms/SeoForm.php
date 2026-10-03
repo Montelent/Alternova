@@ -2,6 +2,9 @@
 
 namespace App\Filament\Forms;
 
+use App\Models\ProprietaryTool;
+use App\Models\SiteSetting;
+use App\Services\SeoManager;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
@@ -31,17 +34,17 @@ class SeoForm
     ): array {
         return [
             Section::make('Search appearance (Google snippet)')
-                ->description('How this '.$entityLabel.' may look in Google. Leave meta fields empty to auto-fill from the '.$bodyField.' / site templates.')
+                ->description('How this '.$entityLabel.' may look in Google. Matches the live page title template when SEO title is empty.')
                 ->icon('heroicon-o-magnifying-glass')
                 ->schema([
                     ViewField::make('serp_preview')
                         ->label('Snippet preview')
                         ->view('filament.forms.seo-serp-preview')
                         ->viewData(fn (Get $get) => [
-                            'previewTitle' => static::previewTitle($get, $nameField),
-                            'previewDesc' => static::previewDescription($get, $bodyField),
+                            'previewTitle' => static::previewTitle($get, $nameField, $entityLabel),
+                            'previewDesc' => static::previewDescription($get, $bodyField, $nameField, $entityLabel),
                             'previewSlug' => (string) ($get($slugField) ?: 'your-slug'),
-                            'siteName' => config('app.name', 'Alternova'),
+                            'siteName' => app(SeoManager::class)->siteName(),
                             'siteOrigin' => rtrim((string) config('app.url'), '/') ?: '',
                         ])
                         ->columnSpanFull(),
@@ -50,8 +53,8 @@ class SeoForm
                         ->label('SEO title')
                         ->maxLength(70)
                         ->live(debounce: 300)
-                        ->helperText(fn (Get $get) => static::titleHelp((string) $get('meta_title')))
-                        ->placeholder('Leave empty → auto from name + site template')
+                        ->helperText(fn (Get $get) => static::titleHelp((string) $get('meta_title'), $entityLabel))
+                        ->placeholder('Leave empty → same auto title as the live public page')
                         ->columnSpanFull(),
 
                     Textarea::make('meta_description')
@@ -72,14 +75,14 @@ class SeoForm
 
                     Placeholder::make('keyword_check')
                         ->label('Keyphrase check')
-                        ->content(function (Get $get) use ($slugField, $nameField, $bodyField) {
+                        ->content(function (Get $get) use ($slugField, $nameField, $bodyField, $entityLabel) {
                             $kw = trim((string) $get('focus_keyword'));
                             if ($kw === '') {
                                 return 'Add a focus keyphrase to see simple checks.';
                             }
 
-                            $title = strtolower((string) ($get('meta_title') ?: $get($nameField)));
-                            $desc = strtolower(static::previewDescription($get, $bodyField));
+                            $title = strtolower(static::previewTitle($get, $nameField, $entityLabel));
+                            $desc = strtolower(static::previewDescription($get, $bodyField, $nameField, $entityLabel));
                             $name = strtolower((string) $get($nameField));
                             $slug = strtolower((string) $get($slugField));
                             $needle = strtolower($kw);
@@ -153,37 +156,148 @@ class SeoForm
         ];
     }
 
-    public static function previewTitle(Get $get, string $nameField = 'name'): string
+    /**
+     * Same auto title the public page uses (SeoManager), unless meta_title is filled.
+     */
+    public static function previewTitle(Get $get, string $nameField = 'name', string $entityLabel = 'page'): string
     {
         $meta = trim((string) $get('meta_title'));
         if ($meta !== '') {
             return $meta;
         }
 
-        $name = trim((string) $get($nameField));
-        $site = config('app.name', 'Alternova');
+        $seo = app(SeoManager::class);
+        $name = trim((string) ($get($nameField) ?: $get('title') ?: ''));
+        $label = strtolower($entityLabel);
 
-        return $name !== '' ? $name.' | '.$site : $site;
+        if (str_contains($label, 'alternative')) {
+            $tpl = SiteSetting::get(
+                'seo_title_alternative',
+                '%title% Open-Source %prop% Alternative %sep% %sitename%'
+            );
+
+            return $seo->replace((string) $tpl, [
+                '%title%' => $name !== '' ? $name : 'Alternative',
+                '%prop%' => static::resolveProprietaryName($get) ?: 'proprietary tools',
+                '%license%' => trim((string) ($get('license_type') ?? '')),
+                '%language%' => trim((string) ($get('primary_language') ?? '')),
+                '%health%' => (string) round((float) ($get('overall_health_score') ?? 0)),
+            ]);
+        }
+
+        if (str_contains($label, 'proprietary') || str_contains($label, 'tool')) {
+            $tpl = SiteSetting::get(
+                'seo_title_tool',
+                '%count% Open Source Alternatives to %title% %sep% %sitename%'
+            );
+
+            return $seo->replace((string) $tpl, [
+                '%title%' => $name !== '' ? $name : 'Tool',
+                '%count%' => '',
+            ]);
+        }
+
+        // CMS pages / generic
+        return $seo->replace('%page% %sep% %sitename%', [
+            '%page%' => $name !== '' ? $name : 'Page',
+        ]);
     }
 
-    public static function previewDescription(Get $get, string $bodyField = 'description'): string
-    {
+    public static function previewDescription(
+        Get $get,
+        string $bodyField = 'description',
+        string $nameField = 'name',
+        string $entityLabel = 'page',
+    ): string {
         $meta = trim((string) $get('meta_description'));
         if ($meta !== '') {
             return Str::limit($meta, 160);
         }
 
-        $body = static::plainText((string) $get($bodyField));
-        if ($body !== '') {
-            return Str::limit($body, 155);
+        $seo = app(SeoManager::class);
+        $name = trim((string) ($get($nameField) ?: $get('title') ?: ''));
+        $label = strtolower($entityLabel);
+        $excerpt = static::plainText((string) $get($bodyField));
+
+        if (str_contains($label, 'alternative')) {
+            $tpl = SiteSetting::get('seo_desc_alternative', '');
+            $prop = static::resolveProprietaryName($get) ?: 'proprietary software';
+
+            if ($tpl) {
+                return Str::limit($seo->replace((string) $tpl, [
+                    '%title%' => $name,
+                    '%prop%' => $prop,
+                    '%license%' => trim((string) ($get('license_type') ?? '')) ?: 'open-source',
+                    '%language%' => trim((string) ($get('primary_language') ?? '')),
+                    '%health%' => (string) round((float) ($get('overall_health_score') ?? 0)),
+                    '%excerpt%' => Str::limit($excerpt, 120),
+                ]), 160);
+            }
+
+            if ($excerpt !== '') {
+                return Str::limit($excerpt, 155);
+            }
+
+            return Str::limit(
+                ($name !== '' ? $name : 'This project').' is a free, self-hostable open-source alternative to '.$prop.'.',
+                155
+            );
         }
 
-        $excerpt = static::plainText((string) $get('excerpt'));
+        if (str_contains($label, 'proprietary') || str_contains($label, 'tool')) {
+            $tpl = SiteSetting::get('seo_desc_tool', '');
+
+            if ($tpl) {
+                return Str::limit($seo->replace((string) $tpl, [
+                    '%title%' => $name,
+                    '%excerpt%' => Str::limit($excerpt, 120),
+                ]), 160);
+            }
+
+            if ($excerpt !== '') {
+                return Str::limit($excerpt, 155);
+            }
+
+            return Str::limit(
+                'Browse free, self-hostable open-source alternatives to '.($name !== '' ? $name : 'this tool').'.',
+                155
+            );
+        }
+
         if ($excerpt !== '') {
             return Str::limit($excerpt, 155);
         }
 
+        $excerptField = static::plainText((string) $get('excerpt'));
+        if ($excerptField !== '') {
+            return Str::limit($excerptField, 155);
+        }
+
         return 'Meta description will be auto-generated from the main content when this is left empty.';
+    }
+
+    /**
+     * Resolve proprietary tool name from single or multi-select form state.
+     */
+    protected static function resolveProprietaryName(Get $get): string
+    {
+        $id = $get('proprietary_tool_id');
+        if (! $id) {
+            $tools = $get('proprietaryTools');
+            if (is_array($tools) && $tools !== []) {
+                $id = $tools[0];
+            }
+        }
+
+        if (! $id) {
+            return '';
+        }
+
+        try {
+            return (string) (ProprietaryTool::query()->find($id)?->name ?? '');
+        } catch (\Throwable) {
+            return '';
+        }
     }
 
     public static function plainText(?string $html): string
@@ -197,11 +311,11 @@ class SeoForm
         return trim(preg_replace('/\s+/u', ' ', $text) ?? $text);
     }
 
-    protected static function titleHelp(string $value): string
+    protected static function titleHelp(string $value, string $entityLabel = 'page'): string
     {
         $len = mb_strlen($value);
         if ($len === 0) {
-            return 'Empty → auto from name + site name. Ideal length: 50–60 characters.';
+            return 'Empty → uses the same auto title as the live page (site SEO templates). Ideal custom length: 50–60 characters.';
         }
         $status = $len <= 60 ? 'Good length' : ($len <= 70 ? 'Slightly long' : 'Too long — may truncate in Google');
 
