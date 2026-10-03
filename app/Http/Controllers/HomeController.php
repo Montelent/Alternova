@@ -6,13 +6,29 @@ use App\Models\AlternativeVote;
 use App\Models\Collection;
 use App\Models\OpenSourceAlternative;
 use App\Models\ProprietaryTool;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 class HomeController extends Controller
 {
+    /** Homepage fragment cache TTL (seconds). */
+    public const CACHE_TTL = 300; // 5 minutes
+
     public function __invoke(): View
+    {
+        $payload = Cache::remember('home.page.v1', self::CACHE_TTL, function () {
+            return $this->buildHomeData();
+        });
+
+        return view('welcome', $payload);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function buildHomeData(): array
     {
         $hasSponsored = Schema::hasColumn('open_source_alternatives', 'is_sponsored');
         $with = ['proprietaryTool', 'repoMetric'];
@@ -93,7 +109,7 @@ class HomeController extends Controller
             'tools' => ProprietaryTool::query()->where('is_published', true)->count(),
         ];
 
-        return view('welcome', compact(
+        return compact(
             'featured',
             'recent',
             'popular',
@@ -101,7 +117,7 @@ class HomeController extends Controller
             'tools',
             'collections',
             'stats'
-        ));
+        );
     }
 
     protected function trending(int $limit = 6, array $with = ['proprietaryTool', 'repoMetric'])

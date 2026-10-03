@@ -3,12 +3,16 @@
 namespace App\Services;
 
 use App\Support\GitHubUrl;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class DescriptionGeneratorService
 {
+    /** Cache successful GitHub lookups (seconds). */
+    public const CACHE_TTL = 21600; // 6 hours
+
     /**
      * @return array{description: string, primary_language: ?string, license_type: ?string, website_url: ?string, success: bool, message: string}
      */
@@ -28,9 +32,32 @@ class DescriptionGeneratorService
         }
 
         [$owner, $repo] = $parsed;
+        $cacheKey = 'gh_repo_meta:'.strtolower($owner.'/'.$repo);
 
         try {
-            $request = Http::timeout(15)
+            $cached = Cache::get($cacheKey);
+
+            if (is_array($cached) && isset($cached['name'])) {
+                $description = $this->composeOpenSourceDescription(
+                    $cached['name'],
+                    $cached['repo_description'] ?? '',
+                    $proprietaryName,
+                    $cached['license'] ?? null,
+                    $cached['language'] ?? null
+                );
+
+                return [
+                    'description' => $description,
+                    'primary_language' => $cached['language'] ?? null,
+                    'license_type' => $cached['license'] ?? null,
+                    'website_url' => $cached['homepage'] ?? null,
+                    'success' => true,
+                    'message' => 'Description generated from GitHub (cached '.$owner.'/'.$repo.').',
+                ];
+            }
+
+            $request = Http::timeout(8)
+                ->connectTimeout(4)
                 ->acceptJson()
                 ->withHeaders([
                     'User-Agent' => 'Alternova-DescriptionBot/1.0',
@@ -48,7 +75,7 @@ class DescriptionGeneratorService
                 $hint = $response->status() === 404
                     ? " Repo not found as {$owner}/{$repo}. Check the URL (dots in names like Rocket.Chat are supported)."
                     : ($response->status() === 403
-                        ? ' Rate limited or blocked — add a GitHub token under Integrations.'
+                        ? ' Rate limited or blocked — add a free GitHub token (Integrations / GITHUB_TOKEN) for much faster responses.'
                         : '');
 
                 return [
@@ -70,6 +97,19 @@ class DescriptionGeneratorService
                 $license = null;
             }
             $homepage = $data['homepage'] ?? null;
+            if (is_string($homepage)) {
+                $homepage = trim($homepage) ?: null;
+            } else {
+                $homepage = null;
+            }
+
+            Cache::put($cacheKey, [
+                'name' => $name,
+                'repo_description' => $repoDescription,
+                'language' => $language,
+                'license' => $license,
+                'homepage' => $homepage,
+            ], self::CACHE_TTL);
 
             $description = $this->composeOpenSourceDescription(
                 $name,
@@ -83,7 +123,7 @@ class DescriptionGeneratorService
                 'description' => $description,
                 'primary_language' => $language,
                 'license_type' => $license,
-                'website_url' => $homepage ?: null,
+                'website_url' => $homepage,
                 'success' => true,
                 'message' => 'Description generated from GitHub ('.$owner.'/'.$repo.').',
             ];
@@ -96,7 +136,7 @@ class DescriptionGeneratorService
                 'license_type' => null,
                 'website_url' => null,
                 'success' => false,
-                'message' => 'Failed to reach GitHub: '.$e->getMessage(),
+                'message' => 'Failed to reach GitHub (timeout or network). Try again, or set GITHUB_TOKEN for reliability. '.$e->getMessage(),
             ];
         }
     }
@@ -107,7 +147,8 @@ class DescriptionGeneratorService
     public function fromWebsite(string $websiteUrl, string $name = ''): array
     {
         try {
-            $response = Http::timeout(10)
+            $response = Http::timeout(6)
+                ->connectTimeout(3)
                 ->withHeaders(['User-Agent' => 'Alternova-DescriptionBot/1.0'])
                 ->get($websiteUrl);
 
