@@ -9,6 +9,7 @@ use App\Services\OgImageService;
 use App\Services\SeoManager;
 use App\Support\MediaUrl;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Schema;
 
@@ -94,17 +95,23 @@ class OgImageController extends Controller
         }
     }
 
-    public function compare(string $a, string $b, OgImageService $og): Response|RedirectResponse
+    public function compare(Request $request, OgImageService $og): Response|RedirectResponse
     {
+        $a = (string) ($request->query('a') ?: $request->route('a') ?: '');
+        $b = (string) ($request->query('b') ?: $request->route('b') ?: '');
         $a = preg_replace('/\.png$/i', '', $a) ?? $a;
         $b = preg_replace('/\.png$/i', '', $b) ?? $b;
 
+        abort_if($a === '' || $b === '', 404);
+
         $left = OpenSourceAlternative::query()
+            ->with(['repoMetric'])
             ->where('slug', $a)
             ->where('is_published', true)
             ->firstOrFail();
 
         $right = OpenSourceAlternative::query()
+            ->with(['repoMetric'])
             ->where('slug', $b)
             ->where('is_published', true)
             ->firstOrFail();
@@ -156,7 +163,6 @@ class OgImageController extends Controller
             return redirect()->away($url, 302);
         }
 
-        // Last resort: 1×1 PNG so the response is still image/png (not ideal, but not SVG)
         $png = base64_decode(
             'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
         );
