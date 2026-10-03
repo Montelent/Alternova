@@ -55,7 +55,7 @@ class AlternativeDetail extends Component
             try {
                 $redirect = null;
                 if (class_exists(SlugRedirect::class)) {
-                    $redirect = slugRedirect::query()
+                    $redirect = SlugRedirect::query()
                         ->where('old_slug', $requestedSlug)
                         ->where(function ($q) {
                             $q->where('model_type', 'alternative')
