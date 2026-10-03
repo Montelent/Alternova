@@ -9,12 +9,15 @@
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
+    # Block direct web access to sensitive project paths
+    RewriteRule ^(\.env|\.git|\.github|vendor|storage|bootstrap/cache|database|tests|node_modules)(/|$) - [F,L,NC]
+
     # Serve static assets that live under /public when docroot is project root
     RewriteCond %{REQUEST_URI} ^/(css|js|build|fonts|vendor|images|storage)/(.*)$ [NC]
     RewriteCond %{DOCUMENT_ROOT}/public/%1/%2 -f
     RewriteRule ^(css|js|build|fonts|vendor|images|storage)/(.*)$ public/$1/$2 [L]
 
-    # Also allow direct /public/... requests
+    # Also allow direct /public/... requests for existing files
     RewriteCond %{REQUEST_URI} ^/public/ [NC]
     RewriteCond %{REQUEST_FILENAME} -f
     RewriteRule ^ - [L]
@@ -29,3 +32,22 @@
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header unset X-Powered-By
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" env=HTTPS
+</IfModule>
+
+# Deny access to dotfiles and common secrets at web root
+<FilesMatch "(?i)^(\.env.*|\.git.*|composer\.(json|lock)|artisan|phpunit\.xml.*)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
