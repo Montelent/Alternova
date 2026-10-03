@@ -26,6 +26,7 @@
 <meta property="og:url" content="{{ $head['canonical'] }}">
 @if(!empty($head['ogImage']))
 <meta property="og:image" content="{{ $head['ogImage'] }}">
+<meta property="og:image:secure_url" content="{{ $head['ogImage'] }}">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="{{ $head['ogTitle'] }}">
@@ -34,7 +35,7 @@
 <meta property="fb:app_id" content="{{ $head['facebookAppId'] }}">
 @endif
 
-<meta name="twitter:card" content="{{ !empty($head['ogImage']) ? 'summary_large_image' : ($head['twitterCard'] ?? 'summary') }}">
+<meta name="twitter:card" content="{{ $head['twitterCard'] ?? 'summary_large_image' }}">
 <meta name="twitter:title" content="{{ $head['ogTitle'] }}">
 <meta name="twitter:description" content="{{ $head['ogDescription'] }}">
 @if(!empty($head['twitterHandle']))
@@ -42,6 +43,7 @@
 @endif
 @if(!empty($head['ogImage']))
 <meta name="twitter:image" content="{{ $head['ogImage'] }}">
+<meta name="twitter:image:alt" content="{{ $head['ogTitle'] }}">
 @endif
 
 @if(!empty($head['verifications']['google']))
