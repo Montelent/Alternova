@@ -95,9 +95,32 @@ class OpenSourceAlternativeResource extends Resource
                 ...$toolFields,
                 Forms\Components\TextInput::make('name')
                     ->required()
+                    ->maxLength(160)
                     ->live(onBlur: true)
-                    ->afterStateUpdated(fn ($state, Set $set) => $set('slug', Str::slug($state))),
-                Forms\Components\TextInput::make('slug')->required()->unique(ignoreRecord: true),
+                    ->afterStateUpdated(function (?string $state, Set $set, Get $get, ?string $old) {
+                        $name = trim((string) $state);
+                        if ($name === '') {
+                            return;
+                        }
+
+                        $newSlug = Str::slug($name);
+                        if ($newSlug === '') {
+                            return;
+                        }
+
+                        $currentSlug = trim((string) ($get('slug') ?? ''));
+                        $oldSlug = Str::slug(trim((string) ($old ?? '')));
+
+                        // Auto-fill when empty, or when slug still tracks the previous name
+                        if ($currentSlug === '' || ($oldSlug !== '' && $currentSlug === $oldSlug)) {
+                            $set('slug', $newSlug);
+                        }
+                    }),
+                Forms\Components\TextInput::make('slug')
+                    ->required()
+                    ->maxLength(180)
+                    ->unique(ignoreRecord: true)
+                    ->helperText('Filled automatically from the name when you leave the name field. You can edit it.'),
                 Forms\Components\TextInput::make('repo_url')->url()->required()->helperText('https://github.com/owner/repo'),
                 Forms\Components\TextInput::make('website_url')->url(),
                 TinyEditor::make('description')->label('Description')->height(320)->columnSpanFull(),
