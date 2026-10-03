@@ -25,14 +25,28 @@ class DuplicateAlternativesPage extends Page
         return auth()->check();
     }
 
-    public function sameRepoGroups()
+    /**
+     * @return list<array{repo: string, items: list<array{id: int, name: string, published: bool, tool: string|null}>}>
+     */
+    public function sameRepoGroups(): array
     {
-        return app(DuplicateAlternativeService::class)->sameRepoGroups();
+        try {
+            return app(DuplicateAlternativeService::class)->sameRepoGroupsForView();
+        } catch (\Throwable) {
+            return [];
+        }
     }
 
-    public function similarPairs()
+    /**
+     * @return list<array{score: float, a: array{id: int, name: string}, b: array{id: int, name: string}>
+     */
+    public function similarPairs(): array
     {
-        return app(DuplicateAlternativeService::class)->similarNamePairs(85.0);
+        try {
+            return app(DuplicateAlternativeService::class)->similarNamePairsForView(85.0);
+        } catch (\Throwable) {
+            return [];
+        }
     }
 
     public function editUrl(int $id): string
