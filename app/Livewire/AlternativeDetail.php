@@ -55,7 +55,7 @@ class AlternativeDetail extends Component
             try {
                 $redirect = null;
                 if (class_exists(SlugRedirect::class)) {
-                    $redirect = SlugRedirect::query()
+                    $redirect = slugRedirect::query()
                         ->where('old_slug', $requestedSlug)
                         ->where(function ($q) {
                             $q->where('model_type', 'alternative')
@@ -167,10 +167,10 @@ class AlternativeDetail extends Component
         RateLimiter::hit($key, 3600);
 
         $voterKey = app(VoteService::class)->voterKey(session()->getId(), request()->ip());
-        $result = app(VoteService::class)->toggle($this->alternative, $voterKey);
+        $result = app(VoteService::class)->toggle($this->alternative, $voterKey, request()->ip());
         $this->hasVoted = $result['voted'];
         $this->votesCount = $result['count'];
-        $this->voteMessage = $this->hasVoted ? 'Thanks for the vote.' : 'Vote removed.';
+        $this->voteMessage = $result['message'] ?? ($this->hasVoted ? 'Thanks for the vote.' : 'Vote removed.');
     }
 
     public function toggleFavorite(): void
@@ -278,7 +278,6 @@ class AlternativeDetail extends Component
             $description = $editorial['meta_description'];
         }
 
-        // Social: custom og_* if set, otherwise auto title/desc + generated OG image
         $social = $seo->alternativeSocial($alt);
         if (! filled($alt->og_description) && ! empty($editorial['meta_description'])) {
             $social['description'] = $editorial['meta_description'];
