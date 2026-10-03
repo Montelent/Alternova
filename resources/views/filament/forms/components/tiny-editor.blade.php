@@ -33,168 +33,236 @@
 
     @once
         <script>
-            window.tinyEditorComponent = function (config) {
-                return {
-                    state: null,
-                    editor: null,
-                    booting: false,
-                    config,
+            (function () {
+                /** Flush every TinyMCE instance into its Alpine/Livewire state before any request. */
+                function flushAllTinyEditors() {
+                    if (! window.tinymce) {
+                        return;
+                    }
+                    try {
+                        window.tinymce.triggerSave();
+                    } catch (e) {}
 
-                    init() {
-                        // Entangle after Alpine is ready so Livewire state is available
-                        this.state = this.$wire.$entangle(config.statePath);
+                    window.tinymce.get().forEach(function (editor) {
+                        try {
+                            if (typeof editor.__alternovaSync === 'function') {
+                                editor.__alternovaSync(true);
+                            }
+                        } catch (e) {}
+                    });
+                }
 
-                        // Prefer Livewire state; fall back to server-rendered HTML
-                        if ((! this.state || this.state === '') && config.initial) {
-                            this.state = config.initial;
-                        }
+                // Before Livewire commits (Save / Create / validation)
+                document.addEventListener('livewire:init', function () {
+                    if (window.__alternovaTinyFlushHooked) {
+                        return;
+                    }
+                    window.__alternovaTinyFlushHooked = true;
 
-                        this.$nextTick(() => this.boot());
+                    Livewire.hook('commit', function ({ component, commit, respond, succeed, fail }) {
+                        flushAllTinyEditors();
+                    });
+                });
 
-                        this._onNavigated = () => {
-                            setTimeout(() => this.boot(), 50);
-                        };
-                        document.addEventListener('livewire:navigated', this._onNavigated);
+                // Capture-phase click on Filament primary actions (Save / Create)
+                document.addEventListener('click', function (e) {
+                    var btn = e.target && e.target.closest
+                        ? e.target.closest('button, [type="submit"], .fi-btn')
+                        : null;
+                    if (! btn) {
+                        return;
+                    }
+                    var label = (btn.textContent || '').toLowerCase();
+                    var isSave = btn.type === 'submit'
+                        || label.indexOf('save') !== -1
+                        || label.indexOf('create') !== -1
+                        || label.indexOf('publish') !== -1
+                        || btn.classList.contains('fi-btn-color-primary');
+                    if (isSave) {
+                        flushAllTinyEditors();
+                    }
+                }, true);
 
-                        this.$watch('state', (value) => {
-                            if (! this.editor || this.editor.initialized === false) return;
-                            const html = value || '';
-                            try {
-                                if (this.editor.getContent() !== html) {
-                                    this.editor.setContent(html);
+                window.tinyEditorComponent = function (config) {
+                    return {
+                        state: null,
+                        editor: null,
+                        booting: false,
+                        config,
+                        _syncing: false,
+
+                        init() {
+                            this.state = this.$wire.$entangle(config.statePath);
+
+                            if ((! this.state || this.state === '') && config.initial) {
+                                this.state = config.initial;
+                            }
+
+                            this.$nextTick(() => this.boot());
+
+                            this._onNavigated = () => {
+                                setTimeout(() => this.boot(), 50);
+                            };
+                            document.addEventListener('livewire:navigated', this._onNavigated);
+
+                            this.$watch('state', (value) => {
+                                if (this._syncing || ! this.editor) {
+                                    return;
                                 }
-                            } catch (e) {}
-                        });
-                    },
+                                const html = value || '';
+                                try {
+                                    if (this.editor.getContent() !== html) {
+                                        this.editor.setContent(html);
+                                    }
+                                } catch (e) {}
+                            });
+                        },
 
-                    destroy() {
-                        if (this._onNavigated) {
-                            document.removeEventListener('livewire:navigated', this._onNavigated);
-                        }
-                        this.teardown();
-                    },
+                        destroy() {
+                            if (this._onNavigated) {
+                                document.removeEventListener('livewire:navigated', this._onNavigated);
+                            }
+                            this.teardown();
+                        },
 
-                    teardown() {
-                        const el = this.$refs.editor;
-                        if (window.tinymce && el && el.id) {
-                            const existing = window.tinymce.get(el.id);
-                            if (existing) {
-                                try { existing.remove(); } catch (e) {}
+                        teardown() {
+                            const el = this.$refs.editor;
+                            if (window.tinymce && el && el.id) {
+                                const existing = window.tinymce.get(el.id);
+                                if (existing) {
+                                    try { existing.remove(); } catch (e) {}
+                                }
                             }
-                        }
-                        this.editor = null;
-                    },
+                            this.editor = null;
+                        },
 
-                    ensureScript() {
-                        return new Promise((resolve) => {
-                            if (window.tinymce) {
-                                resolve(true);
-                                return;
-                            }
-                            if (! window.__alternovaTinymceLoading) {
-                                window.__alternovaTinymceLoading = true;
-                                const s = document.createElement('script');
-                                s.src = 'https://cdn.jsdelivr.net/npm/tinymce@7.4.1/tinymce.min.js';
-                                s.referrerPolicy = 'origin';
-                                s.onload = () => {
-                                    window.__alternovaTinymceLoading = false;
-                                    resolve(true);
-                                };
-                                s.onerror = () => {
-                                    window.__alternovaTinymceLoading = false;
-                                    resolve(false);
-                                };
-                                document.head.appendChild(s);
-                            }
-                            let tries = 0;
-                            const tick = () => {
+                        ensureScript() {
+                            return new Promise((resolve) => {
                                 if (window.tinymce) {
                                     resolve(true);
                                     return;
                                 }
-                                tries++;
-                                if (tries > 100) {
-                                    resolve(false);
+                                if (! window.__alternovaTinymceLoading) {
+                                    window.__alternovaTinymceLoading = true;
+                                    const s = document.createElement('script');
+                                    s.src = 'https://cdn.jsdelivr.net/npm/tinymce@7.4.1/tinymce.min.js';
+                                    s.referrerPolicy = 'origin';
+                                    s.onload = () => {
+                                        window.__alternovaTinymceLoading = false;
+                                        resolve(true);
+                                    };
+                                    s.onerror = () => {
+                                        window.__alternovaTinymceLoading = false;
+                                        resolve(false);
+                                    };
+                                    document.head.appendChild(s);
+                                }
+                                let tries = 0;
+                                const tick = () => {
+                                    if (window.tinymce) {
+                                        resolve(true);
+                                        return;
+                                    }
+                                    tries++;
+                                    if (tries > 100) {
+                                        resolve(false);
+                                        return;
+                                    }
+                                    setTimeout(tick, 50);
+                                };
+                                tick();
+                            });
+                        },
+
+                        async boot() {
+                            if (this.booting) return;
+                            this.booting = true;
+
+                            try {
+                                const ok = await this.ensureScript();
+                                if (! ok || ! window.tinymce) {
+                                    this.booting = false;
+                                    console.warn('TinyMCE script failed to load');
                                     return;
                                 }
-                                setTimeout(tick, 50);
-                            };
-                            tick();
-                        });
-                    },
 
-                    async boot() {
-                        if (this.booting) return;
-                        this.booting = true;
+                                const el = this.$refs.editor;
+                                if (! el) {
+                                    this.booting = false;
+                                    return;
+                                }
 
-                        try {
-                            const ok = await this.ensureScript();
-                            if (! ok || ! window.tinymce) {
-                                this.booting = false;
-                                console.warn('TinyMCE script failed to load');
-                                return;
-                            }
+                                this.teardown();
 
-                            const el = this.$refs.editor;
-                            if (! el) {
-                                this.booting = false;
-                                return;
-                            }
+                                if (! el.id) {
+                                    el.id = 'tinymce-' + Math.random().toString(36).slice(2, 10);
+                                }
 
-                            this.teardown();
+                                const self = this;
+                                const content = (typeof this.state === 'string' ? this.state : '') || config.initial || el.value || '';
 
-                            if (! el.id) {
-                                el.id = 'tinymce-' + Math.random().toString(36).slice(2, 10);
-                            }
-
-                            const self = this;
-                            const content = (typeof this.state === 'string' ? this.state : '') || config.initial || el.value || '';
-
-                            window.tinymce.init({
-                                target: el,
-                                height: config.height || 320,
-                                menubar: true,
-                                branding: false,
-                                promotion: false,
-                                // Required for TinyMCE 7 open-source build
-                                license_key: 'gpl',
-                                // Critical: load skins/plugins from CDN, not relative site path
-                                base_url: 'https://cdn.jsdelivr.net/npm/tinymce@7.4.1',
-                                suffix: '.min',
-                                plugins: 'lists link image code table autoresize wordcount',
-                                toolbar: 'undo redo | styles | bold italic underline | alignleft aligncenter alignright | bullist numlist | link image table | code removeformat',
-                                toolbar_mode: 'sliding',
-                                mobile: {
+                                window.tinymce.init({
+                                    target: el,
+                                    height: config.height || 320,
                                     menubar: true,
-                                    toolbar_mode: 'scrolling',
-                                },
-                                content_style: 'body { font-family: Inter, system-ui, sans-serif; font-size: 15px; line-height: 1.6; }',
-                                relative_urls: false,
-                                convert_urls: false,
-                                setup: (editor) => {
-                                    self.editor = editor;
-                                    editor.on('init', () => {
-                                        editor.setContent(content);
-                                        self.booting = false;
-                                    });
-                                    const sync = () => {
-                                        self.state = editor.getContent();
-                                    };
-                                    editor.on('change keyup blur SetContent Undo Redo', sync);
-                                },
-                                init_instance_callback: () => {
-                                    self.booting = false;
-                                },
-                            });
+                                    branding: false,
+                                    promotion: false,
+                                    license_key: 'gpl',
+                                    base_url: 'https://cdn.jsdelivr.net/npm/tinymce@7.4.1',
+                                    suffix: '.min',
+                                    plugins: 'lists link image code table autoresize wordcount',
+                                    toolbar: 'undo redo | styles | bold italic underline | alignleft aligncenter alignright | bullist numlist | link image table | code removeformat',
+                                    toolbar_mode: 'sliding',
+                                    mobile: {
+                                        menubar: true,
+                                        toolbar_mode: 'scrolling',
+                                    },
+                                    content_style: 'body { font-family: Inter, system-ui, sans-serif; font-size: 15px; line-height: 1.6; }',
+                                    relative_urls: false,
+                                    convert_urls: false,
+                                    setup: (editor) => {
+                                        self.editor = editor;
 
-                            setTimeout(() => { this.booting = false; }, 3000);
-                        } catch (e) {
-                            this.booting = false;
-                            console.warn('TinyMCE boot failed', e);
-                        }
-                    },
+                                        const sync = (forceWire) => {
+                                            try {
+                                                const html = editor.getContent();
+                                                self._syncing = true;
+                                                self.state = html;
+                                                el.value = html;
+                                                if (forceWire && self.$wire && config.statePath) {
+                                                    // Push into Livewire immediately so Save does not need a second click
+                                                    self.$wire.set(config.statePath, html, false);
+                                                }
+                                            } catch (e) {
+                                            } finally {
+                                                self._syncing = false;
+                                            }
+                                        };
+
+                                        editor.__alternovaSync = sync;
+
+                                        editor.on('init', () => {
+                                            editor.setContent(content);
+                                            self.booting = false;
+                                        });
+
+                                        editor.on('change keyup SetContent Undo Redo', () => sync(false));
+                                        editor.on('blur', () => sync(true));
+                                    },
+                                    init_instance_callback: () => {
+                                        self.booting = false;
+                                    },
+                                });
+
+                                setTimeout(() => { this.booting = false; }, 3000);
+                            } catch (e) {
+                                this.booting = false;
+                                console.warn('TinyMCE boot failed', e);
+                            }
+                        },
+                    };
                 };
-            };
+            })();
         </script>
     @endonce
 </x-dynamic-component>
