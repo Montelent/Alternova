@@ -37,14 +37,33 @@ class AppServiceProvider extends ServiceProvider
         } catch (\Throwable) {
         }
 
-        // Harden cookies + force HTTPS URL generation in production
+        /*
+         | Session cookies on shared hosting (Hostinger, Cloudflare, etc.)
+         |
+         | Do NOT force session.secure=true from APP_URL alone. If PHP does not
+         | see the request as HTTPS (missing X-Forwarded-Proto), a Secure cookie
+         | is never stored/sent and every Livewire/Filament Save hits 419 Page Expired.
+         |
+         | Leave SESSION_SECURE_COOKIE unset/null → Laravel marks Secure only when
+         | the current request is HTTPS (works with TrustProxies).
+         */
         if ($this->app->environment('production')) {
             $https = str_starts_with(strtolower((string) config('app.url')), 'https://');
 
+            $secureEnv = env('SESSION_SECURE_COOKIE');
+            $secure = null;
+            if ($secureEnv === true || $secureEnv === 'true' || $secureEnv === '1') {
+                $secure = true;
+            } elseif ($secureEnv === false || $secureEnv === 'false' || $secureEnv === '0') {
+                $secure = false;
+            }
+
             config([
                 'session.http_only' => true,
-                'session.same_site' => 'lax',
-                'session.secure' => $https || (bool) config('session.secure'),
+                'session.same_site' => env('SESSION_SAME_SITE', 'lax'),
+                'session.secure' => $secure,
+                // Longer admin editing sessions (default 120 is tight for long forms)
+                'session.lifetime' => (int) env('SESSION_LIFETIME', 480),
             ]);
 
             if ($https) {

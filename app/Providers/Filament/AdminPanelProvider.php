@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Http\Middleware\SecurityHeaders;
 use App\Support\WhiteLabelSettings;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -88,12 +89,14 @@ class AdminPanelProvider extends PanelProvider
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
-                AuthenticateSession::class,
+                // AuthenticateSession can force logouts / 419-like behaviour on shared hosts
+                // when concurrent Livewire requests race the session. Keep VerifyCsrfToken.
                 ShareErrorsFromSession::class,
                 VerifyCsrfToken::class,
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
+                SecurityHeaders::class,
             ])
             ->authMiddleware([
                 Authenticate::class,
@@ -102,6 +105,7 @@ class AdminPanelProvider extends PanelProvider
         if ($logo) {
             $panel = $panel->brandLogo($logo)->brandLogoHeight('2rem');
         }
+
         if ($favicon) {
             $panel = $panel->favicon($favicon);
         }
