@@ -3,9 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\ProprietaryTool;
-use App\Models\SiteSetting;
 use App\Models\SlugRedirect;
-use App\Services\OgImageService;
 use App\Services\ProprietaryPageCopy;
 use App\Services\SeoManager;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -77,22 +75,18 @@ class ProprietaryToolShow extends Component
         $copy = app(ProprietaryPageCopy::class)->build($tool, $alternatives, $categoryList);
 
         $seo = app(SeoManager::class);
-        if ($tool->meta_title) {
-            $title = $tool->meta_title;
-        } else {
-            $tpl = (string) SiteSetting::get(
-                'seo_title_tool',
-                '%count% Open Source Alternatives to %title% %sep% %sitename%'
-            );
-            $title = $seo->replace($tpl, [
-                '%title%' => $tool->name,
-                '%count%' => (string) $count,
-            ]);
-        }
+        $title = $seo->toolTitle($tool, $count);
 
-        $description = $tool->meta_description ?: $copy['meta_description'];
+        $description = filled($tool->meta_description)
+            ? (string) $tool->meta_description
+            : ($copy['meta_description'] ?? $seo->toolDescription($tool));
+
         $canonical = $tool->canonical_url ?: route('alternativesto.show', $tool->slug);
-        $ogImage = app(OgImageService::class)->toolUrl($tool);
+
+        $social = $seo->toolSocial($tool, $count, $copy['heading'] ?? null);
+        if (! filled($tool->og_description) && ! empty($copy['meta_description'])) {
+            $social['description'] = $copy['meta_description'];
+        }
 
         $jsonLd = $this->buildJsonLd($tool, $alternatives, $count, $canonical, $description);
 
@@ -109,10 +103,10 @@ class ProprietaryToolShow extends Component
             'description' => $description,
             'canonical' => $canonical,
             'robots' => $tool->robots_meta ?: null,
-            'ogType' => 'article',
-            'ogTitle' => $tool->og_title ?: $copy['heading'],
-            'ogDescription' => $tool->og_description ?: $description,
-            'ogImage' => $ogImage,
+            'ogType' => $social['type'],
+            'ogTitle' => $social['title'],
+            'ogDescription' => $social['description'],
+            'ogImage' => $social['image'],
             'jsonLd' => $jsonLd,
         ]);
     }
