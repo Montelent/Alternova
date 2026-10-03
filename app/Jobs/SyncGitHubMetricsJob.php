@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\OpenSourceAlternative;
 use App\Models\RepoMetric;
 use App\Support\GitHubUrl;
+use App\Support\IntegrationsSettings;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -41,7 +42,8 @@ class SyncGitHubMetricsJob implements ShouldQueue
 
         [$owner, $repo] = $parsed;
 
-        $token = config('services.github.token') ?: env('GITHUB_TOKEN');
+        IntegrationsSettings::apply();
+        $token = IntegrationsSettings::githubToken();
 
         $request = Http::timeout(20)
             ->connectTimeout(10)
