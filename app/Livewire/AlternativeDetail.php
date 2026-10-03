@@ -8,7 +8,6 @@ use App\Services\AlternativePageCopy;
 use App\Services\CompareBasket;
 use App\Services\FavoriteService;
 use App\Services\HealthHistoryService;
-use App\Services\OgImageService;
 use App\Services\RecentlyViewedService;
 use App\Services\SeoManager;
 use App\Services\VoteService;
@@ -261,7 +260,6 @@ class AlternativeDetail extends Component
         }
 
         $badgeUrl = url('/badge/'.$alt->slug.'.svg');
-        $ogImage = app(OgImageService::class)->alternativeUrl($alt);
 
         $healthSeries = collect();
         $healthPoints = '';
@@ -278,6 +276,12 @@ class AlternativeDetail extends Component
 
         if (! filled($alt->meta_description) && ! empty($editorial['meta_description'])) {
             $description = $editorial['meta_description'];
+        }
+
+        // Social: custom og_* if set, otherwise auto title/desc + generated OG image
+        $social = $seo->alternativeSocial($alt);
+        if (! filled($alt->og_description) && ! empty($editorial['meta_description'])) {
+            $social['description'] = $editorial['meta_description'];
         }
 
         return view('livewire.alternative-detail', [
@@ -301,10 +305,10 @@ class AlternativeDetail extends Component
             'description' => $description,
             'canonical' => $canonical,
             'robots' => $alt->robots_meta ?: null,
-            'ogType' => 'article',
-            'ogTitle' => $alt->og_title ?: $title,
-            'ogDescription' => $alt->og_description ?: $description,
-            'ogImage' => $ogImage,
+            'ogType' => $social['type'],
+            'ogTitle' => $social['title'],
+            'ogDescription' => $social['description'],
+            'ogImage' => $social['image'],
         ]);
     }
 
