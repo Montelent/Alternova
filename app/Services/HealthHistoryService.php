@@ -19,6 +19,53 @@ class HealthHistoryService
         }
     }
 
+    /**
+     * Weighted 0–100 score from GitHub activity. Reads metrics from DB (not a stale relation).
+     */
+    public function recalculate(OpenSourceAlternative $alt): float
+    {
+        $metric = RepoMetric::query()
+            ->where('open_source_alternative_id', $alt->id)
+            ->first();
+
+        if (! $metric) {
+            $alt->forceFill(['overall_health_score' => 0])->saveQuietly();
+
+            return 0.0;
+        }
+
+        $stars = max((int) $metric->github_stars, 0);
+        $forks = max((int) $metric->github_forks, 0);
+        $issues = max((int) $metric->open_issues, 0);
+
+        // log10 scale so huge repos don't max everything instantly
+        $starsScore = min(log10(max($stars, 1)) * 15, 40);
+        $forksScore = min(log10(max($forks, 1)) * 10, 20);
+        $issuesScore = $issues < 50 ? 15 : max(0, 15 - ($issues / 20));
+
+        $recencyScore = 0;
+        if ($metric->last_commit_at) {
+            if ($metric->last_commit_at->gt(now()->subMonths(3))) {
+                $recencyScore = 25;
+            } elseif ($metric->last_commit_at->gt(now()->subYear())) {
+                $recencyScore = 10;
+            }
+        }
+
+        $score = round(min($starsScore + $forksScore + $issuesScore + $recencyScore, 100), 2);
+
+        $alt->forceFill(['overall_health_score' => $score])->saveQuietly();
+
+        // Keep history chart in sync (no-op if snapshots table missing)
+        try {
+            $alt->setRelation('repoMetric', $metric);
+            $this->record($alt, $score);
+        } catch (\Throwable) {
+        }
+
+        return $score;
+    }
+
     public function record(OpenSourceAlternative $alt, ?float $score = null): ?HealthScoreSnapshot
     {
         if (! $this->tableReady()) {
