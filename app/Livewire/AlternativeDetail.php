@@ -55,7 +55,14 @@ class AlternativeDetail extends Component
             try {
                 $redirect = null;
                 if (class_exists(SlugRedirect::class)) {
-                    $redirect = the_slug_redirect($requestedSlug);
+                    $redirect = Slu gRedirect::query()
+                        ->where('old_slug', $requestedSlug)
+                        ->where(function ($q) {
+                            $q->where('model_type', 'alternative')
+                                ->orWhereNull('model_type')
+                                ->orWhere('model_type', '');
+                        })
+                        ->first();
                 }
 
                 if ($redirect) {
@@ -148,7 +155,7 @@ class AlternativeDetail extends Component
             $this->inCompare = $basket->has($this->alternative->slug);
             $this->compareUrl = $state['url'] ?? null;
             $this->compareMessage = $state['message'] ?? '';
-        } catch (\Throwable $e) {
+        } catch (\Throwable) {
             $this->compareMessage = 'Could not update compare list.';
         }
     }
@@ -353,19 +360,5 @@ class AlternativeDetail extends Component
         ];
 
         return [$software, $breadcrumb];
-    }
-}
-
-if (! function_exists('the_slug_redirect')) {
-    function the_slug_redirect(string $requestedSlug)
-    {
-        return \App\Models\SlugRedirect::query()
-            ->where('old_slug', $requestedSlug)
-            ->where(function ($q) {
-                $q->where('model_type', 'alternative')
-                    ->orWhereNull('model_type')
-                    ->orWhere('model_type', '');
-            })
-            ->first();
     }
 }
