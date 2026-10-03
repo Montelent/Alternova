@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Collection;
 use App\Models\OpenSourceAlternative;
 use App\Models\ProprietaryTool;
+use App\Support\MediaUrl;
 use Illuminate\Support\Facades\File;
 
 class OgImageService
@@ -13,31 +14,64 @@ class OgImageService
 
     public const HEIGHT = 630;
 
+    /**
+     * Best public image URL for sharing (WhatsApp / X / Facebook need absolute HTTPS PNG/JPEG).
+     */
     public function alternativeUrl(OpenSourceAlternative $alt): string
     {
-        if (! empty($alt->og_image_url)) {
-            return $alt->og_image_url;
+        if ($custom = $this->absoluteImageUrl($alt->og_image_url ?? null)) {
+            return $custom;
         }
 
-        return url('/og/alternative/'.$alt->slug.'.png');
+        // Prefer real screenshots / logo so shares show the project, not only a generated card
+        foreach ($this->galleryCandidates($alt) as $url) {
+            if ($url = $this->absoluteImageUrl($url)) {
+                return $url;
+            }
+        }
+
+        if ($logo = $this->absoluteImageUrl($alt->logo_url ?? null)) {
+            return $logo;
+        }
+
+        if ($default = $this->absoluteImageUrl(app(SeoManager::class)->defaultOgImage())) {
+            return $default;
+        }
+
+        return $this->absoluteImageUrl(url('/og/alternative/'.$alt->slug.'.png'))
+            ?: url('/og/alternative/'.$alt->slug.'.png');
     }
 
     public function toolUrl(ProprietaryTool $tool): string
     {
-        if (! empty($tool->og_image_url)) {
-            return $tool->og_image_url;
+        if ($custom = $this->absoluteImageUrl($tool->og_image_url ?? null)) {
+            return $custom;
         }
 
-        return url('/og/tool/'.$tool->slug.'.png');
+        if ($logo = $this->absoluteImageUrl($tool->logo_url ?? null)) {
+            return $logo;
+        }
+
+        if ($default = $this->absoluteImageUrl(app(SeoManager::class)->defaultOgImage())) {
+            return $default;
+        }
+
+        return $this->absoluteImageUrl(url('/og/tool/'.$tool->slug.'.png'))
+            ?: url('/og/tool/'.$tool->slug.'.png');
     }
 
     public function collectionUrl(Collection $collection): string
     {
-        if (! empty($collection->cover_image_url)) {
-            return $collection->cover_image_url;
+        if ($cover = $this->absoluteImageUrl($collection->cover_image_url ?? null)) {
+            return $cover;
         }
 
-        return url('/og/collection/'.$collection->slug.'.png');
+        if ($default = $this->absoluteImageUrl(app(SeoManager::class)->defaultOgImage())) {
+            return $default;
+        }
+
+        return $this->absoluteImageUrl(url('/og/collection/'.$collection->slug.'.png'))
+            ?: url('/og/collection/'.$collection->slug.'.png');
     }
 
     public function compareUrl(string $slugA, string $slugB): string
@@ -45,7 +79,70 @@ class OgImageService
         $pair = [$slugA, $slugB];
         sort($pair);
 
-        return url('/og/compare/'.$pair[0].'/'.$pair[1].'.png');
+        return $this->absoluteImageUrl(url('/og/compare/'.$pair[0].'/'.$pair[1].'.png'))
+            ?: url('/og/compare/'.$pair[0].'/'.$pair[1].'.png');
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function galleryCandidates(OpenSourceAlternative $alt): array
+    {
+        $out = [];
+
+        if (method_exists($alt, 'galleryImageUrls')) {
+            foreach ($alt->galleryImageUrls() as $url) {
+                $out[] = $url;
+            }
+        }
+
+        foreach ((array) ($alt->gallery_urls ?? []) as $url) {
+            if (is_string($url) && trim($url) !== '') {
+                $out[] = trim($url);
+            }
+        }
+
+        foreach ((array) ($alt->gallery_paths ?? []) as $path) {
+            if (is_string($path) && trim($path) !== '') {
+                $resolved = MediaUrl::make(trim($path), 'uploads');
+                if ($resolved) {
+                    $out[] = $resolved;
+                }
+            }
+        }
+
+        return array_values(array_unique($out));
+    }
+
+    public function absoluteImageUrl(?string $url): ?string
+    {
+        if ($url === null || trim($url) === '') {
+            return null;
+        }
+
+        $url = trim($url);
+
+        if (str_starts_with($url, '//')) {
+            $url = 'https:'.$url;
+        }
+
+        if (! str_starts_with($url, 'http://') && ! str_starts_with($url, 'https://')) {
+            $url = url($url);
+        }
+
+        // Social crawlers require HTTPS on HTTPS sites
+        $appHttps = str_starts_with(strtolower((string) config('app.url')), 'https://');
+        if ($appHttps && str_starts_with($url, 'http://')) {
+            $url = 'https://'.substr($url, 7);
+        }
+
+        // Skip obvious non-image links
+        $path = strtolower(parse_url($url, PHP_URL_PATH) ?? '');
+        if ($path !== '' && preg_match('/\.(svg|pdf|html?|php)(\?|$)/i', $path)) {
+            return null;
+        }
+
+        return $url;
     }
 
     public function pathForAlternative(string $slug): string
@@ -89,7 +186,7 @@ class OgImageService
         $this->ensureDir();
         $path = $this->pathForAlternative($alt->slug);
 
-        if (! $force && is_file($path) && filemtime($path) >= $alt->updated_at?->getTimestamp()) {
+        if (! $force && is_file($path) && filemtime($path) >= ($alt->updated_at?->getTimestamp() ?? 0)) {
             return $path;
         }
 
@@ -117,7 +214,8 @@ class OgImageService
             implode('  ·  ', $meta),
             method_exists($alt, 'hasActiveSponsorship') && $alt->hasActiveSponsorship()
                 ? ($alt->sponsor_label ?: 'Sponsored')
-                : null
+                : null,
+            $this->localImagePath($alt->logo_url ?? $alt->logo_path ?? null)
         );
 
         return $path;
@@ -128,7 +226,7 @@ class OgImageService
         $this->ensureDir();
         $path = $this->pathForTool($tool->slug);
 
-        if (! $force && is_file($path) && filemtime($path) >= $tool->updated_at?->getTimestamp()) {
+        if (! $force && is_file($path) && filemtime($path) >= ($tool->updated_at?->getTimestamp() ?? 0)) {
             return $path;
         }
 
@@ -146,7 +244,8 @@ class OgImageService
             $tool->name,
             $subtitle,
             'Proprietary software · Compare FOSS options',
-            null
+            null,
+            $this->localImagePath($tool->logo_url ?? $tool->logo_path ?? null)
         );
 
         return $path;
@@ -157,7 +256,7 @@ class OgImageService
         $this->ensureDir();
         $path = $this->pathForCollection($collection->slug);
 
-        if (! $force && is_file($path) && filemtime($path) >= $collection->updated_at?->getTimestamp()) {
+        if (! $force && is_file($path) && filemtime($path) >= ($collection->updated_at?->getTimestamp() ?? 0)) {
             return $path;
         }
 
@@ -174,7 +273,8 @@ class OgImageService
             $collection->name,
             $subtitle,
             $meta,
-            $collection->is_featured ? 'Featured' : null
+            $collection->is_featured ? 'Featured' : null,
+            null
         );
 
         return $path;
@@ -205,6 +305,51 @@ class OgImageService
         $this->paintCompare($path, $a, $b);
 
         return $path;
+    }
+
+    /**
+     * Map a public URL or storage path to a local filesystem path for GD, if possible.
+     */
+    protected function localImagePath(?string $urlOrPath): ?string
+    {
+        if ($urlOrPath === null || trim($urlOrPath) === '') {
+            return null;
+        }
+
+        $value = trim($urlOrPath);
+
+        // Already local absolute path
+        if (str_starts_with($value, '/') && is_file($value)) {
+            return $value;
+        }
+
+        // uploads/ relative
+        $relative = preg_replace('#^public/#', '', $value) ?? $value;
+        $relative = ltrim($relative, '/');
+        if (str_starts_with($relative, 'uploads/')) {
+            $full = base_path($relative);
+            if (is_file($full)) {
+                return $full;
+            }
+        }
+
+        // URL pointing at this site's uploads
+        $path = parse_url($value, PHP_URL_PATH);
+        if (is_string($path) && str_contains($path, '/uploads/')) {
+            $local = base_path(ltrim($path, '/'));
+            // sometimes docroot is public/
+            if (! is_file($local)) {
+                $local = public_path(ltrim($path, '/'));
+            }
+            if (! is_file($local) && str_starts_with(ltrim($path, '/'), 'uploads/')) {
+                $local = base_path(ltrim($path, '/'));
+            }
+            if (is_file($local)) {
+                return $local;
+            }
+        }
+
+        return null;
     }
 
     protected function paintCompare(string $path, OpenSourceAlternative $left, OpenSourceAlternative $right): void
@@ -314,8 +459,14 @@ class OgImageService
         }
     }
 
-    protected function paint(string $path, string $title, string $subtitle, string $meta, ?string $badge): void
-    {
+    protected function paint(
+        string $path,
+        string $title,
+        string $subtitle,
+        string $meta,
+        ?string $badge,
+        ?string $logoPath = null,
+    ): void {
         $w = self::WIDTH;
         $h = self::HEIGHT;
         $im = imagecreatetruecolor($w, $h);
@@ -341,6 +492,11 @@ class OgImageService
             imagettftext($im, 22, 0, 72, 80, $brand, $font, 'Alternova');
         } else {
             imagestring($im, 5, 72, 50, 'Alternova', $brand);
+        }
+
+        // Logo on the right if we can load it
+        if ($logoPath && is_file($logoPath)) {
+            $this->blitLogo($im, $logoPath, 920, 200, 180);
         }
 
         if ($badge) {
@@ -395,6 +551,43 @@ class OgImageService
 
         imagepng($im, $path, 6);
         imagedestroy($im);
+    }
+
+    protected function blitLogo($im, string $logoPath, int $x, int $y, int $maxSize): void
+    {
+        $info = @getimagesize($logoPath);
+        if (! $info) {
+            return;
+        }
+
+        $src = match ($info[2] ?? 0) {
+            IMAGETYPE_JPEG => @imagecreatefromjpeg($logoPath),
+            IMAGETYPE_PNG => @imagecreatefrompng($logoPath),
+            IMAGETYPE_GIF => @imagecreatefromgif($logoPath),
+            IMAGETYPE_WEBP => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($logoPath) : false,
+            default => false,
+        };
+
+        if (! $src) {
+            return;
+        }
+
+        $sw = imagesx($src);
+        $sh = imagesy($src);
+        if ($sw < 1 || $sh < 1) {
+            imagedestroy($src);
+
+            return;
+        }
+
+        $scale = min($maxSize / $sw, $maxSize / $sh, 1.0);
+        $dw = (int) max(1, round($sw * $scale));
+        $dh = (int) max(1, round($sh * $scale));
+
+        imagealphablending($im, true);
+        imagesavealpha($im, true);
+        imagecopyresampled($im, $src, $x, $y, 0, 0, $dw, $dh, $sw, $sh);
+        imagedestroy($src);
     }
 
     /** @return list<string> */
