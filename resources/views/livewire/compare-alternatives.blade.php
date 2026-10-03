@@ -66,6 +66,14 @@
                 @if($shareCopied)
                     <p class="mt-2 text-xs text-emerald-600">{{ $shareCopied }}</p>
                 @endif
+                <div class="mt-4">
+                    <x-share-buttons
+                        :url="$shareUrl"
+                        title="Compare open-source alternatives"
+                        text="Side-by-side open-source comparison — license, health, stars & self-host difficulty"
+                        :compact="true"
+                    />
+                </div>
             </div>
         @endif
     </div>
