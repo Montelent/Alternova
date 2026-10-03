@@ -23,10 +23,27 @@ class IntegrationsSettings
         }
     }
 
+    /**
+     * Prefer the token saved under Admin → Integrations (site settings),
+     * then config/services.php, then optional .env GITHUB_TOKEN.
+     */
     public static function githubToken(): ?string
     {
-        $token = trim((string) (config('services.github.token') ?: SiteSetting::get('github_token', '')));
+        try {
+            $fromDb = trim((string) SiteSetting::get('github_token', ''));
+            if ($fromDb !== '') {
+                return $fromDb;
+            }
+        } catch (\Throwable) {
+        }
 
-        return $token !== '' ? $token : null;
+        $fromConfig = trim((string) (config('services.github.token') ?: ''));
+        if ($fromConfig !== '') {
+            return $fromConfig;
+        }
+
+        $fromEnv = trim((string) (env('GITHUB_TOKEN') ?: ''));
+
+        return $fromEnv !== '' ? $fromEnv : null;
     }
 }

@@ -73,7 +73,7 @@ class CollectionResource extends Resource
                     ->visibility('public')
                     ->maxSize(5120)
                     ->columnSpanFull(),
-                Forms\Components\TextInput::make('cover_url')
+                Forms\Components\TextInput::make('cover_image_url')
                     ->label('Cover image URL')
                     ->url()
                     ->columnSpanFull(),
@@ -91,10 +91,15 @@ class CollectionResource extends Resource
                             ->options(fn () => OpenSourceAlternative::query()->orderBy('name')->pluck('name', 'id'))
                             ->searchable()
                             ->required(),
-                        Forms\Components\TextInput::make('sort_order')->numeric()->default(0),
+                        Forms\Components\TextInput::make('position')
+                            ->label('Position')
+                            ->numeric()
+                            ->default(0)
+                            ->helperText('Lower numbers appear first. Drag rows to reorder.'),
                         Forms\Components\Textarea::make('note')->rows(2),
                     ])
-                    ->orderColumn('sort_order')
+                    ->orderColumn('position')
+                    ->reorderable()
                     ->collapsible()
                     ->columnSpanFull(),
             ]),

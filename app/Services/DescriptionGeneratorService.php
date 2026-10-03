@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Support\GitHubUrl;
+use App\Support\IntegrationsSettings;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -56,6 +57,8 @@ class DescriptionGeneratorService
                 ];
             }
 
+            IntegrationsSettings::apply();
+
             $request = Http::timeout(8)
                 ->connectTimeout(4)
                 ->acceptJson()
@@ -64,7 +67,7 @@ class DescriptionGeneratorService
                     'Accept' => 'application/vnd.github+json',
                 ]);
 
-            $token = config('services.github.token') ?: env('GITHUB_TOKEN');
+            $token = IntegrationsSettings::githubToken();
             if ($token) {
                 $request = $request->withToken($token);
             }
@@ -74,8 +77,8 @@ class DescriptionGeneratorService
             if (! $response->successful()) {
                 $hint = $response->status() === 404
                     ? " Repo not found as {$owner}/{$repo}. Check the URL (dots in names like Rocket.Chat are supported)."
-                    : ($response->status() === 403
-                        ? ' Rate limited or blocked — add a free GitHub token (Integrations / GITHUB_TOKEN) for much faster responses.'
+                    : ($response->status() === 403 || $response->status() === 401
+                        ? ' Rate limited or unauthorized — save a GitHub token under Admin → System → Integrations.'
                         : '');
 
                 return [
@@ -136,7 +139,7 @@ class DescriptionGeneratorService
                 'license_type' => null,
                 'website_url' => null,
                 'success' => false,
-                'message' => 'Failed to reach GitHub (timeout or network). Try again, or set GITHUB_TOKEN for reliability. '.$e->getMessage(),
+                'message' => 'Failed to reach GitHub (timeout or network). Check Admin → Integrations token or try again. '.$e->getMessage(),
             ];
         }
     }
