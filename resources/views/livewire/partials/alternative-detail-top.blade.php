@@ -101,6 +101,33 @@
                                 {{ !empty($inCompare) ? 'In compare' : 'Compare' }}
                             </button>
                         </div>
+
+                        {{-- Social share — engaging OG already set via OgImageService --}}
+                        <div class="mt-6">
+                            @php
+                                $__shareProp = $propTools->pluck('name')->filter()->join(', ') ?: 'proprietary tools';
+                                $__shareBits = array_filter([
+                                    $alternative->license_type ?: null,
+                                    $alternative->overall_health_score > 0 ? ('Health '.number_format($alternative->overall_health_score, 0).'/100') : null,
+                                    isset($metric) && ($metric->github_stars ?? 0) > 0 ? ('★ '.number_format($metric->github_stars)) : null,
+                                ]);
+                                $__shareText = $alternative->name.' — open-source alternative to '.$__shareProp
+                                    .($__shareBits ? ' · '.implode(' · ', $__shareBits) : '');
+                                $__shareUrl = route('alternatives.show', $alternative);
+                                try {
+                                    $__shareImage = app(\App\Services\OgImageService::class)->alternativeUrl($alternative);
+                                } catch (\Throwable) {
+                                    $__shareImage = null;
+                                }
+                            @endphp
+                            <x-share-buttons
+                                :url="$__shareUrl"
+                                :title="$alternative->name.' — open-source alternative'"
+                                :text="$__shareText"
+                                :image="$__shareImage"
+                            />
+                        </div>
+
                         @if(!empty($voteMessage))<p class="mt-2 text-xs text-slate-500">{{ $voteMessage }}</p>@endif
                         @if(!empty($favoriteMessage))<p class="mt-1 text-xs text-slate-500">{{ $favoriteMessage }}</p>@endif
                         @if(!empty($watchMessage))<p class="mt-1 text-xs text-slate-500">{{ $watchMessage }}</p>@endif
