@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Cache;
 use Laravel\Scout\Searchable;
 use Spatie\Tags\HasTags;
 
@@ -100,6 +101,16 @@ class OpenSourceAlternative extends Model
 
     protected static function booted(): void
     {
+        $bustHome = function () {
+            try {
+                Cache::forget('home.page.v1');
+            } catch (\Throwable) {
+            }
+        };
+
+        static::saved($bustHome);
+        static::deleted($bustHome);
+
         static::updated(function (OpenSourceAlternative $alt) {
             try {
                 if ($alt->wasChanged('is_published') && $alt->is_published) {
