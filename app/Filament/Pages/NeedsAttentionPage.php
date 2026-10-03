@@ -78,7 +78,6 @@ class NeedsAttentionPage extends Page
             return 0;
         }
 
-        // Only count explicit failures (false), not "not checked yet" (null)
         return OpenSourceAlternative::query()
             ->where(function ($q) {
                 $q->where('repo_reachable', false)
@@ -156,15 +155,10 @@ class NeedsAttentionPage extends Page
         }
     }
 
-    /**
-     * Number of alternatives involved in duplicate groups/pairs (not the array key count).
-     */
     public static function duplicateSuspectsCount(): int
     {
         try {
-            $counts = app(DuplicateAlternativeService::class)->summaryCounts();
-
-            return (int) array_sum($counts);
+            return app(DuplicateAlternativeService::class)->totalSuspects();
         } catch (\Throwable) {
             return 0;
         }
@@ -223,6 +217,29 @@ class NeedsAttentionPage extends Page
                 'cta' => 'Duplicate detector',
             ],
         ];
+    }
+
+    public function duplicateRepoGroups(): array
+    {
+        try {
+            return app(DuplicateAlternativeService::class)->sameRepoGroupsForView();
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    public function duplicateNamePairs(): array
+    {
+        try {
+            return app(DuplicateAlternativeService::class)->similarNamePairsForView(85.0);
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    public function editAlternativeUrl(int $id): string
+    {
+        return OpenSourceAlternativeResource::getUrl('edit', ['record' => $id]);
     }
 
     public function drafts()
