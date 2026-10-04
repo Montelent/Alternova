@@ -6,9 +6,9 @@ use App\Models\AlternativeVote;
 use App\Models\Collection;
 use App\Models\OpenSourceAlternative;
 use App\Models\ProprietaryTool;
+use App\Support\SchemaCache;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 class HomeController extends Controller
@@ -30,13 +30,10 @@ class HomeController extends Controller
      */
     protected function buildHomeData(): array
     {
-        $hasSponsored = Schema::hasColumn('open_source_alternatives', 'is_sponsored');
+        $hasSponsored = SchemaCache::hasColumn('open_source_alternatives', 'is_sponsored');
         $with = ['proprietaryTool', 'repoMetric'];
-        try {
-            if (Schema::hasTable('alternative_proprietary_tool')) {
-                $with[] = 'proprietaryTools';
-            }
-        } catch (\Throwable) {
+        if (SchemaCache::hasTable('alternative_proprietary_tool')) {
+            $with[] = 'proprietaryTools';
         }
 
         $featuredQuery = OpenSourceAlternative::query()
@@ -92,16 +89,16 @@ class HomeController extends Controller
             ->get();
 
         $collections = collect();
-        try {
-            if (Schema::hasTable('collections')) {
+        if (SchemaCache::hasTable('collections')) {
+            try {
                 $collections = Collection::query()
                     ->where('is_published', true)
                     ->withCount('items')
                     ->orderByDesc('updated_at')
                     ->limit(6)
                     ->get();
+            } catch (\Throwable) {
             }
-        } catch (\Throwable) {
         }
 
         $stats = [
@@ -123,7 +120,7 @@ class HomeController extends Controller
     protected function trending(int $limit = 6, array $with = ['proprietaryTool', 'repoMetric'])
     {
         try {
-            if (! Schema::hasTable('alternative_votes')) {
+            if (! SchemaCache::hasTable('alternative_votes')) {
                 return collect();
             }
 
