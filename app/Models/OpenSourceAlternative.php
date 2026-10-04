@@ -4,9 +4,9 @@ namespace App\Models;
 
 use App\Services\HealthHistoryService;
 use App\Services\SeoManager;
-use App\Services\WatchlistService;
 use App\Services\WebhookDispatcher;
 use App\Support\MediaUrl;
+use App\Support\QueryCache;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -81,9 +81,6 @@ class OpenSourceAlternative extends Model
         'links_checked_at' => 'datetime',
     ];
 
-    /**
-     * Resolved logo for UI (upload path or external URL), same idea as ProprietaryTool::$logo_url.
-     */
     public function getLogoUrlAttribute(): ?string
     {
         $path = $this->attributes['logo_path'] ?? null;
@@ -101,15 +98,35 @@ class OpenSourceAlternative extends Model
 
     protected static function booted(): void
     {
-        $bustHome = function () {
+        $bustCaches = function () {
             try {
-                Cache::forget('home.page.v1');
+                QueryCache::bustCatalog();
+            } catch (\Throwable) {
+                try {
+                    Cache::forget('home.page.v1');
+                } catch (\Throwable) {
+                }
+            }
+            try {
+                Cache::forget('api.alt.show.v1.'.md5((string) (static::query()->value('slug') ?? '')));
             } catch (\Throwable) {
             }
         };
 
-        static::saved($bustHome);
-        static::deleted($bustHome);
+        static::saved(function (OpenSourceAlternative $alt) use ($bustCaches) {
+            $bustCaches();
+            try {
+                Cache::forget('api.alt.show.v1.'.md5($alt->slug));
+            } catch (\Throwable) {
+            }
+        });
+        static::deleted(function (OpenSourceAlternative $alt) use ($bustCaches) {
+            $bustCaches();
+            try {
+                Cache::forget('api.alt.show.v1.'.md5($alt->slug));
+            } catch (\Throwable) {
+            }
+        });
 
         static::updated(function (OpenSourceAlternative $alt) {
             try {
