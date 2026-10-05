@@ -63,6 +63,7 @@ class InstallWizard extends Component
         $this->app_url = rtrim(request()->getSchemeAndHttpHost(), '/');
         Installer::ensureStorageDirectories();
         Installer::ensureEnvFile();
+        Installer::ensureInstallSafeDrivers();
         Installer::ensureAppKey();
         $this->refreshRequirements();
     }
@@ -203,6 +204,7 @@ class InstallWizard extends Component
                 'DB_USERNAME' => $this->db_username,
                 'DB_PASSWORD' => $this->db_password,
                 'CACHE_DRIVER' => 'file',
+                'CACHE_STORE' => 'file',
                 'SESSION_DRIVER' => 'file',
                 'SESSION_LIFETIME' => '480',
                 'QUEUE_CONNECTION' => 'sync',
@@ -212,7 +214,16 @@ class InstallWizard extends Component
                 'MAIL_FROM_NAME' => '"${APP_NAME}"',
             ]);
 
-            Artisan::call('config:clear');
+            try {
+                Artisan::call('config:clear');
+            } catch (\Throwable) {
+                // Cache/session tables may not exist yet. Drivers are file until migrate.
+            }
+
+            config([
+                'cache.default' => 'file',
+                'session.driver' => 'file',
+            ]);
 
             config([
                 'app.name' => $this->app_name,

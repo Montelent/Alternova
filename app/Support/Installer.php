@@ -31,6 +31,7 @@ class Installer
             // Drivers tuned for Hostinger / shared hosts (no Redis required)
             'BROADCAST_DRIVER' => 'log',
             'CACHE_DRIVER' => 'file',
+            'CACHE_STORE' => 'file',
             'FILESYSTEM_DISK' => 'local',
             'QUEUE_CONNECTION' => 'database',
             'SESSION_DRIVER' => 'database',
@@ -116,9 +117,10 @@ class Installer
             'DB_PASSWORD' => '',
             'BROADCAST_DRIVER' => 'log',
             'CACHE_DRIVER' => 'file',
+            'CACHE_STORE' => 'file',
             'FILESYSTEM_DISK' => 'local',
-            'QUEUE_CONNECTION' => 'database',
-            'SESSION_DRIVER' => 'database',
+            'QUEUE_CONNECTION' => 'sync',
+            'SESSION_DRIVER' => 'file',
             'SESSION_LIFETIME' => '480',
             'SESSION_HTTP_ONLY' => 'true',
             'SESSION_SAME_SITE' => 'lax',
@@ -160,6 +162,7 @@ class Installer
             '',
             'BROADCAST_DRIVER='.$values['BROADCAST_DRIVER'],
             'CACHE_DRIVER='.$values['CACHE_DRIVER'],
+            'CACHE_STORE='.$values['CACHE_STORE'],
             'FILESYSTEM_DISK='.$values['FILESYSTEM_DISK'],
             'QUEUE_CONNECTION='.$values['QUEUE_CONNECTION'],
             'SESSION_DRIVER='.$values['SESSION_DRIVER'],
@@ -301,6 +304,7 @@ class Installer
             'APP_DEBUG' => 'false',
             'LOG_LEVEL' => 'error',
             'CACHE_DRIVER' => 'file',
+            'CACHE_STORE' => 'file',
             'SESSION_DRIVER' => 'database',
             'SESSION_LIFETIME' => '480',
             'SESSION_HTTP_ONLY' => 'true',
@@ -349,7 +353,38 @@ class Installer
         self::applyRecommendedEnv();
     }
 
+    /**
+     * Until migrations finish, never use database cache/sessions.
+     * Laravel 11 reads CACHE_STORE (not only CACHE_DRIVER). A missing `cache`
+     * or `sessions` table resets the wizard and throws on SiteSetting cache reads.
+     */
+    public static function ensureInstallSafeDrivers(): void
+    {
+        if (self::isInstalled()) {
+            return;
+        }
+
+        self::ensureEnvFile();
+        $envPath = base_path('.env');
+        $content = File::get($envPath);
+        $force = [
+            'CACHE_DRIVER' => 'file',
+            'CACHE_STORE' => 'file',
+            'SESSION_DRIVER' => 'file',
+            'QUEUE_CONNECTION' => 'sync',
+        ];
+        foreach ($force as $key => $value) {
+            if (preg_match("/^{$key}=.*/m", $content)) {
+                $content = preg_replace("/^{$key}=.*/m", "{$key}={$value}", $content);
+            } else {
+                $content = rtrim($content)."\n{$key}={$value}\n";
+            }
+        }
+        File::put($envPath, $content);
+    }
+
     public static function ensureAppKey(): string
+
     {
         self::ensureEnvFile();
 

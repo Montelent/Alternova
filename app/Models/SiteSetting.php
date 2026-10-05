@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
 
 class SiteSetting extends Model
 {
@@ -23,7 +24,10 @@ class SiteSetting extends Model
             ['value' => is_bool($value) ? ($value ? '1' : '0') : (string) $value]
         );
 
-        Cache::forget('site_settings');
+        try {
+            Cache::forget('site_settings');
+        } catch (\Throwable) {
+        }
     }
 
     /**
@@ -38,21 +42,38 @@ class SiteSetting extends Model
             );
         }
 
-        Cache::forget('site_settings');
+        try {
+            Cache::forget('site_settings');
+        } catch (\Throwable) {
+        }
     }
 
     /**
+     * Never fatal during install: the database cache table does not exist yet.
+     *
      * @return array<string, string|null>
      */
     public static function allCached(): array
     {
-        return Cache::remember('site_settings', 300, function () {
+        try {
+            if (! Schema::hasTable('site_settings')) {
+                return [];
+            }
+        } catch (\Throwable) {
+            return [];
+        }
+
+        try {
+            return Cache::remember('site_settings', 300, function () {
+                return static::query()->pluck('value', 'key')->toArray();
+            });
+        } catch (\Throwable) {
             try {
                 return static::query()->pluck('value', 'key')->toArray();
             } catch (\Throwable) {
                 return [];
             }
-        });
+        }
     }
 
     public static function getBool(string $key, bool $default = false): bool
