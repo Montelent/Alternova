@@ -7,10 +7,6 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Auth\Login;
 use Livewire\ComponentHook;
 
-/**
- * Intercept Filament/Livewire create-save-delete calls in DEMO_MODE.
- * Keeps the user on the same screen and shows a notification (no full reload).
- */
 class DemoModeHook extends ComponentHook
 {
     public function call(mixed $method = null, mixed $params = null, mixed $returnEarly = null): void
@@ -23,7 +19,19 @@ class DemoModeHook extends ComponentHook
             return;
         }
 
-        if (! is_string($method) || ! in_array($method, DemoMode::blockedLivewireMethods(), true)) {
+        if (! is_string($method)) {
+            return;
+        }
+
+        $blocked = DemoMode::blockedLivewireMethods();
+        $isBlocked = in_array($method, $blocked, true);
+
+        // Also catch Filament actions named like delete / save / create
+        if (! $isBlocked && in_array($method, ['callMountedAction', 'callMountedTableAction', 'callTableAction', 'callMountedFormComponentAction'], true)) {
+            $isBlocked = true;
+        }
+
+        if (! $isBlocked) {
             return;
         }
 

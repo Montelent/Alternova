@@ -25,9 +25,15 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Force demo flag from .env every request (ignores stale config cache)
+        if (filter_var(env('DEMO_MODE', false), FILTER_VALIDATE_BOOLEAN)) {
+            config(['demo.enabled' => true]);
+        }
+
+        // Always register; callbacks check DemoMode::enabled() on each write
         DemoMode::registerEloquentGuards();
 
-        if (DemoMode::enabled() && class_exists(Livewire::class)) {
+        if (class_exists(Livewire::class)) {
             Livewire::componentHook(DemoModeHook::class);
         }
 
