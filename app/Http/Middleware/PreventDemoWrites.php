@@ -14,29 +14,29 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class PreventDemoWrites
 {
-    public function handle(Request \$request, Closure \$next): Response
+    public function handle(Request $request, Closure $next): Response
     {
         if (! DemoMode::enabled()) {
-            return \$next(\$request);
+            return $next($request);
         }
 
-        \$isLivewire = \$request->is('livewire/*')
-            || str_contains(\$request->path(), 'livewire/update');
+        $isLivewire = $request->is('livewire/*')
+            || str_contains($request->path(), 'livewire/update');
 
         // Do NOT intercept Livewire here — that caused full page reloads.
-        if (\$isLivewire) {
-            return \$next(\$request);
+        if ($isLivewire) {
+            return $next($request);
         }
 
-        if (\$request->is('admin/*')
-            && ! \$request->is('admin/login', 'admin/logout')
-            && in_array(\$request->method(), ['POST', 'PUT', 'PATCH', 'DELETE'], true)
+        if ($request->is('admin/*')
+            && ! $request->is('admin/login', 'admin/logout')
+            && in_array($request->method(), ['POST', 'PUT', 'PATCH', 'DELETE'], true)
         ) {
-            \$message = DemoMode::message();
+            $message = DemoMode::message();
 
             try {
                 Notification::make()
-                    ->title(\$message)
+                    ->title($message)
                     ->warning()
                     ->persistent()
                     ->send();
@@ -44,10 +44,10 @@ class PreventDemoWrites
             }
 
             return back()
-                ->withErrors(['demo' => \$message])
-                ->with('error', \$message);
+                ->withErrors(['demo' => $message])
+                ->with('error', $message);
         }
 
-        return \$next(\$request);
+        return $next($request);
     }
 }

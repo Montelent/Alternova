@@ -46,37 +46,37 @@ class AppServiceProvider extends ServiceProvider
         } catch (\Throwable) {
         }
 
-        if (\$this->app->environment('production')) {
-            \$https = str_starts_with(strtolower((string) config('app.url')), 'https://');
+        if ($this->app->environment('production')) {
+            $https = str_starts_with(strtolower((string) config('app.url')), 'https://');
 
-            \$secureEnv = env('SESSION_SECURE_COOKIE');
-            \$secure = null;
-            if (\$secureEnv === true || \$secureEnv === 'true' || \$secureEnv === '1') {
-                \$secure = true;
-            } elseif (\$secureEnv === false || \$secureEnv === 'false' || \$secureEnv === '0') {
-                \$secure = false;
+            $secureEnv = env('SESSION_SECURE_COOKIE');
+            $secure = null;
+            if ($secureEnv === true || $secureEnv === 'true' || $secureEnv === '1') {
+                $secure = true;
+            } elseif ($secureEnv === false || $secureEnv === 'false' || $secureEnv === '0') {
+                $secure = false;
             }
 
             config([
                 'session.http_only' => true,
                 'session.same_site' => env('SESSION_SAME_SITE', 'lax'),
-                'session.secure' => \$secure,
+                'session.secure' => $secure,
                 'session.lifetime' => (int) env('SESSION_LIFETIME', 480),
             ]);
 
-            if (\$https) {
+            if ($https) {
                 URL::forceScheme('https');
             }
         }
 
-        \$uploadsRoot = base_path('uploads');
-        if (! is_dir(\$uploadsRoot)) {
-            @mkdir(\$uploadsRoot, 0775, true);
+        $uploadsRoot = base_path('uploads');
+        if (! is_dir($uploadsRoot)) {
+            @mkdir($uploadsRoot, 0775, true);
         }
-        foreach (['logos', 'collections', 'gallery', 'general', 'branding'] as \$dir) {
-            \$path = \$uploadsRoot.'/'.\$dir;
-            if (! is_dir(\$path)) {
-                @mkdir(\$path, 0775, true);
+        foreach (['logos', 'collections', 'gallery', 'general', 'branding'] as $dir) {
+            $path = $uploadsRoot.'/'.$dir;
+            if (! is_dir($path)) {
+                @mkdir($path, 0775, true);
             }
         }
     }

@@ -13,7 +13,7 @@ use Livewire\ComponentHook;
  */
 class DemoModeHook extends ComponentHook
 {
-    public function call(\$method, \$params, \$returnEarly): void
+    public function call($method, $params, $returnEarly): void
     {
         if (! DemoMode::enabled()) {
             return;
@@ -23,15 +23,15 @@ class DemoModeHook extends ComponentHook
             return;
         }
 
-        if (! in_array(\$method, DemoMode::blockedLivewireMethods(), true)) {
+        if (! in_array($method, DemoMode::blockedLivewireMethods(), true)) {
             return;
         }
 
-        \$message = DemoMode::message();
+        $message = DemoMode::message();
 
         try {
             Notification::make()
-                ->title(\$message)
+                ->title($message)
                 ->body('You can explore every screen. Changes are not saved in the demo.')
                 ->warning()
                 ->persistent()
@@ -40,11 +40,11 @@ class DemoModeHook extends ComponentHook
         }
 
         try {
-            \$this->component->addError('demo', \$message);
+            $this->component->addError('demo', $message);
         } catch (\Throwable) {
         }
 
         // Skip the real create/save/delete method — stay on the page
-        \$returnEarly(null);
+        $returnEarly(null);
     }
 }
