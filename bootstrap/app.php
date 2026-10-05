@@ -4,6 +4,7 @@ use App\Http\Middleware\AuthenticateApiKey;
 use App\Http\Middleware\CheckMaintenanceMode;
 use App\Http\Middleware\EnsureNotInstalled;
 use App\Http\Middleware\ForceHttps;
+use App\Http\Middleware\PreventDemoWrites;
 use App\Http\Middleware\RedirectIfNotInstalled;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\ThrottleApi;
@@ -25,7 +26,6 @@ return Application::configure(basePath: dirname(__DIR__))
             'api.throttle' => ThrottleApi::class,
         ]);
 
-        // Trust proxy headers on shared hosting (Hostinger, Cloudflare, etc.)
         $middleware->trustProxies(at: '*');
 
         $middleware->web(append: [
@@ -33,11 +33,11 @@ return Application::configure(basePath: dirname(__DIR__))
             RedirectIfNotInstalled::class,
             CheckMaintenanceMode::class,
             SecurityHeaders::class,
+            PreventDemoWrites::class,
         ]);
 
-        // Also cover any non-web routes if added later
         $middleware->append(SecurityHeaders::class);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        // Never leak stack traces to clients in production (Laravel already hides when APP_DEBUG=false)
+        //
     })->create();

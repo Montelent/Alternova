@@ -9,20 +9,23 @@ class DemoMode
 {
     public static function enabled(): bool
     {
-        return (bool) config('demo.enabled', false);
+        // Prefer config (after config:clear). Fall back to env so a stale
+        // config cache cannot leave the demo site writable by accident.
+        if (config()->has('demo.enabled')) {
+            return filter_var(config('demo.enabled'), FILTER_VALIDATE_BOOLEAN);
+        }
+
+        return filter_var(env('DEMO_MODE', false), FILTER_VALIDATE_BOOLEAN);
     }
 
     public static function message(): string
     {
-        return (string) config(
-            'demo.message',
-            "Can't Make Edit or Create in Demo Version"
-        );
+        return (string) (config('demo.message')
+            ?: env('DEMO_MESSAGE', "Can't Make Edit or Create in Demo Version"));
     }
 
     /**
-     * Block browser-originated writes. Artisan / tinker still run.
-     * Create/Edit pages stay reachable; only persistence is stopped.
+     * Block browser-originated writes. Artisan still works.
      */
     public static function guardWrite(?string $context = null): void
     {
@@ -34,17 +37,21 @@ class DemoMode
             return;
         }
 
-        $path = request()->path();
-        if (self::isAuthPath($path)) {
+        if (self::isAuthPath(request()->path())) {
             return;
         }
 
+        self::fail($context);
+    }
+
+    public static function fail(?string $context = null): void
+    {
         $message = self::message();
 
         try {
             Notification::make()
                 ->title($message)
-                ->body('You can explore every screen in this demo. Changes are not saved.')
+                ->body('You can explore every screen. Changes are not saved in the demo.')
                 ->warning()
                 ->persistent()
                 ->send();
@@ -52,7 +59,7 @@ class DemoMode
         }
 
         throw ValidationException::withMessages([
-            'demo' => $message,
+            'demo' => $message.($context ? " ({$context})" : ''),
         ]);
     }
 
@@ -63,27 +70,90 @@ class DemoMode
         return str_starts_with($path, 'admin/login')
             || str_starts_with($path, 'admin/logout')
             || $path === 'login'
-            || $path === 'logout'
-            || (str_contains($path, 'livewire/update') && self::isAuthLivewireRequest());
+            || $path === 'logout';
     }
 
-    protected static function isAuthLivewireRequest(): bool
+    /**
+     * Livewire method names that create / update / delete data in Filament.
+     *
+     * @return list<string>
+     */
+    public static function blockedLivewireMethods(): array
     {
-        $components = request()->input('components', []);
+        return [
+            'create',
+            'createAnother',
+            'save',
+            'saveFormComponent',
+            'delete',
+            'forceDelete',
+            'restore',
+            'replicate',
+            'callMountedAction',
+            'callMountedFormComponentAction',
+            'callMountedTableAction',
+            'callTableAction',
+            'callTableBulkAction',
+            'callMountedTableBulkAction',
+            'mountTableAction',
+            'mountFormComponentAction',
+            'install',
+            'publish',
+            'unpublish',
+            'sync',
+            'generate',
+            'import',
+            'export',
+            'run',
+            'submit',
+            'update',
+            'store',
+            'destroy',
+            'detach',
+            'attach',
+            'associate',
+            'dissociate',
+        ];
+    }
+
+    public static function livewireRequestIsMutation(\Illuminate\Http\Request $request): bool
+    {
+        $components = $request->input('components', []);
         if (! is_array($components)) {
             return false;
         }
 
-        $payload = json_encode($components);
+        $blocked = array_fill_keys(self::blockedLivewireMethods(), true);
 
-        // Only pure login/logout components — not UserResource edit forms
-        return is_string($payload)
-            && (
-                str_contains($payload, 'Filament\\Pages\\Auth\\Login')
-                || str_contains($payload, 'Filament\Pages\Auth\Login')
-                || str_contains($payload, '"logout"')
-            )
-            && ! str_contains($payload, 'UserResource');
+        foreach ($components as $component) {
+            if (! is_array($component)) {
+                continue;
+            }
+
+            // Never block pure Filament login
+            $snapshot = (string) ($component['snapshot'] ?? '');
+            if (str_contains($snapshot, 'Filament\\Pages\\Auth\\Login')
+                || str_contains($snapshot, 'Pages\\Auth\\Login')) {
+                continue;
+            }
+
+            foreach ($component['calls'] ?? [] as $call) {
+                $method = is_array($call) ? (string) ($call['method'] ?? '') : '';
+                if ($method !== '' && isset($blocked[$method])) {
+                    return true;
+                }
+            }
+
+            // Some Filament builds put the method under updates
+            foreach (array_keys($component['updates'] ?? []) as $key) {
+                if (is_string($key) && str_contains(strtolower($key), 'password')) {
+                    // password field typing is fine
+                    continue;
+                }
+            }
+        }
+
+        return false;
     }
 
     public static function registerEloquentGuards(): void

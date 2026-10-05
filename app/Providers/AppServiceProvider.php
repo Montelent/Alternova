@@ -23,7 +23,6 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // Blocks Save/Create/Delete persistence only — does not hide admin screens
         DemoMode::registerEloquentGuards();
 
         View::composer(['layouts.app', 'welcome'], CmsNavComposer::class);

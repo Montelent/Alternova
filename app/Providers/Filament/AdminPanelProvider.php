@@ -2,10 +2,10 @@
 
 namespace App\Providers\Filament;
 
+use App\Http\Middleware\PreventDemoWrites;
 use App\Http\Middleware\SecurityHeaders;
 use App\Support\WhiteLabelSettings;
 use Filament\Http\Middleware\Authenticate;
-use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Pages;
@@ -95,6 +95,7 @@ class AdminPanelProvider extends PanelProvider
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
                 SecurityHeaders::class,
+                PreventDemoWrites::class,
             ])
             ->authMiddleware([
                 Authenticate::class,
