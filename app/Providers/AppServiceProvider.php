@@ -10,7 +10,6 @@ use App\Support\DemoMode;
 use App\Support\IntegrationsSettings;
 use App\Support\MailSettings;
 use App\View\Composers\CmsNavComposer;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -24,19 +23,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Blocks Save/Create/Delete persistence only — does not hide admin screens
         DemoMode::registerEloquentGuards();
-
-        Gate::before(function ($user, string $ability) {
-            if (! DemoMode::enabled()) {
-                return null;
-            }
-            // Hide create / update / delete buttons in Filament where policies are used
-            if (in_array($ability, ['create', 'update', 'delete', 'forceDelete', 'restore'], true)) {
-                return false;
-            }
-
-            return null;
-        });
 
         View::composer(['layouts.app', 'welcome'], CmsNavComposer::class);
 
@@ -53,16 +41,6 @@ class AppServiceProvider extends ServiceProvider
         } catch (\Throwable) {
         }
 
-        /*
-         | Session cookies on shared hosting (Hostinger, Cloudflare, etc.)
-         |
-         | Do NOT force session.secure=true from APP_URL alone. If PHP does not
-         | see the request as HTTPS (missing X-Forwarded-Proto), a Secure cookie
-         | is never stored/sent and every Livewire/Filament Save hits 419 Page Expired.
-         |
-         | Leave SESSION_SECURE_COOKIE unset/null → Laravel marks Secure only when
-         | the current request is HTTPS (works with TrustProxies).
-         */
         if ($this->app->environment('production')) {
             $https = str_starts_with(strtolower((string) config('app.url')), 'https://');
 

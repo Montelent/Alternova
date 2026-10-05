@@ -7,11 +7,11 @@ return [
     | Demo mode
     |--------------------------------------------------------------------------
     |
-    | When true, the site is read-only from the browser: no creates, edits,
-    | deletes, settings changes, or uploads are persisted. Console commands
-    | (migrate, seed, artisan) still work so you can maintain the demo data.
+    | When true, visitors can open every admin screen (Create/Edit included)
+    | and explore freely. Saving, creating, or deleting is rejected with a
+    | clear message. Artisan / SSH still work so you can maintain demo data.
     |
-    | Set DEMO_MODE=true on alternova.montelent.com only.
+    | Set DEMO_MODE=true only on the marketing demo site.
     |
     */
 
@@ -19,15 +19,7 @@ return [
 
     'message' => env(
         'DEMO_MESSAGE',
-        'Demo mode is on. You can explore the admin and public pages, but changes are not saved.'
+        "Can't Make Edit or Create in Demo Version"
     ),
-
-    /*
-    | Public actions that remain allowed (method names on Livewire components
-    | or route names). Everything else that mutates data is blocked at the
-    | Eloquent layer.
-    */
-
-    'allow_auth' => true,
 
 ];

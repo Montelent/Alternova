@@ -16,12 +16,13 @@ class DemoMode
     {
         return (string) config(
             'demo.message',
-            'Demo mode is on. You can explore the admin and public pages, but changes are not saved.'
+            "Can't Make Edit or Create in Demo Version"
         );
     }
 
     /**
-     * Block browser-originated writes. Artisan / tinker / queue workers still run.
+     * Block browser-originated writes. Artisan / tinker still run.
+     * Create/Edit pages stay reachable; only persistence is stopped.
      */
     public static function guardWrite(?string $context = null): void
     {
@@ -38,19 +39,20 @@ class DemoMode
             return;
         }
 
-        if (class_exists(Notification::class) && app()->bound('filament')) {
-            try {
-                Notification::make()
-                    ->title('Demo mode')
-                    ->body(self::message())
-                    ->warning()
-                    ->send();
-            } catch (\Throwable) {
-            }
+        $message = self::message();
+
+        try {
+            Notification::make()
+                ->title($message)
+                ->body('You can explore every screen in this demo. Changes are not saved.')
+                ->warning()
+                ->persistent()
+                ->send();
+        } catch (\Throwable) {
         }
 
         throw ValidationException::withMessages([
-            'demo' => self::message().($context ? " ({$context})" : ''),
+            'demo' => $message,
         ]);
     }
 
@@ -74,10 +76,14 @@ class DemoMode
 
         $payload = json_encode($components);
 
-        return is_string($payload) && (
-            str_contains($payload, 'Login')
-            || str_contains($payload, 'logout')
-        );
+        // Only pure login/logout components — not UserResource edit forms
+        return is_string($payload)
+            && (
+                str_contains($payload, 'Filament\\Pages\\Auth\\Login')
+                || str_contains($payload, 'Filament\Pages\Auth\Login')
+                || str_contains($payload, '"logout"')
+            )
+            && ! str_contains($payload, 'UserResource');
     }
 
     public static function registerEloquentGuards(): void
@@ -87,10 +93,6 @@ class DemoMode
         }
 
         $block = function ($model): void {
-            if ($model instanceof \App\Models\User) {
-                return;
-            }
-
             self::guardWrite(class_basename($model));
         };
 
