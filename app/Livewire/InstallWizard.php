@@ -20,7 +20,6 @@ class InstallWizard extends Component
 
     public bool $requirementsMet = false;
 
-    // Hostinger / most shared hosts use MySQL
     public string $app_name = 'Alternova';
 
     public string $app_url = '';
@@ -113,7 +112,7 @@ class InstallWizard extends Component
 
             if (! $this->requirementsMet) {
                 $failed = Installer::failedRequirementLabels();
-                $this->errorMessage = 'Fix these before continuing: ' . implode('; ', $failed);
+                $this->errorMessage = 'Fix these before continuing: '.implode('; ', $failed);
 
                 return;
             }
@@ -181,7 +180,7 @@ class InstallWizard extends Component
         if (! $test['success']) {
             $this->dbTestSuccess = false;
             $this->dbTestMessage = $test['message'];
-            $this->errorMessage = 'Database connection failed: ' . $test['message'];
+            $this->errorMessage = 'Database connection failed: '.$test['message'];
 
             return;
         }
@@ -190,6 +189,7 @@ class InstallWizard extends Component
             Installer::ensureEnvFile();
             Installer::ensureAppKey();
 
+            // Use file session until migrations create the sessions table, then switch.
             Installer::writeEnv([
                 'APP_NAME' => $this->app_name,
                 'APP_URL' => $this->app_url,
@@ -203,6 +203,7 @@ class InstallWizard extends Component
                 'DB_PASSWORD' => $this->db_password,
                 'CACHE_DRIVER' => 'file',
                 'SESSION_DRIVER' => 'file',
+                'SESSION_LIFETIME' => '480',
                 'QUEUE_CONNECTION' => 'sync',
                 'SCOUT_DRIVER' => 'collection',
             ]);
@@ -224,7 +225,7 @@ class InstallWizard extends Component
             $this->dbTestMessage = 'Connection successful. Environment saved.';
             $this->step = 3;
         } catch (\Throwable $e) {
-            $this->errorMessage = 'Failed to write .env: ' . $e->getMessage();
+            $this->errorMessage = 'Failed to write .env: '.$e->getMessage();
         }
     }
 
@@ -250,11 +251,14 @@ class InstallWizard extends Component
                 return;
             }
 
+            // sessions + jobs tables now exist → enable database session/queue
+            Installer::applyPerformanceEnv();
+
             $this->step = 4;
         } catch (\Throwable $e) {
             $this->migrateSuccess = false;
             $this->migrateOutput = $e->getMessage();
-            $this->errorMessage = 'Migration error: ' . $e->getMessage();
+            $this->errorMessage = 'Migration error: '.$e->getMessage();
         }
     }
 
@@ -298,10 +302,13 @@ class InstallWizard extends Component
                 ]);
             }
 
+            // Final pass: ensure performance drivers are written
+            Installer::applyPerformanceEnv();
+
             Installer::lock();
             $this->step = 5;
         } catch (\Throwable $e) {
-            $this->errorMessage = 'Failed to create admin user: ' . $e->getMessage();
+            $this->errorMessage = 'Failed to create admin user: '.$e->getMessage();
         }
     }
 

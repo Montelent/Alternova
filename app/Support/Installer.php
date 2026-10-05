@@ -9,9 +9,30 @@ class Installer
 {
     public const LOCK_FILE = 'installed';
 
+    /**
+     * Production defaults for shared hosting (Hostinger, etc.).
+     * Applied after migrate so sessions/jobs tables exist.
+     *
+     * @return array<string, string>
+     */
+    public static function performanceEnvDefaults(): array
+    {
+        return [
+            'CACHE_DRIVER' => 'file',
+            'SESSION_DRIVER' => 'database',
+            'SESSION_LIFETIME' => '480',
+            'SESSION_HTTP_ONLY' => 'true',
+            'SESSION_SAME_SITE' => 'lax',
+            'QUEUE_CONNECTION' => 'database',
+            'SCOUT_DRIVER' => 'collection',
+            'FILESYSTEM_DISK' => 'local',
+            'BROADCAST_DRIVER' => 'log',
+        ];
+    }
+
     public static function lockPath(): string
     {
-        return storage_path('app/' . self::LOCK_FILE);
+        return storage_path('app/'.self::LOCK_FILE);
     }
 
     public static function isInstalled(): bool
@@ -57,11 +78,14 @@ class Installer
             'DB_USERNAME' => '',
             'DB_PASSWORD' => '',
             'BROADCAST_DRIVER' => 'log',
+            // file session during first boot; applyPerformanceEnv() switches to database after migrate
             'CACHE_DRIVER' => 'file',
             'FILESYSTEM_DISK' => 'local',
-            'QUEUE_CONNECTION' => 'sync',
-            'SESSION_DRIVER' => 'file',
-            'SESSION_LIFETIME' => '120',
+            'QUEUE_CONNECTION' => 'database',
+            'SESSION_DRIVER' => 'database',
+            'SESSION_LIFETIME' => '480',
+            'SESSION_HTTP_ONLY' => 'true',
+            'SESSION_SAME_SITE' => 'lax',
             'SCOUT_DRIVER' => 'collection',
             'MAIL_MAILER' => 'log',
             'MAIL_FROM_ADDRESS' => 'hello@example.com',
@@ -71,41 +95,43 @@ class Installer
         $values = array_merge($defaults, $overrides);
 
         if (empty($values['APP_KEY'])) {
-            $values['APP_KEY'] = 'base64:' . base64_encode(random_bytes(32));
+            $values['APP_KEY'] = 'base64:'.base64_encode(random_bytes(32));
         }
 
         $lines = [
-            'APP_NAME=' . self::envValue($values['APP_NAME']),
-            'APP_ENV=' . $values['APP_ENV'],
-            'APP_KEY=' . $values['APP_KEY'],
-            'APP_DEBUG=' . $values['APP_DEBUG'],
-            'APP_URL=' . $values['APP_URL'],
+            'APP_NAME='.self::envValue($values['APP_NAME']),
+            'APP_ENV='.$values['APP_ENV'],
+            'APP_KEY='.$values['APP_KEY'],
+            'APP_DEBUG='.$values['APP_DEBUG'],
+            'APP_URL='.$values['APP_URL'],
             '',
-            'LOG_CHANNEL=' . $values['LOG_CHANNEL'],
-            'LOG_LEVEL=' . $values['LOG_LEVEL'],
+            'LOG_CHANNEL='.$values['LOG_CHANNEL'],
+            'LOG_LEVEL='.$values['LOG_LEVEL'],
             '',
-            'DB_CONNECTION=' . $values['DB_CONNECTION'],
-            'DB_HOST=' . $values['DB_HOST'],
-            'DB_PORT=' . $values['DB_PORT'],
-            'DB_DATABASE=' . self::envValue($values['DB_DATABASE']),
-            'DB_USERNAME=' . self::envValue($values['DB_USERNAME']),
-            'DB_PASSWORD=' . self::envValue($values['DB_PASSWORD']),
+            'DB_CONNECTION='.$values['DB_CONNECTION'],
+            'DB_HOST='.$values['DB_HOST'],
+            'DB_PORT='.$values['DB_PORT'],
+            'DB_DATABASE='.self::envValue($values['DB_DATABASE']),
+            'DB_USERNAME='.self::envValue($values['DB_USERNAME']),
+            'DB_PASSWORD='.self::envValue($values['DB_PASSWORD']),
             '',
-            'BROADCAST_DRIVER=' . $values['BROADCAST_DRIVER'],
-            'CACHE_DRIVER=' . $values['CACHE_DRIVER'],
-            'FILESYSTEM_DISK=' . $values['FILESYSTEM_DISK'],
-            'QUEUE_CONNECTION=' . $values['QUEUE_CONNECTION'],
-            'SESSION_DRIVER=' . $values['SESSION_DRIVER'],
-            'SESSION_LIFETIME=' . $values['SESSION_LIFETIME'],
+            'BROADCAST_DRIVER='.$values['BROADCAST_DRIVER'],
+            'CACHE_DRIVER='.$values['CACHE_DRIVER'],
+            'FILESYSTEM_DISK='.$values['FILESYSTEM_DISK'],
+            'QUEUE_CONNECTION='.$values['QUEUE_CONNECTION'],
+            'SESSION_DRIVER='.$values['SESSION_DRIVER'],
+            'SESSION_LIFETIME='.$values['SESSION_LIFETIME'],
+            'SESSION_HTTP_ONLY='.$values['SESSION_HTTP_ONLY'],
+            'SESSION_SAME_SITE='.$values['SESSION_SAME_SITE'],
             '',
-            'SCOUT_DRIVER=' . $values['SCOUT_DRIVER'],
+            'SCOUT_DRIVER='.$values['SCOUT_DRIVER'],
             '',
-            'MAIL_MAILER=' . $values['MAIL_MAILER'],
-            'MAIL_FROM_ADDRESS=' . $values['MAIL_FROM_ADDRESS'],
-            'MAIL_FROM_NAME=' . $values['MAIL_FROM_NAME'],
+            'MAIL_MAILER='.$values['MAIL_MAILER'],
+            'MAIL_FROM_ADDRESS='.$values['MAIL_FROM_ADDRESS'],
+            'MAIL_FROM_NAME='.$values['MAIL_FROM_NAME'],
         ];
 
-        return implode("\n", $lines) . "\n";
+        return implode("\n", $lines)."\n";
     }
 
     protected static function envValue(string $value): string
@@ -115,7 +141,7 @@ class Installer
         }
 
         if (preg_match('/\s|#|"|\'|=/', $value)) {
-            return '"' . str_replace(['\\', '"'], ['\\\\', '\\"'], $value) . '"';
+            return '"'.str_replace(['\\', '"'], ['\\\\', '\\"'], $value).'"';
         }
 
         return $value;
@@ -139,7 +165,6 @@ class Installer
 
         $content = File::get($envPath);
 
-        // Incomplete .env (e.g. only APP_KEY) → rebuild while keeping existing APP_KEY
         if (! preg_match('/^DB_CONNECTION=/m', $content)) {
             $key = '';
             if (preg_match('/^APP_KEY=(.+)$/m', $content, $m)) {
@@ -160,7 +185,7 @@ class Installer
         if (! empty($_SERVER['HTTP_HOST'])) {
             $scheme = (! empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
 
-            return $scheme . '://' . $_SERVER['HTTP_HOST'];
+            return $scheme.'://'.$_SERVER['HTTP_HOST'];
         }
 
         return 'http://localhost';
@@ -176,11 +201,12 @@ class Installer
         $envPath = base_path('.env');
         $content = File::get($envPath);
 
-        // Always force safe shared-hosting drivers
+        // Safe shared-hosting baseline (may be overridden by $values)
         $values = array_merge([
             'CACHE_DRIVER' => 'file',
-            'SESSION_DRIVER' => 'file',
-            'QUEUE_CONNECTION' => 'sync',
+            'SESSION_DRIVER' => 'database',
+            'SESSION_LIFETIME' => '480',
+            'QUEUE_CONNECTION' => 'database',
             'SCOUT_DRIVER' => 'collection',
             'MAIL_MAILER' => 'log',
             'APP_ENV' => 'production',
@@ -198,11 +224,25 @@ class Installer
                     $content
                 );
             } else {
-                $content = rtrim($content) . "\n{$key}={$formatted}\n";
+                $content = rtrim($content)."\n{$key}={$formatted}\n";
             }
         }
 
         File::put($envPath, $content);
+    }
+
+    /**
+     * Write CACHE/SESSION/QUEUE defaults after migrations (tables exist).
+     * Safe to call multiple times.
+     */
+    public static function applyPerformanceEnv(): void
+    {
+        self::writeEnv(self::performanceEnvDefaults());
+
+        try {
+            Artisan::call('config:clear');
+        } catch (\Throwable) {
+        }
     }
 
     public static function ensureAppKey(): string
@@ -216,7 +256,7 @@ class Installer
             return trim($m[1]);
         }
 
-        $key = 'base64:' . base64_encode(random_bytes(32));
+        $key = 'base64:'.base64_encode(random_bytes(32));
         self::writeEnv(['APP_KEY' => $key]);
 
         return $key;
@@ -309,7 +349,7 @@ class Installer
         $failed = [];
         foreach (self::requirements() as $check) {
             if (! $check['ok']) {
-                $failed[] = $check['label'] . ' (' . $check['value'] . ')';
+                $failed[] = $check['label'].' ('.$check['value'].')';
             }
         }
 
