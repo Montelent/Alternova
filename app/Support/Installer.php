@@ -518,23 +518,79 @@ class Installer
         string $username,
         string $password
     ): array {
-        try {
-            if ($connection === 'pgsql') {
-                $dsn = "pgsql:host={$host};port={$port};dbname={$database}";
-            } else {
-                $dsn = "mysql:host={$host};port={$port};dbname={$database};charset=utf8mb4";
+        $last = 'Connection failed.';
+
+        foreach (self::databaseDsnCandidates($connection, $host, $port, $database) as $candidate) {
+            try {
+                $pdo = new \PDO($candidate['dsn'], $username, $password, [
+                    \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                    \PDO::ATTR_TIMEOUT => 5,
+                ]);
+                $pdo->query('SELECT 1');
+
+                $message = 'Connection successful.';
+                if (! empty($candidate['socket'])) {
+                    $message .= ' Using socket '.$candidate['socket'].'.';
+                    self::writeEnv(['DB_SOCKET' => $candidate['socket'], 'DB_HOST' => 'localhost']);
+                }
+
+                return ['success' => true, 'message' => $message, 'socket' => $candidate['socket'] ?? null];
+            } catch (\Throwable $e) {
+                $last = $e->getMessage();
             }
-
-            $pdo = new \PDO($dsn, $username, $password, [
-                \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
-                \PDO::ATTR_TIMEOUT => 5,
-            ]);
-
-            $pdo->query('SELECT 1');
-
-            return ['success' => true, 'message' => 'Connection successful.'];
-        } catch (\Throwable $e) {
-            return ['success' => false, 'message' => $e->getMessage()];
         }
+
+        if (str_contains($last, 'Operation not permitted') || str_contains($last, '[2002]')) {
+            $last .= ' Hostinger blocks TCP to MySQL. Use host localhost (not 127.0.0.1). The installer now also tries the Unix socket.';
+        }
+
+        return ['success' => false, 'message' => $last];
+    }
+
+    /**
+     * Shared hosts (Hostinger) reject TCP 127.0.0.1:3306 with "Operation not permitted".
+     * localhost without a port, or an explicit socket, is allowed.
+     *
+     * @return list<array{dsn: string, socket: ?string}>
+     */
+    public static function databaseDsnCandidates(string $connection, string $host, string $port, string $database): array
+    {
+        if ($connection === 'pgsql') {
+            return [[
+                'dsn' => "pgsql:host={$host};port={$port};dbname={$database}",
+                'socket' => null,
+            ]];
+        }
+
+        $candidates = [];
+        $local = in_array(strtolower($host), ['localhost', '127.0.0.1', '::1'], true);
+
+        if ($local) {
+            foreach ([
+                '/var/lib/mysql/mysql.sock',
+                '/tmp/mysql.sock',
+                '/var/run/mysqld/mysqld.sock',
+                '/run/mysqld/mysqld.sock',
+            ] as $socket) {
+                if (is_readable($socket) || @file_exists($socket)) {
+                    $candidates[] = [
+                        'dsn' => "mysql:unix_socket={$socket};dbname={$database};charset=utf8mb4",
+                        'socket' => $socket,
+                    ];
+                }
+            }
+            // localhost without port uses the default socket (required on Hostinger)
+            $candidates[] = [
+                'dsn' => "mysql:host=localhost;dbname={$database};charset=utf8mb4",
+                'socket' => null,
+            ];
+        }
+
+        $candidates[] = [
+            'dsn' => "mysql:host={$host};port={$port};dbname={$database};charset=utf8mb4",
+            'socket' => null,
+        ];
+
+        return $candidates;
     }
 }
