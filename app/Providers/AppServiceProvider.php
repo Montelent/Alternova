@@ -6,9 +6,11 @@ use App\Models\OpenSourceAlternative;
 use App\Models\ProprietaryTool;
 use App\Observers\OpenSourceAlternativeObserver;
 use App\Observers\ProprietaryToolObserver;
+use App\Support\DemoMode;
 use App\Support\IntegrationsSettings;
 use App\Support\MailSettings;
 use App\View\Composers\CmsNavComposer;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -22,6 +24,20 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        DemoMode::registerEloquentGuards();
+
+        Gate::before(function ($user, string $ability) {
+            if (! DemoMode::enabled()) {
+                return null;
+            }
+            // Hide create / update / delete buttons in Filament where policies are used
+            if (in_array($ability, ['create', 'update', 'delete', 'forceDelete', 'restore'], true)) {
+                return false;
+            }
+
+            return null;
+        });
+
         View::composer(['layouts.app', 'welcome'], CmsNavComposer::class);
 
         OpenSourceAlternative::observe(OpenSourceAlternativeObserver::class);
@@ -62,7 +78,6 @@ class AppServiceProvider extends ServiceProvider
                 'session.http_only' => true,
                 'session.same_site' => env('SESSION_SAME_SITE', 'lax'),
                 'session.secure' => $secure,
-                // Longer admin editing sessions (default 120 is tight for long forms)
                 'session.lifetime' => (int) env('SESSION_LIFETIME', 480),
             ]);
 
