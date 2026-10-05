@@ -1,3 +1,22 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* Plugins (Tailwind v4 CSS-first API) */
+@plugin "@tailwindcss/forms";
+@plugin "@tailwindcss/typography";
+
+/*
+ | Content sources — Blade / Livewire / Filament classes must be scanned.
+ | Paths are relative to this CSS file (resources/css/).
+ */
+@source "../../resources/views/**/*.blade.php";
+@source "../../app/Livewire/**/*.php";
+@source "../../app/Filament/**/*.php";
+@source "../../storage/framework/views/*.php";
+@source "../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php";
+@source "../../vendor/filament/**/*.blade.php";
+
+/* Theme tokens (replaces tailwind.config.js theme.extend) */
+@theme {
+    --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+        "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
