@@ -7,42 +7,88 @@ use Illuminate\Validation\ValidationException;
 
 class DemoMode
 {
+    protected static ?bool $resolved = null;
+
+    /**
+     * Demo mode must work even when `php artisan config:cache` is used.
+     * After config:cache, Laravel's env() returns null outside config files.
+     */
     public static function enabled(): bool
     {
-        // Read env every time so a stale config:cache cannot leave the demo writable.
-        $fromEnv = filter_var(env('DEMO_MODE', false), FILTER_VALIDATE_BOOLEAN);
-        if ($fromEnv) {
-            return true;
+        if (self::$resolved !== null) {
+            return self::$resolved;
         }
 
-        return filter_var(config('demo.enabled', false), FILTER_VALIDATE_BOOLEAN);
+        // 1) Config (works if config was cached WITH DEMO_MODE=true)
+        if (filter_var(config('demo.enabled', false), FILTER_VALIDATE_BOOLEAN)) {
+            return self::$resolved = true;
+        }
+
+        // 2) env() only works when config is NOT cached
+        if (filter_var(env('DEMO_MODE', false), FILTER_VALIDATE_BOOLEAN)) {
+            return self::$resolved = true;
+        }
+
+        // 3) Read .env file directly (works on Hostinger even with config:cache)
+        if (self::envFileSaysTrue('DEMO_MODE')) {
+            return self::$resolved = true;
+        }
+
+        return self::$resolved = false;
+    }
+
+    protected static function envFileSaysTrue(string $key): bool
+    {
+        $path = base_path('.env');
+        if (! is_readable($path)) {
+            return false;
+        }
+
+        $content = @file_get_contents($path);
+        if (! is_string($content) || $content === '') {
+            return false;
+        }
+
+        // Match DEMO_MODE=true / 1 / yes / on (optional quotes/spaces)
+        $pattern = '/^\s*'.preg_quote($key, '/').'\s*=\s*["\']?(true|1|yes|on)["\']?\s*$/mi';
+
+        return (bool) preg_match($pattern, $content);
     }
 
     public static function message(): string
     {
-        $msg = env('DEMO_MESSAGE');
-        if (is_string($msg) && $msg !== '') {
-            return $msg;
+        $fromConfig = config('demo.message');
+        if (is_string($fromConfig) && $fromConfig !== '') {
+            return $fromConfig;
         }
 
-        return (string) config(
-            'demo.message',
-            "Can't Make Edit or Create in Demo Version"
-        );
+        if (self::envFileValue('DEMO_MESSAGE') !== null) {
+            return self::envFileValue('DEMO_MESSAGE');
+        }
+
+        return "Can't Make Edit or Create in Demo Version";
     }
 
-    public static function guardWrite(?string $context = null): void
+    protected static function envFileValue(string $key): ?string
     {
-        if (! self::enabled()) {
-            return;
+        $path = base_path('.env');
+        if (! is_readable($path)) {
+            return null;
         }
 
-        // Allow artisan / queue / tinker to maintain demo content
-        if (app()->runningInConsole() && ! app()->runningUnitTests()) {
-            return;
+        $content = @file_get_contents($path);
+        if (! is_string($content)) {
+            return null;
         }
 
-        self::fail($context);
+        if (preg_match('/^\s*'.preg_quote($key, '/').'\s*=\s*(.*)$/mi', $content, $m)) {
+            $val = trim($m[1]);
+            $val = trim($val, "\"'");
+
+            return $val !== '' ? $val : null;
+        }
+
+        return null;
     }
 
     public static function fail(?string $context = null): void
@@ -62,6 +108,19 @@ class DemoMode
         throw ValidationException::withMessages([
             'demo' => $message,
         ]);
+    }
+
+    public static function guardWrite(?string $context = null): void
+    {
+        if (! self::enabled()) {
+            return;
+        }
+
+        if (app()->runningInConsole() && ! app()->runningUnitTests()) {
+            return;
+        }
+
+        self::fail($context);
     }
 
     /**
@@ -100,10 +159,6 @@ class DemoMode
         ];
     }
 
-    /**
-     * Always register listeners. Each write re-checks enabled().
-     * (Registering only when enabled at boot is why saves still worked.)
-     */
     public static function registerEloquentGuards(): void
     {
         $block = function ($model): void {
