@@ -89,8 +89,6 @@ class AdminPanelProvider extends PanelProvider
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
-                // AuthenticateSession can force logouts / 419-like behaviour on shared hosts
-                // when concurrent Livewire requests race the session. Keep VerifyCsrfToken.
                 ShareErrorsFromSession::class,
                 VerifyCsrfToken::class,
                 SubstituteBindings::class,
@@ -108,6 +106,13 @@ class AdminPanelProvider extends PanelProvider
 
         if ($favicon) {
             $panel = $panel->favicon($favicon);
+        }
+
+        if (\App\Support\DemoMode::enabled()) {
+            $panel = $panel->renderHook(
+                \Filament\View\PanelsRenderHook::BODY_START,
+                fn (): string => view('filament.hooks.demo-banner')->render()
+            );
         }
 
         return $panel;
