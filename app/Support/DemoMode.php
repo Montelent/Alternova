@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use Filament\Notifications\Notification;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Validation\ValidationException;
 
 class DemoMode
@@ -10,8 +11,7 @@ class DemoMode
     protected static ?bool $resolved = null;
 
     /**
-     * Demo mode must work even when `php artisan config:cache` is used.
-     * After config:cache, Laravel's env() returns null outside config files.
+     * Works even when config:cache is used (env() is null outside config files).
      */
     public static function enabled(): bool
     {
@@ -19,17 +19,14 @@ class DemoMode
             return self::$resolved;
         }
 
-        // 1) Config (works if config was cached WITH DEMO_MODE=true)
         if (filter_var(config('demo.enabled', false), FILTER_VALIDATE_BOOLEAN)) {
             return self::$resolved = true;
         }
 
-        // 2) env() only works when config is NOT cached
         if (filter_var(env('DEMO_MODE', false), FILTER_VALIDATE_BOOLEAN)) {
             return self::$resolved = true;
         }
 
-        // 3) Read .env file directly (works on Hostinger even with config:cache)
         if (self::envFileSaysTrue('DEMO_MODE')) {
             return self::$resolved = true;
         }
@@ -49,7 +46,6 @@ class DemoMode
             return false;
         }
 
-        // Match DEMO_MODE=true / 1 / yes / on (optional quotes/spaces)
         $pattern = '/^\s*'.preg_quote($key, '/').'\s*=\s*["\']?(true|1|yes|on)["\']?\s*$/mi';
 
         return (bool) preg_match($pattern, $content);
@@ -62,8 +58,9 @@ class DemoMode
             return $fromConfig;
         }
 
-        if (self::envFileValue('DEMO_MESSAGE') !== null) {
-            return self::envFileValue('DEMO_MESSAGE');
+        $fromEnvFile = self::envFileValue('DEMO_MESSAGE');
+        if ($fromEnvFile !== null) {
+            return $fromEnvFile;
         }
 
         return "Can't Make Edit or Create in Demo Version";
@@ -110,19 +107,6 @@ class DemoMode
         ]);
     }
 
-    public static function guardWrite(?string $context = null): void
-    {
-        if (! self::enabled()) {
-            return;
-        }
-
-        if (app()->runningInConsole() && ! app()->runningUnitTests()) {
-            return;
-        }
-
-        self::fail($context);
-    }
-
     /**
      * @return list<string>
      */
@@ -159,9 +143,14 @@ class DemoMode
         ];
     }
 
+    /**
+     * IMPORTANT: Model::saving() on the base Model class only listens for
+     * Illuminate\Database\Eloquent\Model itself — NOT OpenSourceAlternative,
+     * Page, User, etc. Use eloquent.*: * wildcards so every model is blocked.
+     */
     public static function registerEloquentGuards(): void
     {
-        $block = function ($model): void {
+        $block = function (object $model): void {
             if (! self::enabled()) {
                 return;
             }
@@ -173,9 +162,9 @@ class DemoMode
             self::fail(class_basename($model));
         };
 
-        \Illuminate\Database\Eloquent\Model::creating($block);
-        \Illuminate\Database\Eloquent\Model::updating($block);
-        \Illuminate\Database\Eloquent\Model::saving($block);
-        \Illuminate\Database\Eloquent\Model::deleting($block);
+        Event::listen('eloquent.creating: *', $block);
+        Event::listen('eloquent.updating: *', $block);
+        Event::listen('eloquent.saving: *', $block);
+        Event::listen('eloquent.deleting: *', $block);
     }
 }
