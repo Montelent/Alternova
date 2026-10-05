@@ -118,7 +118,7 @@ class InstallWizard extends Component
             }
 
             if (! Installer::ensureEnvFile()) {
-                $this->errorMessage = '.env.example is missing. Cannot create .env automatically.';
+                $this->errorMessage = 'Could not create .env automatically.';
 
                 return;
             }
@@ -189,12 +189,13 @@ class InstallWizard extends Component
             Installer::ensureEnvFile();
             Installer::ensureAppKey();
 
-            // Use file session until migrations create the sessions table, then switch.
+            // Session stays on file until migrate creates the sessions table.
             Installer::writeEnv([
                 'APP_NAME' => $this->app_name,
                 'APP_URL' => $this->app_url,
                 'APP_ENV' => 'production',
                 'APP_DEBUG' => 'false',
+                'LOG_LEVEL' => 'error',
                 'DB_CONNECTION' => $this->db_connection,
                 'DB_HOST' => $this->db_host,
                 'DB_PORT' => $this->db_port,
@@ -206,6 +207,9 @@ class InstallWizard extends Component
                 'SESSION_LIFETIME' => '480',
                 'QUEUE_CONNECTION' => 'sync',
                 'SCOUT_DRIVER' => 'collection',
+                'MAIL_MAILER' => 'log',
+                'MAIL_FROM_ADDRESS' => 'noreply@'.(parse_url($this->app_url, PHP_URL_HOST) ?: 'example.com'),
+                'MAIL_FROM_NAME' => '"${APP_NAME}"',
             ]);
 
             Artisan::call('config:clear');
@@ -251,8 +255,20 @@ class InstallWizard extends Component
                 return;
             }
 
-            // sessions + jobs tables now exist → enable database session/queue
-            Installer::applyPerformanceEnv();
+            // Full recommended .env (database sessions/queue, production safety, mail placeholders)
+            Installer::applyRecommendedEnv();
+
+            // Keep APP_NAME / APP_URL / DB_* from wizard (recommendedEnv may overwrite APP_URL from request)
+            Installer::writeEnv([
+                'APP_NAME' => $this->app_name,
+                'APP_URL' => $this->app_url,
+                'DB_CONNECTION' => $this->db_connection,
+                'DB_HOST' => $this->db_host,
+                'DB_PORT' => $this->db_port,
+                'DB_DATABASE' => $this->db_database,
+                'DB_USERNAME' => $this->db_username,
+                'DB_PASSWORD' => $this->db_password,
+            ]);
 
             $this->step = 4;
         } catch (\Throwable $e) {
@@ -302,8 +318,17 @@ class InstallWizard extends Component
                 ]);
             }
 
-            // Final pass: ensure performance drivers are written
-            Installer::applyPerformanceEnv();
+            Installer::applyRecommendedEnv();
+            Installer::writeEnv([
+                'APP_NAME' => $this->app_name,
+                'APP_URL' => $this->app_url,
+                'DB_CONNECTION' => $this->db_connection,
+                'DB_HOST' => $this->db_host,
+                'DB_PORT' => $this->db_port,
+                'DB_DATABASE' => $this->db_database,
+                'DB_USERNAME' => $this->db_username,
+                'DB_PASSWORD' => $this->db_password,
+            ]);
 
             Installer::lock();
             $this->step = 5;
