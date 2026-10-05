@@ -13,7 +13,7 @@ use Livewire\ComponentHook;
  */
 class DemoModeHook extends ComponentHook
 {
-    public function call($method, $params, $returnEarly): void
+    public function call(mixed $method = null, mixed $params = null, mixed $returnEarly = null): void
     {
         if (! DemoMode::enabled()) {
             return;
@@ -23,7 +23,7 @@ class DemoModeHook extends ComponentHook
             return;
         }
 
-        if (! in_array($method, DemoMode::blockedLivewireMethods(), true)) {
+        if (! is_string($method) || ! in_array($method, DemoMode::blockedLivewireMethods(), true)) {
             return;
         }
 
@@ -44,7 +44,8 @@ class DemoModeHook extends ComponentHook
         } catch (\Throwable) {
         }
 
-        // Skip the real create/save/delete method — stay on the page
-        $returnEarly(null);
+        if (is_callable($returnEarly)) {
+            $returnEarly(null);
+        }
     }
 }
