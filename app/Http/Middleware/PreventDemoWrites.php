@@ -6,11 +6,13 @@ use App\Support\DemoMode;
 use Closure;
 use Filament\Notifications\Notification;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Stops Filament / Livewire Save-Create-Delete when DEMO_MODE=true.
- * Screens stay fully open; only mutating Livewire calls are rejected.
+ * Screens stay open; mutating calls get a normal validation error + toast,
+ * not a raw JSON page.
  */
 class PreventDemoWrites
 {
@@ -20,7 +22,6 @@ class PreventDemoWrites
             return $next($request);
         }
 
-        // Livewire endpoint used by Filament forms and table actions
         $isLivewire = $request->is('livewire/*')
             || str_contains($request->path(), 'livewire/update');
 
@@ -37,22 +38,27 @@ class PreventDemoWrites
             } catch (\Throwable) {
             }
 
-            // Livewire-friendly validation error (shows on the form)
-            return response()->json([
-                'message' => $message,
-                'errors' => [
-                    'demo' => [$message],
-                ],
-            ], 422);
+            // Livewire turns this into a normal form/error response (not a JSON dump page).
+            throw ValidationException::withMessages([
+                'demo' => $message,
+            ]);
         }
 
-        // Non-Livewire POST/PUT/PATCH/DELETE under /admin (settings forms, etc.)
         if ($request->is('admin/*')
             && ! $request->is('admin/login', 'admin/logout')
             && in_array($request->method(), ['POST', 'PUT', 'PATCH', 'DELETE'], true)
             && ! $isLivewire
         ) {
             $message = DemoMode::message();
+
+            try {
+                Notification::make()
+                    ->title($message)
+                    ->warning()
+                    ->persistent()
+                    ->send();
+            } catch (\Throwable) {
+            }
 
             return back()
                 ->withErrors(['demo' => $message])
