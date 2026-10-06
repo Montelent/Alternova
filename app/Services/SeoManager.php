@@ -113,6 +113,52 @@ class SeoManager
             : $this->defaultDescription();
     }
 
+    /**
+     * All linked proprietary tool names for %prop% (multi-select).
+     * e.g. Notion | Notion and Slack | Notion, Slack and Teams
+     */
+    public function proprietaryNames(OpenSourceAlternative $alt): string
+    {
+        $names = collect();
+
+        try {
+            if ($alt->relationLoaded('proprietaryTools')) {
+                $names = $alt->proprietaryTools->pluck('name')->filter()->values();
+            } elseif (method_exists($alt, 'proprietaryTools')) {
+                $names = $alt->proprietaryTools()->pluck('name')->filter()->values();
+            }
+        } catch (\Throwable) {
+        }
+
+        if ($names->isEmpty()) {
+            $single = $alt->proprietaryTool?->name;
+            if (filled($single)) {
+                $names = collect([(string) $single]);
+            }
+        }
+
+        return $this->joinNames($names) ?: 'proprietary tools';
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection|array  $names
+     */
+    public function joinNames($names): string
+    {
+        $list = collect($names)->map(fn ($n) => trim((string) $n))->filter()->values();
+        if ($list->isEmpty()) {
+            return '';
+        }
+        if ($list->count() === 1) {
+            return (string) $list[0];
+        }
+        if ($list->count() === 2) {
+            return $list[0].' and '.$list[1];
+        }
+
+        return $list->slice(0, -1)->implode(', ').' and '.$list->last();
+    }
+
     public function alternativeTitle(OpenSourceAlternative $alt): string
     {
         if (filled($alt->meta_title)) {
@@ -126,7 +172,7 @@ class SeoManager
 
         return $this->replace((string) $tpl, [
             '%title%' => $alt->name,
-            '%prop%' => $alt->proprietaryTool?->name ?? 'proprietary tools',
+            '%prop%' => $this->proprietaryNames($alt),
             '%license%' => $alt->license_type ?? '',
             '%language%' => $alt->primary_language ?? '',
             '%health%' => (string) round((float) $alt->overall_health_score),
@@ -141,11 +187,15 @@ class SeoManager
 
         $tpl = SiteSetting::get('seo_desc_alternative', '');
         $excerpt = $this->plainText((string) $alt->description);
+        $prop = $this->proprietaryNames($alt);
+        if ($prop === 'proprietary tools') {
+            $prop = 'proprietary software';
+        }
 
         if ($tpl) {
             return Str::limit($this->replace((string) $tpl, [
                 '%title%' => $alt->name,
-                '%prop%' => $alt->proprietaryTool?->name ?? 'proprietary software',
+                '%prop%' => $prop,
                 '%license%' => $alt->license_type ?? 'open-source',
                 '%language%' => $alt->primary_language ?? '',
                 '%health%' => (string) round((float) $alt->overall_health_score),
@@ -158,15 +208,12 @@ class SeoManager
         }
 
         return Str::limit(
-            $alt->name.' is a free, self-hostable open-source alternative to '
-            .($alt->proprietaryTool?->name ?? 'proprietary software').'.',
+            $alt->name.' is a free, self-hostable open-source alternative to '.$prop.'.',
             155
         );
     }
 
     /**
-     * Open Graph payload. Custom og_* / og_image_url win when filled; otherwise auto.
-     *
      * @return array{title: string, description: string, image: string|null, type: string, url: string}
      */
     public function alternativeSocial(OpenSourceAlternative $alt): array
