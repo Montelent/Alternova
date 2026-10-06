@@ -156,9 +156,6 @@ class SeoForm
         ];
     }
 
-    /**
-     * Same auto title the public page uses (SeoManager), unless meta_title is filled.
-     */
     public static function previewTitle(Get $get, string $nameField = 'name', string $entityLabel = 'page'): string
     {
         $meta = trim((string) $get('meta_title'));
@@ -197,7 +194,6 @@ class SeoForm
             ]);
         }
 
-        // CMS pages / generic
         return $seo->replace('%page% %sep% %sitename%', [
             '%page%' => $name !== '' ? $name : 'Page',
         ]);
@@ -277,24 +273,30 @@ class SeoForm
     }
 
     /**
-     * Resolve proprietary tool name from single or multi-select form state.
+     * All selected proprietary tools (multi-select), joined for %prop%.
      */
     protected static function resolveProprietaryName(Get $get): string
     {
-        $id = $get('proprietary_tool_id');
-        if (! $id) {
-            $tools = $get('proprietaryTools');
-            if (is_array($tools) && $tools !== []) {
-                $id = $tools[0];
+        $ids = [];
+        $tools = $get('proprietaryTools');
+        if (is_array($tools) && $tools !== []) {
+            $ids = array_values(array_filter($tools, fn ($id) => filled($id)));
+        }
+        if ($ids === []) {
+            $single = $get('proprietary_tool_id');
+            if (filled($single)) {
+                $ids = [$single];
             }
         }
-
-        if (! $id) {
+        if ($ids === []) {
             return '';
         }
 
         try {
-            return (string) (ProprietaryTool::query()->find($id)?->name ?? '');
+            $byId = ProprietaryTool::query()->whereIn('id', $ids)->get()->keyBy('id');
+            $ordered = collect($ids)->map(fn ($id) => $byId->get($id)?->name)->filter()->values();
+
+            return app(SeoManager::class)->joinNames($ordered);
         } catch (\Throwable) {
             return '';
         }
