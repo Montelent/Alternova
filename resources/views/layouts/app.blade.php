@@ -29,7 +29,7 @@
             }
         } catch (e) {}
     </script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -64,6 +64,7 @@
         ::placeholder { color: #94a3b8; opacity: 1; }
         .dark ::placeholder { color: #64748b; opacity: 1; }
     </style>
+    @include('partials.cms-content-styles')
 </head>
 <body class="font-sans antialiased bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col"
     x-data="{ mobileOpen: false }"
