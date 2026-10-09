@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 class Page extends Model
@@ -54,14 +55,22 @@ class Page extends Model
         return $query->where('is_published', true);
     }
 
+    /**
+     * Public URL — always /{slug} (e.g. /about, /team), never /p/{slug}.
+     */
     public function publicUrl(): string
     {
-        $reserved = ['about', 'privacy', 'terms', 'disclosure'];
-        if (in_array($this->slug, $reserved, true) && \Illuminate\Support\Facades\Route::has($this->slug)) {
-            return route($this->slug);
+        $slug = trim((string) $this->slug, '/');
+        if ($slug === '') {
+            return url('/');
         }
 
-        return url('/p/'.$this->slug);
+        $reserved = ['about', 'privacy', 'terms', 'disclosure'];
+        if (in_array($slug, $reserved, true) && Route::has($slug)) {
+            return route($slug);
+        }
+
+        return url('/'.$slug);
     }
 
     public function seoTitle(): string
