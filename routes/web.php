@@ -58,14 +58,17 @@ Route::get('/leaderboard', Leaderboard::class)->name('leaderboard');
 Route::get('/trending', TrendingPage::class)->name('trending');
 Route::get('/whats-new', WhatsNewController::class)->name('whats-new');
 Route::get('/api-docs', ApiDocsController::class)->name('api.docs');
+
 Route::get('/collections', CollectionIndex::class)->name('collections.index');
 Route::get('/collections/{slug}', CollectionShow::class)->name('collections.show');
+
 Route::get('/alternatives/{slug}', AlternativeDetail::class)->name('alternatives.show');
 Route::get('/alternativesto/{slug}', ProprietaryToolShow::class)->name('alternativesto.show');
 Route::get('/tools/{slug}', ProprietaryToolShow::class)->name('tools.show');
-Route::get('/domains', DomainCombinator::class)->name('domains');
 
+Route::get('/domains', DomainCombinator::class)->name('domains');
 Route::get('/go/{provider}/{domain}', AffiliateRedirectController::class)->name('affiliate.go');
+
 Route::get('/badge/{slug}.svg', [BadgeController::class, 'health'])->name('badge.health');
 Route::get('/embed/tool/{slug}', [EmbedController::class, 'tool'])->name('embed.tool');
 Route::get('/og/alternative/{slug}.png', [OgImageController::class, 'alternative'])->name('og.alternative');
@@ -88,14 +91,6 @@ Route::middleware('guest')->group(function () {
     Route::get('/reset-password/{token}', ResetPassword::class)->name('password.reset');
 });
 
-Route::post('/logout', function () {
-    auth()->logout();
-    request()->session()->invalidate();
-    request()->session()->regenerateToken();
-
-    return redirect('/');
-})->middleware('auth')->name('logout');
-
 Route::get('/suggest', SuggestAlternative::class)->name('suggest');
 Route::get('/suggest-collection', SuggestCollection::class)->name('suggest.collection');
 Route::get('/submissions/{token}', SubmissionStatusController::class)->name('submissions.status');
@@ -109,7 +104,11 @@ Route::get('/about', [PageController::class, 'about'])->name('about');
 Route::get('/privacy', [PageController::class, 'privacy'])->name('privacy');
 Route::get('/terms', [PageController::class, 'terms'])->name('terms');
 Route::get('/disclosure', [PageController::class, 'disclosure'])->name('disclosure');
-Route::get('/p/{slug}', [PageController::class, 'show'])->where('slug', '[A-Za-z0-9\-_]+')->name('pages.show');
+
+// Legacy prefix — permanent redirect to root slug URLs
+Route::get('/p/{slug}', function (string $slug) {
+    return redirect('/'.$slug, 301);
+})->where('slug', '[A-Za-z0-9\-_]+');
 
 Route::get('/feed', [FeedController::class, 'rss'])->name('feed.rss');
 Route::get('/feed/rss', [FeedController::class, 'rss']);
@@ -149,3 +148,11 @@ Route::get('/robots.txt', function () {
 
     return response($body, 200)->header('Content-Type', 'text/plain');
 });
+
+/*
+ | CMS pages at /{slug} (same style as /about, /privacy).
+ | Registered last so app routes always win.
+ */
+Route::get('/{slug}', [PageController::class, 'show'])
+    ->where('slug', '[A-Za-z0-9\-_]+')
+    ->name('pages.show');
