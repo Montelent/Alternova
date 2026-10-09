@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use Filament\Notifications\Notification;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Validation\ValidationException;
 
@@ -124,12 +125,22 @@ class DemoMode
 
     public static function registerEloquentGuards(): void
     {
-        $block = function (object $model): void {
+        /*
+         | Wildcard listeners receive (string $eventName, array $payload),
+         | NOT the model as the first argument. Typing the first arg as object
+         | caused TypeError on every create/save (demo on or off).
+         */
+        $block = function (string $eventName, array $payload = []): void {
             if (! self::enabled()) {
                 return;
             }
 
             if (app()->runningInConsole() && ! app()->runningUnitTests()) {
+                return;
+            }
+
+            $model = $payload[0] ?? null;
+            if (! $model instanceof Model) {
                 return;
             }
 
