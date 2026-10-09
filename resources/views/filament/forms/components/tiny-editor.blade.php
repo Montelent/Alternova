@@ -32,6 +32,23 @@
     </div>
 
     @once
+        <style>
+            /* Sticky TinyMCE toolbar over Filament forms */
+            .tox-tinymce .tox-editor-header {
+                z-index: 30 !important;
+            }
+            .tox-tinymce-aux {
+                z-index: 50 !important;
+            }
+            /* Ensure editor body is selectable / pasteable on mobile */
+            .tox-edit-area__iframe {
+                -webkit-user-select: text !important;
+                user-select: text !important;
+            }
+        </style>
+    @endonce
+
+    @once
         <script>
             (function () {
                 /** Flush every TinyMCE instance into its Alpine/Livewire state before any request. */
@@ -52,7 +69,6 @@
                     });
                 }
 
-                // Before Livewire commits (Save / Create / validation)
                 document.addEventListener('livewire:init', function () {
                     if (window.__alternovaTinyFlushHooked) {
                         return;
@@ -64,7 +80,6 @@
                     });
                 });
 
-                // Capture-phase click on Filament primary actions (Save / Create)
                 document.addEventListener('click', function (e) {
                     var btn = e.target && e.target.closest
                         ? e.target.closest('button, [type="submit"], .fi-btn')
@@ -212,12 +227,21 @@
                                     suffix: '.min',
                                     plugins: 'lists link image code table autoresize wordcount',
                                     toolbar: 'undo redo | styles | bold italic underline | alignleft aligncenter alignright | bullist numlist | link image table | code removeformat',
-                                    toolbar_mode: 'sliding',
+                                    // Keep toolbar visible while scrolling
+                                    toolbar_sticky: true,
+                                    toolbar_sticky_offset: 64,
+                                    toolbar_mode: 'wrap',
+                                    // Native OS context menu so mobile long-press shows Copy/Paste/Cut
+                                    contextmenu: false,
+                                    contextmenu_never_use_native: false,
+                                    browser_spellcheck: true,
+                                    paste_data_images: true,
                                     mobile: {
                                         menubar: true,
-                                        toolbar_mode: 'scrolling',
+                                        toolbar_mode: 'wrap',
+                                        toolbar_sticky: true,
                                     },
-                                    content_style: 'body { font-family: Inter, system-ui, sans-serif; font-size: 15px; line-height: 1.6; }',
+                                    content_style: 'body { font-family: Inter, system-ui, sans-serif; font-size: 15px; line-height: 1.6; -webkit-user-select: text; user-select: text; }',
                                     relative_urls: false,
                                     convert_urls: false,
                                     setup: (editor) => {
@@ -230,7 +254,6 @@
                                                 self.state = html;
                                                 el.value = html;
                                                 if (forceWire && self.$wire && config.statePath) {
-                                                    // Push into Livewire immediately so Save does not need a second click
                                                     self.$wire.set(config.statePath, html, false);
                                                 }
                                             } catch (e) {
