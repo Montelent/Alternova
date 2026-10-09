@@ -44,7 +44,11 @@ class OssCategoryResource extends Resource
                 ->afterStateUpdated(fn ($state, Set $set) => $set('slug', Str::slug((string) $state))),
             Forms\Components\TextInput::make('slug')->required()->unique(ignoreRecord: true),
             Forms\Components\Textarea::make('description')->rows(3)->columnSpanFull(),
-            Forms\Components\TextInput::make('sort_order')->numeric()->default(0),
+            Forms\Components\TextInput::make('sort_order')
+                ->numeric()
+                ->nullable()
+                ->placeholder('Auto')
+                ->helperText('Leave empty for next number. Setting a used number swaps with that item.'),
             Forms\Components\Toggle::make('is_active')->default(true),
         ])->columns(2);
     }

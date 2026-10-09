@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasAutoSortOrder;
 use App\Services\WebhookDispatcher;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -10,6 +11,8 @@ use Illuminate\Support\Facades\Storage;
 
 class Collection extends Model
 {
+    use HasAutoSortOrder;
+
     protected $fillable = [
         'name',
         'slug',
@@ -60,11 +63,6 @@ class Collection extends Model
         });
     }
 
-    public function getRouteKeyName(): string
-    {
-        return 'slug';
-    }
-
     public function items(): HasMany
     {
         return $this->hasMany(CollectionItem::class)->orderBy('position');
@@ -77,41 +75,28 @@ class Collection extends Model
             'collection_items',
             'collection_id',
             'open_source_alternative_id'
-        )
-            ->withPivot(['position', 'note'])
-            ->withTimestamps()
-            ->orderByPivot('position');
+        )->withPivot('position', 'note')->orderByPivot('position');
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
     }
 
     public function coverUrl(): ?string
     {
         if ($this->cover_path) {
-            return Storage::disk('public')->url($this->cover_path);
+            try {
+                return Storage::disk('uploads')->url($this->cover_path);
+            } catch (\Throwable) {
+            }
         }
 
         return $this->cover_image_url ?: null;
     }
 
-    public function seoTitle(): string
+    public function publicUrl(): string
     {
-        if ($this->meta_title) {
-            return $this->meta_title;
-        }
-
-        return $this->name.' | Alternova';
-    }
-
-    public function seoDescription(): string
-    {
-        if ($this->meta_description) {
-            return $this->meta_description;
-        }
-
-        $desc = trim((string) $this->description);
-        if ($desc !== '') {
-            return str($desc)->limit(155)->toString();
-        }
-
-        return 'Curated open-source alternatives: '.$this->name;
+        return route('collections.show', $this->slug);
     }
 }

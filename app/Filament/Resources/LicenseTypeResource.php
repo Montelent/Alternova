@@ -39,15 +39,19 @@ class LicenseTypeResource extends Resource
         return $form->schema([
             Forms\Components\TextInput::make('name')
                 ->required()
-                ->maxLength(80)
+                ->maxLength(120)
                 ->live(onBlur: true)
                 ->afterStateUpdated(fn ($state, Set $set) => $set('slug', Str::slug((string) $state))),
             Forms\Components\TextInput::make('slug')->required()->unique(ignoreRecord: true),
-            Forms\Components\TextInput::make('spdx_id')->label('SPDX id')->maxLength(80),
+            Forms\Components\TextInput::make('spdx_id')->label('SPDX ID')->maxLength(64),
             Forms\Components\Textarea::make('description')->rows(2)->columnSpanFull(),
-            Forms\Components\Toggle::make('is_osi_approved')->label('OSI approved')->default(true),
+            Forms\Components\Toggle::make('is_osi_approved')->label('OSI approved')->default(false),
             Forms\Components\Toggle::make('is_active')->default(true),
-            Forms\Components\TextInput::make('sort_order')->numeric()->default(0),
+            Forms\Components\TextInput::make('sort_order')
+                ->numeric()
+                ->nullable()
+                ->placeholder('Auto')
+                ->helperText('Leave empty for next number. Setting a used number swaps with that item.'),
         ])->columns(2);
     }
 
@@ -64,6 +68,7 @@ class LicenseTypeResource extends Resource
             ])
             ->filters([
                 Tables\Filters\TernaryFilter::make('is_active'),
+                Tables\Filters\TernaryFilter::make('is_osi_approved')->label('OSI'),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
