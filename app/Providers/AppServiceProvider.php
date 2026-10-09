@@ -11,6 +11,7 @@ use App\Support\DemoMode;
 use App\Support\IntegrationsSettings;
 use App\Support\MailSettings;
 use App\View\Composers\CmsNavComposer;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -20,12 +21,29 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // Early session hygiene (before HTTP kernel where possible)
+        $this->app->booting(function () {
+            try {
+                if (config('session.domain') === '') {
+                    config(['session.domain' => null]);
+                }
+
+                if (config('session.driver') === 'database') {
+                    try {
+                        if (! Schema::hasTable((string) config('session.table', 'sessions'))) {
+                            config(['session.driver' => 'file']);
+                        }
+                    } catch (\Throwable) {
+                        config(['session.driver' => 'file']);
+                    }
+                }
+            } catch (\Throwable) {
+            }
+        });
     }
 
     public function boot(): void
     {
-        // Sync config from live detection (handles config:cache + .env)
         if (DemoMode::enabled()) {
             config(['demo.enabled' => true]);
         }
@@ -51,6 +69,7 @@ class AppServiceProvider extends ServiceProvider
         } catch (\Throwable) {
         }
 
+        // Production session cookie defaults — never force Secure on non-HTTPS hosts
         if ($this->app->environment('production')) {
             $https = str_starts_with(strtolower((string) config('app.url')), 'https://');
 
@@ -83,6 +102,11 @@ class AppServiceProvider extends ServiceProvider
             if (! is_dir($path)) {
                 @mkdir($path, 0775, true);
             }
+        }
+
+        $sessionFiles = storage_path('framework/sessions');
+        if (! is_dir($sessionFiles)) {
+            @mkdir($sessionFiles, 0775, true);
         }
     }
 }
