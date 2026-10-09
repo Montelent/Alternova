@@ -8,13 +8,18 @@ use App\Filament\Forms\SeoForm;
 use App\Filament\Forms\TagsField;
 use App\Filament\Resources\ProprietaryToolResource\Pages;
 use App\Models\ProprietaryTool;
+use App\Services\DescriptionGeneratorService;
+use App\Support\MediaUrl;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Forms\Set;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Str;
 
 class ProprietaryToolResource extends Resource
@@ -29,43 +34,63 @@ class ProprietaryToolResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'name';
 
-    public static function getEloquentQuery(): Builder
+    public static function getGloballySearchableAttributes(): array
     {
-        return parent::getEloquentQuery()->withAlternativesTotalCount();
+        return ['name', 'slug', 'description', 'target_audience', 'focus_keyword'];
     }
 
     public static function form(Form $form): Form
     {
-        return $form->schema([
-            Forms\Components\Section::make('Tool')->schema([
-                Forms\Components\TextInput::make('name')
-                    ->required()
-                    ->maxLength(160)
-                    ->live(onBlur: true)
-                    ->afterStateUpdated(function (?string $state, Set $set, ?string $old) {
-                        if ($state && (! $old || $old === '')) {
-                            $set('slug', Str::slug($state));
-                        }
-                    }),
-                Forms\Components\TextInput::make('slug')
-                    ->required()
-                    ->maxLength(180)
-                    ->unique(ignoreRecord: true),
-                Forms\Components\TextInput::make('website_url')->url()->columnSpanFull(),
-                ImageField::logo('logo_path', 'Logo'),
-                TinyEditor::make('description')
-                    ->label('Description')
-                    ->height(280)
-                    ->columnSpanFull(),
-                Forms\Components\Textarea::make('target_audience')
-                    ->rows(2)
-                    ->columnSpanFull(),
-                TagsField::make('key_features', 'Key features')->columnSpanFull(),
-                Forms\Components\Toggle::make('is_published')->label('Published')->default(true),
-            ])->columns(2),
+        return $form
+            ->schema([
+                Forms\Components\Section::make('Basic information')->schema([
+                    Forms\Components\TextInput::make('name')
+                        ->required()
+                        ->live(onBlur: true)
+                        ->afterStateUpdated(fn ($state, Set $set) => $set('slug', Str::slug($state))),
+                    Forms\Components\TextInput::make('slug')
+                        ->required()
+                        ->unique(ignoreRecord: true),
+                    Forms\Components\TextInput::make('website_url')->url()->columnSpanFull(),
+                    ...ImageField::make('logo_path', 'Logo', 'logos', withUrlFallback: false),
+                    TinyEditor::make('description')
+                        ->label('Description')
+                        ->height(300)
+                        ->columnSpanFull(),
+                    Forms\Components\Actions::make([
+                        Forms\Components\Actions\Action::make('generateDescription')
+                            ->label('Generate from website')
+                            ->icon('heroicon-o-sparkles')
+                            ->color('gray')
+                            ->action(function (Get $get, Set $set) {
+                                $url = trim((string) $get('website_url'));
+                                if ($url === '') {
+                                    Notification::make()->title('Add a website URL first')->warning()->send();
 
-            ...SeoForm::schema('proprietary tool', 'slug', 'name', 'description'),
-        ]);
+                                    return;
+                                }
+                                try {
+                                    $text = app(DescriptionGeneratorService::class)->fromUrl($url);
+                                    if ($text) {
+                                        $set('description', $text);
+                                        Notification::make()->title('Description generated')->success()->send();
+                                    } else {
+                                        Notification::make()->title('Could not generate description')->warning()->send();
+                                    }
+                                } catch (\Throwable $e) {
+                                    Notification::make()->title('Generate failed')->body($e->getMessage())->danger()->send();
+                                }
+                            }),
+                    ])->columnSpanFull(),
+                    TagsField::make('key_features', 'Key features')->columnSpanFull(),
+                    Forms\Components\Textarea::make('target_audience')
+                        ->rows(2)
+                        ->columnSpanFull(),
+                    Forms\Components\Toggle::make('is_published')->default(true),
+                ])->columns(2),
+
+                ...SeoForm::schema('proprietary tool', 'slug', 'name', 'description'),
+            ]);
     }
 
     public static function table(Table $table): Table
@@ -74,11 +99,10 @@ class ProprietaryToolResource extends Resource
             ->defaultSort('updated_at', 'desc')
             ->columns([
                 Tables\Columns\ImageColumn::make('logo_path')
-                    ->label('Logo')
-                    ->disk('uploads')
+                    ->label('')
                     ->height(32)
                     ->width(32)
-                    ->circular()
+                    ->getStateUsing(fn (ProprietaryTool $r) => $r->logo_url)
                     ->defaultImageUrl(null),
                 Tables\Columns\TextColumn::make('name')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('slug')->toggleable(),
@@ -88,7 +112,7 @@ class ProprietaryToolResource extends Resource
                     ->label('Alternatives')
                     ->sortable()
                     ->alignCenter()
-                    ->tooltip('Count includes multi-select links (not only the primary FK)'),
+                    ->tooltip('Includes multi-select links (pivot), not only the primary tool FK'),
                 Tables\Columns\TextColumn::make('updated_at')->dateTime()->sortable()->label('Updated')->toggleable(),
             ])
             ->filters([
@@ -96,22 +120,38 @@ class ProprietaryToolResource extends Resource
                 Tables\Filters\TrashedFilter::make(),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\Action::make('viewFront')
+                Tables\Actions\Action::make('viewSite')
                     ->label('View')
                     ->icon('heroicon-o-arrow-top-right-on-square')
-                    ->url(fn (ProprietaryTool $r) => route('alternativesto.show', $r->slug), shouldOpenInNewTab: true),
+                    ->url(fn (ProprietaryTool $r) => route('alternativesto.show', $r->slug), shouldOpenInNewTab: true)
+                    ->visible(fn (ProprietaryTool $r) => $r->is_published && ! $r->trashed()),
+                Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
-                Tables\Actions\ForceDeleteAction::make(),
                 Tables\Actions\RestoreAction::make(),
+                Tables\Actions\ForceDeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\BulkAction::make('publishSelected')
+                        ->label('Publish')
+                        ->action(fn ($records) => $records->each->update(['is_published' => true])),
+                    Tables\Actions\BulkAction::make('unpublishSelected')
+                        ->label('Unpublish')
+                        ->action(fn ($records) => $records->each->update(['is_published' => false])),
                     Tables\Actions\DeleteBulkAction::make(),
-                    Tables\Actions\ForceDeleteBulkAction::make(),
                     Tables\Actions\RestoreBulkAction::make(),
+                    Tables\Actions\ForceDeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->withoutGlobalScopes([
+                SoftDeletingScope::class,
+            ])
+            ->withAlternativesTotalCount();
     }
 
     public static function getPages(): array
