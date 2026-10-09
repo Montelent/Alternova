@@ -58,14 +58,11 @@ Route::get('/leaderboard', Leaderboard::class)->name('leaderboard');
 Route::get('/trending', TrendingPage::class)->name('trending');
 Route::get('/whats-new', WhatsNewController::class)->name('whats-new');
 Route::get('/api-docs', ApiDocsController::class)->name('api.docs');
-
 Route::get('/collections', CollectionIndex::class)->name('collections.index');
 Route::get('/collections/{slug}', CollectionShow::class)->name('collections.show');
-
 Route::get('/alternatives/{slug}', AlternativeDetail::class)->name('alternatives.show');
 Route::get('/alternativesto/{slug}', ProprietaryToolShow::class)->name('alternativesto.show');
 Route::get('/tools/{slug}', ProprietaryToolShow::class)->name('tools.show');
-
 Route::get('/domains', DomainCombinator::class)->name('domains');
 Route::get('/go/{provider}/{domain}', AffiliateRedirectController::class)->name('affiliate.go');
 
@@ -90,6 +87,14 @@ Route::middleware('guest')->group(function () {
     Route::get('/forgot-password', ForgotPassword::class)->name('password.request');
     Route::get('/reset-password/{token}', ResetPassword::class)->name('password.reset');
 });
+
+Route::post('/logout', function () {
+    auth()->logout();
+    request()->session()->invalidate();
+    request()->session()->regenerateToken();
+
+    return redirect('/');
+})->middleware('auth')->name('logout');
 
 Route::get('/suggest', SuggestAlternative::class)->name('suggest');
 Route::get('/suggest-collection', SuggestCollection::class)->name('suggest.collection');
