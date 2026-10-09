@@ -33,14 +33,10 @@
 
     @once
         <style>
-            /* Sticky TinyMCE toolbar over Filament forms */
-            .tox-tinymce .tox-editor-header {
-                z-index: 30 !important;
-            }
+            /* Keep menus above Filament chrome; do not force viewport-fixed header */
             .tox-tinymce-aux {
                 z-index: 50 !important;
             }
-            /* Ensure editor body is selectable / pasteable on mobile */
             .tox-edit-area__iframe {
                 -webkit-user-select: text !important;
                 user-select: text !important;
@@ -227,11 +223,9 @@
                                     suffix: '.min',
                                     plugins: 'lists link image code table autoresize wordcount',
                                     toolbar: 'undo redo | styles | bold italic underline | alignleft aligncenter alignright | bullist numlist | link image table | code removeformat',
-                                    // Keep toolbar visible while scrolling
-                                    toolbar_sticky: true,
-                                    toolbar_sticky_offset: 64,
+                                    // Not viewport-sticky — was following scroll past the editor on long forms
+                                    toolbar_sticky: false,
                                     toolbar_mode: 'wrap',
-                                    // Native OS context menu so mobile long-press shows Copy/Paste/Cut
                                     contextmenu: false,
                                     contextmenu_never_use_native: false,
                                     browser_spellcheck: true,
@@ -239,7 +233,7 @@
                                     mobile: {
                                         menubar: true,
                                         toolbar_mode: 'wrap',
-                                        toolbar_sticky: true,
+                                        toolbar_sticky: false,
                                     },
                                     content_style: 'body { font-family: Inter, system-ui, sans-serif; font-size: 15px; line-height: 1.6; -webkit-user-select: text; user-select: text; }',
                                     relative_urls: false,
