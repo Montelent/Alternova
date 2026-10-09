@@ -63,7 +63,7 @@ class PageResource extends Resource
                     ->required()
                     ->maxLength(180)
                     ->unique(ignoreRecord: true)
-                    ->helperText('URL: /about, /privacy, or /p/your-slug. Tab out of the title field to auto-fill when slug is empty, or type the slug yourself.'),
+                    ->helperText('Public URL is /your-slug (same as /about). Example: slug "team" → /team.'),
                 Forms\Components\Select::make('template')
                     ->options([
                         'default' => 'Default article',
