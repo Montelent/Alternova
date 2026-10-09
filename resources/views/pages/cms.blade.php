@@ -9,9 +9,9 @@
         <p class="mt-4 text-lg text-slate-600 dark:text-slate-400 leading-relaxed">{{ $page->excerpt }}</p>
     @endif
 
-    <article class="mt-10 prose prose-slate dark:prose-invert max-w-none
+    <article class="cms-content prose prose-slate dark:prose-invert max-w-none mt-10
         prose-headings:font-bold prose-a:text-brand-600 dark:prose-a:text-brand-300
-        prose-img:rounded-xl">
+        prose-img:rounded-xl prose-table:text-sm">
         {!! $page->body_html !!}
     </article>
 
