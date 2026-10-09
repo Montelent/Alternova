@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasAutoSortOrder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
 class OssCategory extends Model
 {
+    use HasAutoSortOrder;
+
     protected $table = 'oss_categories';
 
     protected $fillable = [
