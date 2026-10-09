@@ -7,6 +7,12 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Auth\Login;
 use Livewire\ComponentHook;
 
+/**
+ * Demo mode: block only real write methods (create/save/delete).
+ * Do NOT blanket-block callMountedAction — that breaks Filament UI
+ * (modals, header actions, navigation) and makes Create look dead.
+ * Persistence is still blocked by Eloquent wildcards in DemoMode.
+ */
 class DemoModeHook extends ComponentHook
 {
     public function call(mixed $method = null, mixed $params = null, mixed $returnEarly = null): void
@@ -23,15 +29,18 @@ class DemoModeHook extends ComponentHook
             return;
         }
 
-        $blocked = DemoMode::blockedLivewireMethods();
-        $isBlocked = in_array($method, $blocked, true);
+        // Only the methods that actually persist a record from Create/Edit pages
+        $writeMethods = [
+            'create',
+            'createAnother',
+            'save',
+            'delete',
+            'forceDelete',
+            'restore',
+            'replicate',
+        ];
 
-        // Also catch Filament actions named like delete / save / create
-        if (! $isBlocked && in_array($method, ['callMountedAction', 'callMountedTableAction', 'callTableAction', 'callMountedFormComponentAction'], true)) {
-            $isBlocked = true;
-        }
-
-        if (! $isBlocked) {
+        if (! in_array($method, $writeMethods, true)) {
             return;
         }
 
@@ -40,7 +49,7 @@ class DemoModeHook extends ComponentHook
         try {
             Notification::make()
                 ->title($message)
-                ->body('You can explore every screen. Changes are not saved in the demo.')
+                ->body('You can open every screen in this demo. Changes are not saved.')
                 ->warning()
                 ->persistent()
                 ->send();

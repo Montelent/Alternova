@@ -10,9 +10,6 @@ class DemoMode
 {
     protected static ?bool $resolved = null;
 
-    /**
-     * Works even when config:cache is used (env() is null outside config files).
-     */
     public static function enabled(): bool
     {
         if (self::$resolved !== null) {
@@ -108,6 +105,8 @@ class DemoMode
     }
 
     /**
+     * Livewire methods that persist records. Keep this narrow so Filament UI still works.
+     *
      * @return list<string>
      */
     public static function blockedLivewireMethods(): array
@@ -120,34 +119,9 @@ class DemoMode
             'forceDelete',
             'restore',
             'replicate',
-            'callMountedAction',
-            'callMountedFormComponentAction',
-            'callMountedTableAction',
-            'callTableAction',
-            'callTableBulkAction',
-            'callMountedTableBulkAction',
-            'saveFormComponentOnly',
-            'publish',
-            'unpublish',
-            'sync',
-            'generate',
-            'import',
-            'submit',
-            'update',
-            'store',
-            'destroy',
-            'attach',
-            'detach',
-            'associate',
-            'dissociate',
         ];
     }
 
-    /**
-     * IMPORTANT: Model::saving() on the base Model class only listens for
-     * Illuminate\Database\Eloquent\Model itself — NOT OpenSourceAlternative,
-     * Page, User, etc. Use eloquent.*: * wildcards so every model is blocked.
-     */
     public static function registerEloquentGuards(): void
     {
         $block = function (object $model): void {
