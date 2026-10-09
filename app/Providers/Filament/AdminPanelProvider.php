@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Http\Middleware\EnsureSessionIsConfigured;
 use App\Http\Middleware\PreventDemoWrites;
 use App\Http\Middleware\SecurityHeaders;
 use App\Support\WhiteLabelSettings;
@@ -18,6 +19,7 @@ use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
+use Illuminate\Session\Middleware\AuthenticateSession;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
@@ -86,9 +88,12 @@ class AdminPanelProvider extends PanelProvider
                 fn () => view('filament.hooks.admin-head'),
             )
             ->middleware([
+                // MUST run before StartSession — Filament does not use the web group stack alone
+                EnsureSessionIsConfigured::class,
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
+                AuthenticateSession::class,
                 ShareErrorsFromSession::class,
                 VerifyCsrfToken::class,
                 SubstituteBindings::class,

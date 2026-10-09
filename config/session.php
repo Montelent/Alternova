@@ -9,12 +9,15 @@ return [
     | Default Session Driver
     |--------------------------------------------------------------------------
     |
-    | file driver can 419 on Livewire under concurrent mobile requests (file lock).
-    | Prefer database on shared hosting (Hostinger). Run: php artisan session:table && migrate
+    | file is the most reliable default on shared hosting (Hostinger).
+    | Switch to database after confirming the sessions table exists:
+    | SESSION_DRIVER=database
+    |
+    | file can 419 under heavy concurrent Livewire requests if storage is not writable.
     |
     */
 
-    'driver' => env('SESSION_DRIVER', 'database'),
+    'driver' => env('SESSION_DRIVER', 'file'),
 
     'lifetime' => (int) env('SESSION_LIFETIME', 480),
 
@@ -48,6 +51,7 @@ return [
     /*
     | null = Secure flag only when the request is HTTPS (works with TrustProxies).
     | true on a host that does not detect HTTPS → cookies never stick → 419.
+    | Leave SESSION_SECURE_COOKIE unset in .env unless you are sure.
     */
     'secure' => env('SESSION_SECURE_COOKIE'),
 

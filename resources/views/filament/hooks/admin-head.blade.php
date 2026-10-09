@@ -1,6 +1,24 @@
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <script>
 (function () {
+    // Keep Livewire/Axios CSRF header in sync with the page token
+    try {
+        var token = document.querySelector('meta[name="csrf-token"]');
+        if (token && window.axios) {
+            window.axios.defaults.headers.common['X-CSRF-TOKEN'] = token.getAttribute('content');
+        }
+        if (token && window.Livewire) {
+            // Livewire reads the meta tag / cookie on its own; this forces a refresh after navigations
+            document.addEventListener('livewire:navigated', function () {
+                var t = document.querySelector('meta[name="csrf-token"]');
+                if (t && window.axios) {
+                    window.axios.defaults.headers.common['X-CSRF-TOKEN'] = t.getAttribute('content');
+                }
+            });
+        }
+    } catch (e) {}
+
     if (window.tinymce || window.__alternovaTinymceLoading) return;
     window.__alternovaTinymceLoading = true;
     var s = document.createElement('script');
@@ -96,53 +114,16 @@ html {
     letter-spacing: 0.02em;
 }
 
-/* Mobile / tablet: larger touch targets, full-height drawer feel */
+/* Tables */
+.fi-ta-table-ctn,
+.fi-ta-content {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Header actions wrap on small screens */
 @media (max-width: 1023px) {
-    .fi-sidebar {
-        width: min(20rem, 88vw) !important;
-        max-width: 88vw;
-    }
-    .fi-sidebar-nav-item-button,
-    .fi-sidebar-group-button,
-    .fi-sidebar-item-button,
-    .fi-topbar-item-button,
-    .fi-btn {
-        min-height: 2.85rem;
-    }
-    .fi-sidebar-nav {
-        padding-inline: 0.65rem;
-    }
-    /* Darker overlay so drawer is obvious on light and dark */
-    .fi-sidebar-close-overlay {
-        background-color: rgb(15 23 42 / 0.55) !important;
-        backdrop-filter: blur(2px);
-        -webkit-backdrop-filter: blur(2px);
-    }
-    .fi-header-heading {
-        font-size: 1.2rem !important;
-        line-height: 1.35 !important;
-        word-break: break-word;
-    }
-    .fi-header-subheading {
-        font-size: 0.8125rem !important;
-    }
-    .fi-page > section,
-    .fi-page > div {
-        padding-inline: max(0.5rem, env(safe-area-inset-left));
-    }
-    .fi-ta-actions,
-    .fi-ac-actions,
-    .fi-section-header-actions {
-        flex-wrap: wrap !important;
-        gap: 0.35rem !important;
-    }
-    .fi-ta-content,
-    .fi-ta-table-ctn {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        max-width: 100%;
-    }
-    /* Stack page header actions under title on phones */
     .fi-header {
         flex-wrap: wrap;
         gap: 0.75rem;
@@ -167,7 +148,6 @@ html {
     .fi-topbar .fi-global-search-field {
         max-width: 100%;
     }
-    /* Hide less-critical topbar clutter if present */
     .fi-topbar .fi-global-search {
         max-width: 9rem;
     }
