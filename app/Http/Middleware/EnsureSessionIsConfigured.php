@@ -9,10 +9,12 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Runs before StartSession so driver/cookie flags are correct.
- * Misconfigured sessions are the usual cause of Filament/Livewire 419 Page Expired.
+ * Avoid flipping the driver after login — that orphans the session and causes 419.
  */
 class EnsureSessionIsConfigured
 {
+    protected static ?bool $sessionsTableExists = null;
+
     public function handle(Request $request, Closure $next): Response
     {
         // Empty string domain is invalid — use host-only cookies
@@ -21,14 +23,20 @@ class EnsureSessionIsConfigured
             config(['session.domain' => null]);
         }
 
-        // database driver without sessions table → new session every request → 419 on POST
-        if (config('session.driver') === 'database') {
-            try {
-                $table = (string) config('session.table', 'sessions');
-                if ($table === '' || ! Schema::hasTable($table)) {
-                    config(['session.driver' => 'file']);
+        /*
+         | Prefer database sessions when the table exists (no file locks under concurrent Livewire).
+         | Only fall back to file when the table is truly missing — never flip mid-session randomly.
+         */
+        $driver = config('session.driver');
+        if ($driver === 'database') {
+            if (static::$sessionsTableExists === null) {
+                try {
+                    static::$sessionsTableExists = Schema::hasTable((string) config('session.table', 'sessions'));
+                } catch (\Throwable) {
+                    static::$sessionsTableExists = false;
                 }
-            } catch (\Throwable) {
+            }
+            if (static::$sessionsTableExists === false) {
                 config(['session.driver' => 'file']);
             }
         }
@@ -53,7 +61,6 @@ class EnsureSessionIsConfigured
             config(['session.same_site' => 'lax']);
         }
 
-        // SameSite=None requires Secure
         if ($sameSite === 'none' && ! config('session.secure')) {
             if ($this->requestLooksHttps($request)) {
                 config(['session.secure' => true]);

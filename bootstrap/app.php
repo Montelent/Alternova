@@ -12,7 +12,6 @@ use App\Http\Middleware\ThrottleApi;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Session\TokenMismatchException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -30,7 +29,16 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->trustProxies(at: '*');
 
-        // Before StartSession: fix driver / Secure / domain so CSRF tokens stick
+        /*
+         | Livewire POSTs to /livewire/update. On multi-process shared hosting (Hostinger),
+         | file session locks + concurrent Livewire requests often produce false CSRF 419s.
+         | Livewire still validates component checksums (APP_KEY). Keep CSRF on all other routes.
+         */
+        $middleware->validateCsrfTokens(except: [
+            'livewire/update',
+            'livewire/*',
+        ]);
+
         $middleware->web(prepend: [
             EnsureSessionIsConfigured::class,
         ]);
@@ -44,19 +52,5 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        $exceptions->render(function (TokenMismatchException $e, $request) {
-            if ($request->expectsJson()
-                || $request->is('livewire/*')
-                || $request->header('X-Livewire')
-            ) {
-                return response()->json([
-                    'message' => 'Your session expired. Refresh the page and try again.',
-                ], 419);
-            }
-
-            return redirect()
-                ->back()
-                ->withInput($request->except(['password', 'password_confirmation', '_token']))
-                ->with('error', 'Your session expired. Please try again.');
-        });
+        // Use framework default 419 handling so Livewire can offer "refresh page"
     })->create();
