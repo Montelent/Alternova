@@ -3,11 +3,13 @@
 namespace App\Models;
 
 use App\Support\MediaUrl;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Scout\Searchable;
 use Spatie\Tags\HasTags;
@@ -48,6 +50,9 @@ class ProprietaryTool extends Model
             ?? MediaUrl::make($this->logo_path, 'public');
     }
 
+    /**
+     * Primary FK link (open_source_alternatives.proprietary_tool_id).
+     */
     public function openSourceAlternatives(): HasMany
     {
         return $this->hasMany(OpenSourceAlternative::class);
@@ -59,6 +64,22 @@ class ProprietaryTool extends Model
             ->where('is_published', true);
     }
 
+    /**
+     * Multi-select pivot links (alternative_proprietary_tool).
+     */
+    public function alternativesMany(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            OpenSourceAlternative::class,
+            'alternative_proprietary_tool',
+            'proprietary_tool_id',
+            'open_source_alternative_id'
+        )->withPivot('position')->withTimestamps();
+    }
+
+    /**
+     * Unique alternatives linked via FK and/or pivot (published only for public pages).
+     */
     public function linkedAlternatives()
     {
         $primary = $this->publishedAlternatives()
@@ -83,14 +104,66 @@ class ProprietaryTool extends Model
         return $primary;
     }
 
-    public function alternativesMany(): BelongsToMany
+    /**
+     * Admin / SEO count: every alternative linked to this tool (FK + pivot), not double-counted.
+     * Includes drafts so the admin list matches what editors assigned.
+     */
+    public function alternativesTotalCount(): int
     {
-        return $this->belongsToMany(
-            OpenSourceAlternative::class,
-            'alternative_proprietary_tool',
-            'proprietary_tool_id',
-            'open_source_alternative_id'
-        )->withPivot('position')->withTimestamps();
+        try {
+            if (Schema::hasTable('alternative_proprietary_tool')) {
+                $sql = <<<'SQL'
+SELECT COUNT(*) FROM (
+    SELECT osa.id
+    FROM open_source_alternatives osa
+    WHERE osa.proprietary_tool_id = ?
+      AND osa.deleted_at IS NULL
+    UNION
+    SELECT apt.open_source_alternative_id AS id
+    FROM alternative_proprietary_tool apt
+    INNER JOIN open_source_alternatives osa2
+        ON osa2.id = apt.open_source_alternative_id
+       AND osa2.deleted_at IS NULL
+    WHERE apt.proprietary_tool_id = ?
+) AS linked
+SQL;
+
+                return (int) DB::selectOne($sql, [$this->id, $this->id])->count;
+            }
+        } catch (\Throwable) {
+        }
+
+        return (int) $this->openSourceAlternatives()->count();
+    }
+
+    /**
+     * Eager/subquery count for Filament tables (avoids N+1).
+     */
+    public function scopeWithAlternativesTotalCount(Builder $query): Builder
+    {
+        $table = $query->getModel()->getTable();
+
+        try {
+            if (Schema::hasTable('alternative_proprietary_tool')) {
+                return $query->select("{$table}.*")->selectSub(function ($sub) use ($table) {
+                    $sub->from('open_source_alternatives as osa')
+                        ->selectRaw('COUNT(DISTINCT osa.id)')
+                        ->where(function ($w) use ($table) {
+                            $w->whereColumn('osa.proprietary_tool_id', "{$table}.id")
+                                ->orWhereExists(function ($e) use ($table) {
+                                    $e->selectRaw('1')
+                                        ->from('alternative_proprietary_tool as apt')
+                                        ->whereColumn('apt.open_source_alternative_id', 'osa.id')
+                                        ->whereColumn('apt.proprietary_tool_id', "{$table}.id");
+                                });
+                        })
+                        ->whereNull('osa.deleted_at');
+                }, 'alternatives_total_count');
+            }
+        } catch (\Throwable) {
+        }
+
+        return $query->withCount(['openSourceAlternatives as alternatives_total_count']);
     }
 
     public function getRouteKeyName(): string
