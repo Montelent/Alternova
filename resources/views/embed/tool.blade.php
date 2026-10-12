@@ -4,14 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex">
-    <title>Open-source alternatives to {{ $tool->name }} — Alternova</title>
+    <title>Open-source alternatives to {{ $tool->name }} — {{ config('app.name', 'Alternova') }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-white text-slate-900 font-sans antialiased p-3">
     <div class="border border-slate-200 rounded-xl overflow-hidden">
         <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 flex items-center justify-between gap-2">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-wide text-indigo-600">Alternova</p>
+                <p class="text-xs font-semibold uppercase tracking-wide text-indigo-600">{{ config('app.name', 'Alternova') }}</p>
                 <p class="text-sm font-bold text-slate-900">Open-source alternatives to {{ $tool->name }}</p>
             </div>
             <a href="{{ route('tools.show', $tool) }}" target="_blank" rel="noopener"
@@ -39,7 +39,7 @@
             @endforelse
         </ul>
         <div class="bg-slate-50 border-t border-slate-100 px-4 py-2 text-[10px] text-slate-400 text-center">
-            Powered by <a href="{{ url('/') }}" target="_blank" rel="noopener" class="text-indigo-600">Alternova</a>
+            Powered by <a href="{{ url('/') }}" target="_blank" rel="noopener" class="text-indigo-600">{{ config('app.name', 'Alternova') }}</a>
         </div>
     </div>
 </body>

@@ -1,3 +1,4 @@
+@php $site = config('app.name', 'Alternova'); @endphp
 @component('layouts.app', ['title' => $title, 'description' => $description])
 <div class="max-w-3xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
     <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">Privacy Policy</h1>
@@ -7,7 +8,7 @@
         <section>
             <h2 class="text-xl font-bold text-slate-900 mb-2">1. Who we are</h2>
             <p>
-                Alternova ("we", "us") operates this website to provide open-source alternative listings and domain name ideation tools.
+                {{ $site }} ("we", "us") operates this website to provide open-source alternative listings and domain name ideation tools.
             </p>
         </section>
         <section>
@@ -21,33 +22,15 @@
         </section>
         <section>
             <h2 class="text-xl font-bold text-slate-900 mb-2">3. How we use information</h2>
-            <p>We use data to operate the site, prevent abuse, improve listings, and (if you enable it) measure traffic.</p>
+            <p>We use data to operate and improve the site, prevent abuse, and (if you opt in) send product updates. We do not sell personal information.</p>
         </section>
         <section>
-            <h2 class="text-xl font-bold text-slate-900 mb-2">4. Advertising</h2>
-            <p>
-                We may display ads through Google AdSense or similar partners. These partners may use cookies or similar technologies
-                to show relevant ads based on your visits to this and other sites. You can manage ad personalization via
-                <a href="https://adssettings.google.com" class="text-brand-600 hover:underline" rel="noopener" target="_blank">Google Ads Settings</a>
-                and learn more at
-                <a href="https://policies.google.com/technologies/ads" class="text-brand-600 hover:underline" rel="noopener" target="_blank">Google Advertising Policies</a>.
-            </p>
+            <h2 class="text-xl font-bold text-slate-900 mb-2">4. Third parties</h2>
+            <p>Analytics, advertising, or email providers may process data under their own policies when those features are enabled by the site operator.</p>
         </section>
         <section>
-            <h2 class="text-xl font-bold text-slate-900 mb-2">5. Third-party services</h2>
-            <p>We may use hosting providers, email, analytics, and advertising networks. Their processing is governed by their own policies.</p>
-        </section>
-        <section>
-            <h2 class="text-xl font-bold text-slate-900 mb-2">6. Data retention</h2>
-            <p>Logs and search records are kept only as long as needed for security and product improvement, unless a longer period is required by law.</p>
-        </section>
-        <section>
-            <h2 class="text-xl font-bold text-slate-900 mb-2">7. Your choices</h2>
-            <p>You can clear cookies in your browser. For access or deletion requests related to an account you control, use the contact page.</p>
-        </section>
-        <section>
-            <h2 class="text-xl font-bold text-slate-900 mb-2">8. Contact</h2>
-            <p>Privacy questions: <a href="{{ route('contact') }}" class="text-brand-600 hover:underline">Contact us</a>.</p>
+            <h2 class="text-xl font-bold text-slate-900 mb-2">5. Contact</h2>
+            <p>Questions about privacy: use the <a href="{{ route('contact') }}" class="text-brand-600 font-medium hover:underline">contact form</a>.</p>
         </section>
     </div>
 </div>
