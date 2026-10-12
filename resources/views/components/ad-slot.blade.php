@@ -34,9 +34,9 @@
             (adsbygoogle = window.adsbygoogle || []).push({});
         </script>
     </div>
-@elseif($showPlaceholder)
+@elseif($showPlaceholder && auth()->check() && (auth()->user()->canManageSystem() ?? false))
     <div {{ $attributes->merge(['class' => trim('ad-slot-placeholder border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 text-xs text-center rounded-xl py-6 px-4 '.$extraClass), 'data-ad-slot' => $name]) }}
         role="presentation">
-        Ad: {{ $label }} (preview — paste code or AdSense slot in Admin → Ad settings)
+        Ad slot: {{ $label }} (admin preview only)
     </div>
 @endif
