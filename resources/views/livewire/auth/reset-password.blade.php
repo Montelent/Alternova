@@ -1,7 +1,7 @@
 <div class="mx-auto max-w-md px-4 py-16">
     <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm">
         <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Set a new password</h1>
-        <p class="mt-2 text-sm text-slate-500">Choose a strong password for your Alternova account.</p>
+        <p class="mt-2 text-sm text-slate-500">Choose a strong password for your {{ config('app.name', 'Alternova') }} account.</p>
 
         <form wire:submit="resetPassword" class="mt-8 space-y-4">
             <div>

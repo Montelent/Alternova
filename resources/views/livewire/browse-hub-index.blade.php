@@ -14,15 +14,15 @@
                 Pick a topic to see published open-source alternatives. All counts are live from this catalog.
             </p>
             <div class="mt-4 flex flex-wrap gap-2 text-sm">
-                <a href="{{ route('browse.type', 'categories') }}" @class(['rounded-full px-3 py-1.5 font-semibold border', $type === 'categories' ? 'bg-brand-600 text-white border-brand-600' : 'border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200'])">Categories</a>
-                <a href="{{ route('browse.type', 'languages') }}" @class(['rounded-full px-3 py-1.5 font-semibold border', $type === 'languages' ? 'bg-brand-600 text-white border-brand-600' : 'border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200'])">Languages</a>
-                <a href="{{ route('browse.type', 'licenses') }}" @class(['rounded-full px-3 py-1.5 font-semibold border', $type === 'licenses' ? 'bg-brand-600 text-white border-brand-600' : 'border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200'])">Licenses</a>
+                <a href="{{ route('browse.type', 'categories') }}" @class(['rounded-full px-3 py-1.5 font-semibold border', $type === 'categories' ? 'bg-brand-600 text-white border-brand-600' : 'border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200'])>Categories</a>
+                <a href="{{ route('browse.type', 'languages') }}" @class(['rounded-full px-3 py-1.5 font-semibold border', $type === 'languages' ? 'bg-brand-600 text-white border-brand-600' : 'border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200'])>Languages</a>
+                <a href="{{ route('browse.type', 'licenses') }}" @class(['rounded-full px-3 py-1.5 font-semibold border', $type === 'licenses' ? 'bg-brand-600 text-white border-brand-600' : 'border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200'])>Licenses</a>
             </div>
         </header>
 
         @if(count($items) === 0)
             <div class="rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 p-10 text-center text-slate-600 dark:text-slate-400">
-                Nothing to show yet. Publish alternatives and assign categories, languages, or licenses in admin.
+                Nothing to show yet. Published alternatives will appear here once the catalog is ready.
             </div>
         @else
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
