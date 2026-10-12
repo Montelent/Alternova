@@ -4,7 +4,7 @@
             <p class="text-sm font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-300 mb-2">Rankings</p>
             <h1 class="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white tracking-tight">Open-source leaderboards</h1>
             <p class="mt-3 text-slate-600 dark:text-slate-400 max-w-xl mx-auto">
-                Health scores, community votes, GitHub stars, and rising projects from the Alternova catalog.
+                Health scores, community votes, GitHub stars, and rising projects from the {{ config('app.name', 'Alternova') }} catalog.
             </p>
         </div>
 
