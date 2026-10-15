@@ -62,7 +62,10 @@ Route::get('/collections', CollectionIndex::class)->name('collections.index');
 Route::get('/collections/{slug}', CollectionShow::class)->name('collections.show');
 Route::get('/alternatives/{slug}', AlternativeDetail::class)->name('alternatives.show');
 Route::get('/alternativesto/{slug}', ProprietaryToolShow::class)->name('alternativesto.show');
-Route::get('/tools/{slug}', ProprietaryToolShow::class)->name('tools.show');
+// Legacy alias — always 301 to /alternativesto/{slug} (one public canonical URL)
+Route::get('/tools/{slug}', function (string $slug) {
+    return redirect()->route('alternativesto.show', ['slug' => $slug], 301);
+})->name('tools.show');
 Route::get('/domains', DomainCombinator::class)->name('domains');
 Route::get('/go/{provider}/{domain}', AffiliateRedirectController::class)->name('affiliate.go');
 
@@ -75,18 +78,15 @@ Route::get('/og/compare.png', [OgImageController::class, 'compare'])->name('og.c
 
 Route::middleware('auth')->group(function () {
     Route::get('/account', AccountPage::class)->name('account');
-    Route::get('/account/export/favorites', [AccountExportController::class, 'favorites'])->name('account.export.favorites');
-    Route::get('/account/export/watchlist', [AccountExportController::class, 'watchlist'])->name('account.export.watchlist');
-    Route::get('/favorites', FavoritesPage::class)->name('favorites');
+    Route::get('/account/export', AccountExportController::class)->name('account.export');
     Route::get('/notifications', NotificationsPage::class)->name('notifications');
+    Route::get('/favorites', FavoritesPage::class)->name('favorites');
 });
 
-Route::middleware('guest')->group(function () {
-    Route::get('/login', Login::class)->name('login');
-    Route::get('/register', Register::class)->name('register');
-    Route::get('/forgot-password', ForgotPassword::class)->name('password.request');
-    Route::get('/reset-password/{token}', ResetPassword::class)->name('password.reset');
-});
+Route::get('/login', Login::class)->name('login')->middleware('guest');
+Route::get('/register', Register::class)->name('register')->middleware('guest');
+Route::get('/forgot-password', ForgotPassword::class)->name('password.request')->middleware('guest');
+Route::get('/reset-password/{token}', ResetPassword::class)->name('password.reset')->middleware('guest');
 
 Route::post('/logout', function () {
     auth()->logout();
@@ -94,26 +94,24 @@ Route::post('/logout', function () {
     request()->session()->regenerateToken();
 
     return redirect('/');
-})->middleware('auth')->name('logout');
+})->name('logout')->middleware('auth');
 
 Route::get('/suggest', SuggestAlternative::class)->name('suggest');
 Route::get('/suggest-collection', SuggestCollection::class)->name('suggest.collection');
-Route::get('/submissions/{token}', SubmissionStatusController::class)->name('submissions.status');
-Route::get('/collection-submissions/{token}', CollectionSubmissionStatusController::class)->name('collection-submissions.status');
 Route::get('/contact', ContactForm::class)->name('contact');
-Route::get('/support/{publicId}', SupportTicketShow::class)->name('support.ticket');
+Route::get('/support/{publicId}', SupportTicketShow::class)->name('support.show');
 
-Route::get('/newsletter/unsubscribe', [NewsletterController::class, 'unsubscribe'])->name('newsletter.unsubscribe');
+Route::get('/submission-status/{token}', SubmissionStatusController::class)->name('submission.status');
+Route::get('/collection-submission-status/{token}', CollectionSubmissionStatusController::class)->name('collection.submission.status');
+
+Route::get('/newsletter/confirm/{token}', [NewsletterController::class, 'confirm'])->name('newsletter.confirm');
+Route::get('/newsletter/unsubscribe/{token}', [NewsletterController::class, 'unsubscribe'])->name('newsletter.unsubscribe');
 
 Route::get('/about', [PageController::class, 'about'])->name('about');
 Route::get('/privacy', [PageController::class, 'privacy'])->name('privacy');
 Route::get('/terms', [PageController::class, 'terms'])->name('terms');
 Route::get('/disclosure', [PageController::class, 'disclosure'])->name('disclosure');
-
-// Legacy prefix — permanent redirect to root slug URLs
-Route::get('/p/{slug}', function (string $slug) {
-    return redirect('/'.$slug, 301);
-})->where('slug', '[A-Za-z0-9\-_]+');
+Route::get('/p/{slug}', [PageController::class, 'legacyRedirect'])->name('pages.legacy');
 
 Route::get('/feed', [FeedController::class, 'rss'])->name('feed.rss');
 Route::get('/feed/rss', [FeedController::class, 'rss']);
