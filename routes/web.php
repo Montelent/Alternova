@@ -54,9 +54,10 @@ Route::get('/alternatives', OpenSourceFinder::class)->name('finder');
 Route::get('/browse/{type}', BrowseHub::class)->whereIn('type', ['categories', 'languages', 'licenses'])->name('browse.type');
 Route::get('/browse/{type}/{slug}', BrowseHub::class)->whereIn('type', ['categories', 'languages', 'licenses'])->name('browse.show');
 Route::get('/alternatives/compare', CompareAlternatives::class)->name('alternatives.compare');
-Route::get('/leaderboard', Leaderboard::class)->name('leaderboard');
 Route::get('/trending', TrendingPage::class)->name('trending');
+Route::get('/leaderboard', Leaderboard::class)->name('leaderboard');
 Route::get('/whats-new', WhatsNewController::class)->name('whats-new');
+
 Route::get('/api-docs', ApiDocsController::class)->name('api.docs');
 Route::get('/collections', CollectionIndex::class)->name('collections.index');
 Route::get('/collections/{slug}', CollectionShow::class)->name('collections.show');
@@ -78,7 +79,8 @@ Route::get('/og/compare.png', [OgImageController::class, 'compare'])->name('og.c
 
 Route::middleware('auth')->group(function () {
     Route::get('/account', AccountPage::class)->name('account');
-    Route::get('/account/export', AccountExportController::class)->name('account.export');
+    Route::get('/account/export/favorites', [AccountExportController::class, 'favorites'])->name('account.export.favorites');
+    Route::get('/account/export/watchlist', [AccountExportController::class, 'watchlist'])->name('account.export.watchlist');
     Route::get('/notifications', NotificationsPage::class)->name('notifications');
     Route::get('/favorites', FavoritesPage::class)->name('favorites');
 });
@@ -96,22 +98,24 @@ Route::post('/logout', function () {
     return redirect('/');
 })->name('logout')->middleware('auth');
 
+Route::get('/contact', ContactForm::class)->name('contact');
 Route::get('/suggest', SuggestAlternative::class)->name('suggest');
 Route::get('/suggest-collection', SuggestCollection::class)->name('suggest.collection');
-Route::get('/contact', ContactForm::class)->name('contact');
-Route::get('/support/{publicId}', SupportTicketShow::class)->name('support.show');
-
 Route::get('/submission-status/{token}', SubmissionStatusController::class)->name('submission.status');
 Route::get('/collection-submission-status/{token}', CollectionSubmissionStatusController::class)->name('collection.submission.status');
+Route::get('/support/{publicId}', SupportTicketShow::class)->name('support.show');
 
 Route::get('/newsletter/confirm/{token}', [NewsletterController::class, 'confirm'])->name('newsletter.confirm');
 Route::get('/newsletter/unsubscribe/{token}', [NewsletterController::class, 'unsubscribe'])->name('newsletter.unsubscribe');
+
+Route::get('/p/{slug}', function (string $slug) {
+    return redirect()->route('pages.show', ['slug' => $slug], 301);
+})->where('slug', '[A-Za-z0-9\-_]+');
 
 Route::get('/about', [PageController::class, 'about'])->name('about');
 Route::get('/privacy', [PageController::class, 'privacy'])->name('privacy');
 Route::get('/terms', [PageController::class, 'terms'])->name('terms');
 Route::get('/disclosure', [PageController::class, 'disclosure'])->name('disclosure');
-Route::get('/p/{slug}', [PageController::class, 'legacyRedirect'])->name('pages.legacy');
 
 Route::get('/feed', [FeedController::class, 'rss'])->name('feed.rss');
 Route::get('/feed/rss', [FeedController::class, 'rss']);
