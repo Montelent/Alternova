@@ -93,6 +93,20 @@ class AppServiceProvider extends ServiceProvider
             }
         }
 
+        // Always align generated URLs with APP_URL host (www vs non-www)
+        $root = rtrim((string) config('app.url'), '/');
+        if ($root !== '' && preg_match('#^https?://#i', $root)) {
+            $host = parse_url($root, PHP_URL_HOST);
+            if (is_string($host) && $host !== ''
+                && ! in_array(strtolower($host), ['localhost', '127.0.0.1', '::1'], true)
+            ) {
+                URL::forceRootUrl($root);
+                if (str_starts_with(strtolower($root), 'https://')) {
+                    URL::forceScheme('https');
+                }
+            }
+        }
+
         $uploadsRoot = base_path('uploads');
         if (! is_dir($uploadsRoot)) {
             @mkdir($uploadsRoot, 0775, true);
