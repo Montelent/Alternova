@@ -7,22 +7,26 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Canonical host + scheme from APP_URL (set during install / .env).
+ * Canonical host + scheme from APP_URL (chosen during install / .env).
  *
- * - www vs non-www: whichever host is in APP_URL becomes the only public host
- * - http → https when APP_URL is https
- * - Safe methods only (never 301 POST — Livewire/CSRF)
- * - Skips installer, health check, and local/dev hosts
+ * - www vs non-www: the host inside APP_URL is the only public host (301)
+ * - http → https when APP_URL uses https
+ * - Safe methods only (never 301 POST — Livewire / CSRF)
+ * - Skips installer, health check, and local/dev preferred hosts
+ *
+ * Runs on every environment except when the preferred host is local,
+ * so shared hosting with APP_ENV=local still gets correct redirects.
  */
 class ForcePreferredUrl
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (! app()->isProduction()) {
+        // Explicit opt-out
+        if ($this->envBool('FORCE_PREFERRED_URL', true) === false) {
             return $next($request);
         }
 
-        // Installer must work on any host until APP_URL is chosen and written
+        // Installer must work on any host until APP_URL is written
         if ($request->is('install', 'install/*', 'up')) {
             return $next($request);
         }
@@ -49,6 +53,7 @@ class ForcePreferredUrl
         $currentIsHttps = $this->requestIsHttps($request);
         $currentScheme = $currentIsHttps ? 'https' : 'http';
 
+        // Treat "www.example.com" vs "example.com" as mismatch
         $hostMismatch = ! hash_equals($preferredHost, $currentHost);
         $schemeMismatch = $preferredScheme === 'https' && $currentScheme !== 'https';
 
@@ -66,11 +71,22 @@ class ForcePreferredUrl
         return redirect()->to($target, 301);
     }
 
+    protected function envBool(string $key, bool $default): bool
+    {
+        $val = env($key);
+        if ($val === null) {
+            return $default;
+        }
+
+        return filter_var($val, FILTER_VALIDATE_BOOLEAN);
+    }
+
     protected function isLocalHost(string $host): bool
     {
         return in_array($host, ['localhost', '127.0.0.1', '::1'], true)
             || str_ends_with($host, '.local')
-            || str_ends_with($host, '.test');
+            || str_ends_with($host, '.test')
+            || str_ends_with($host, '.localhost');
     }
 
     protected function requestIsHttps(Request $request): bool
@@ -89,7 +105,7 @@ class ForcePreferredUrl
         }
 
         if ((string) $request->server('HTTPS') === 'on'
-            || (string) $request->server('HTTP_X_FORWARDED_PROTO') === 'https') {
+            || strtolower((string) $request->server('HTTP_X_FORWARDED_PROTO')) === 'https') {
             return true;
         }
 
