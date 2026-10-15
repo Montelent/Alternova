@@ -64,9 +64,25 @@
                         @error('app_name') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">App URL</label>
-                        <input type="url" wire:model="app_url" class="w-full rounded-xl border-gray-300 text-sm px-3 py-2 border">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Preferred site URL</label>
+                        <input type="url" wire:model.live="app_url" class="w-full rounded-xl border-gray-300 text-sm px-3 py-2 border" placeholder="https://example.com">
                         @error('app_url') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        <p class="mt-2 text-xs text-gray-500 leading-relaxed">
+                            This becomes <code class="bg-gray-100 px-1 rounded">APP_URL</code>. After install, visitors on the other host (www vs non-www) are <strong>301 redirected</strong> here automatically.
+                        </p>
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            @foreach($this->urlHostChoices() as $choice)
+                                <button type="button"
+                                    wire:click="selectPreferredHost('{{ $choice }}')"
+                                    @class([
+                                        'rounded-lg border px-3 py-1.5 text-xs font-semibold transition',
+                                        'border-indigo-600 bg-indigo-50 text-indigo-800' => rtrim($app_url, '/') === rtrim($choice, '/'),
+                                        'border-gray-200 bg-white text-gray-700 hover:border-indigo-300' => rtrim($app_url, '/') !== rtrim($choice, '/'),
+                                    ])>
+                                    {{ $choice }}
+                                </button>
+                            @endforeach
+                        </div>
                     </div>
                 </div>
 
