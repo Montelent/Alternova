@@ -13,25 +13,19 @@ use Symfony\Component\HttpFoundation\Response;
  * - http → https when APP_URL uses https
  * - Safe methods only (never 301 POST — Livewire / CSRF)
  * - Skips installer, health check, and local/dev preferred hosts
- *
- * Runs on every environment except when the preferred host is local,
- * so shared hosting with APP_ENV=local still gets correct redirects.
  */
 class ForcePreferredUrl
 {
     public function handle(Request $request, Closure $next): Response
     {
-        // Explicit opt-out
         if ($this->envBool('FORCE_PREFERRED_URL', true) === false) {
             return $next($request);
         }
 
-        // Installer must work on any host until APP_URL is written
         if ($request->is('install', 'install/*', 'up')) {
             return $next($request);
         }
 
-        // Never redirect mutating requests (Livewire, forms)
         if (! $request->isMethodSafe()) {
             return $next($request);
         }
@@ -50,10 +44,22 @@ class ForcePreferredUrl
         }
 
         $currentHost = strtolower($request->getHost());
+        if (str_contains($currentHost, ':')) {
+            [$h, $port] = explode(':', $currentHost, 2);
+            if (in_array($port, ['80', '443'], true)) {
+                $currentHost = $h;
+            }
+        }
+        if (str_contains($preferredHost, ':')) {
+            [$h, $port] = explode(':', $preferredHost, 2);
+            if (in_array($port, ['80', '443'], true)) {
+                $preferredHost = $h;
+            }
+        }
+
         $currentIsHttps = $this->requestIsHttps($request);
         $currentScheme = $currentIsHttps ? 'https' : 'http';
 
-        // Treat "www.example.com" vs "example.com" as mismatch
         $hostMismatch = ! hash_equals($preferredHost, $currentHost);
         $schemeMismatch = $preferredScheme === 'https' && $currentScheme !== 'https';
 
