@@ -5,6 +5,7 @@ use App\Http\Middleware\CheckMaintenanceMode;
 use App\Http\Middleware\EnsureNotInstalled;
 use App\Http\Middleware\EnsureSessionIsConfigured;
 use App\Http\Middleware\ForceHttps;
+use App\Http\Middleware\ForcePreferredUrl;
 use App\Http\Middleware\PreventDemoWrites;
 use App\Http\Middleware\RedirectIfNotInstalled;
 use App\Http\Middleware\SecurityHeaders;
@@ -44,7 +45,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->web(append: [
-            ForceHttps::class,
+            ForcePreferredUrl::class, // host (www/non-www) + HTTPS from APP_URL
             RedirectIfNotInstalled::class,
             CheckMaintenanceMode::class,
             SecurityHeaders::class,
