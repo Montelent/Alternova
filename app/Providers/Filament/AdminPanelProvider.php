@@ -5,6 +5,7 @@ namespace App\Providers\Filament;
 use App\Http\Middleware\EnsureSessionIsConfigured;
 use App\Http\Middleware\PreventDemoWrites;
 use App\Http\Middleware\SecurityHeaders;
+use App\Support\AdminPanel;
 use App\Support\WhiteLabelSettings;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -45,7 +46,7 @@ class AdminPanelProvider extends PanelProvider
         $panel = $panel
             ->default()
             ->id('admin')
-            ->path('admin')
+            ->path(AdminPanel::path())
             ->login()
             ->brandName($adminName)
             ->colors([
@@ -87,13 +88,10 @@ class AdminPanelProvider extends PanelProvider
                 fn () => view('filament.hooks.admin-head'),
             )
             ->middleware([
-                // Before StartSession — cookie/driver hygiene
                 EnsureSessionIsConfigured::class,
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
-                // Do NOT use AuthenticateSession — regenerates session on password-hash
-                // mismatch and causes Livewire "This page has expired" (419) on Hostinger.
                 ShareErrorsFromSession::class,
                 VerifyCsrfToken::class,
                 SubstituteBindings::class,
