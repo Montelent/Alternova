@@ -6,6 +6,7 @@ use App\Models\ProprietaryTool;
 use App\Models\SlugRedirect;
 use App\Services\ProprietaryPageCopy;
 use App\Services\SeoManager;
+use App\Support\SoftwareApplicationSchema;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Str;
 use Livewire\Component;
@@ -121,6 +122,17 @@ class ProprietaryToolShow extends Component
                 'position' => $pos++,
                 'url' => route('alternatives.show', $alt->slug),
                 'name' => $alt->name,
+                'item' => SoftwareApplicationSchema::make([
+                    'name' => $alt->name,
+                    'url' => route('alternatives.show', $alt->slug),
+                    'description' => $alt->description,
+                    'license' => $alt->license_type ?? null,
+                    'website' => $alt->website_url ?? null,
+                    'repo' => $alt->repo_url ?? null,
+                    'free' => true,
+                    'category' => 'UtilitiesApplication',
+                    'os' => 'Cross-platform',
+                ]),
             ];
         }
 
@@ -132,12 +144,15 @@ class ProprietaryToolShow extends Component
                 'name' => $count.' Open Source Alternatives to '.$tool->name,
                 'description' => Str::limit(strip_tags($description), 160),
                 'isPartOf' => ['@type' => 'WebSite', 'name' => config('app.name'), 'url' => url('/')],
-                'about' => [
-                    '@type' => 'SoftwareApplication',
+                'about' => SoftwareApplicationSchema::make([
                     'name' => $tool->name,
                     'url' => $tool->website_url ?: $canonical,
-                    'applicationCategory' => 'BusinessApplication',
-                ],
+                    'description' => $tool->description ?? $description,
+                    'website' => $tool->website_url,
+                    'free' => false,
+                    'category' => 'BusinessApplication',
+                    'os' => 'Cross-platform',
+                ]),
             ],
             [
                 '@type' => 'ItemList',
