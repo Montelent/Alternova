@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\OpenSourceAlternativeResource\Pages;
 
+use App\Filament\Concerns\HasAutoSaveDraft;
 use App\Filament\Resources\OpenSourceAlternativeResource;
 use App\Models\AdminActivityLog;
 use App\Models\OpenSourceAlternative;
@@ -11,6 +12,8 @@ use Illuminate\Support\Str;
 
 class CreateOpenSourceAlternative extends CreateRecord
 {
+    use HasAutoSaveDraft;
+
     protected static string $resource = OpenSourceAlternativeResource::class;
 
     protected function mutateFormDataBeforeCreate(array $data): array
@@ -40,6 +43,8 @@ class CreateOpenSourceAlternative extends CreateRecord
 
     protected function afterCreate(): void
     {
+        $this->clearAutoSaveDraft();
+        $this->dispatch('autosave-clear');
         $tags = $this->form->getState()['category_tags'] ?? [];
         if (is_array($tags) && $tags !== []) {
             $this->record->syncTagsWithType($tags, 'category');
