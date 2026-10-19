@@ -6,24 +6,31 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * Auto-assign sort_order = max+1 when empty/0 on create.
+ * On update, empty/null sort_order keeps the existing value (never writes NULL).
  * If a manual sort_order collides with another row, swap (interchange).
  */
 trait HasAutoSortOrder
 {
     public static function bootHasAutoSortOrder(): void
     {
-        static::creating(function (Model $model): void {
-            if (! array_key_exists('sort_order', $model->getAttributes())
-                && ! $model->isDirty('sort_order')) {
-                $model->setAttribute('sort_order', static::nextSortOrder());
+        static::saving(function (Model $model): void {
+            $value = $model->getAttribute('sort_order');
 
+            if ($value !== null && $value !== '' && (int) $value !== 0) {
                 return;
             }
 
-            $value = $model->getAttribute('sort_order');
-            if ($value === null || $value === '' || (int) $value === 0) {
-                $model->setAttribute('sort_order', static::nextSortOrder());
+            // Update with empty field → keep previous order (DB column is NOT NULL)
+            if ($model->exists) {
+                $original = $model->getOriginal('sort_order');
+                if ($original !== null && $original !== '' && (int) $original !== 0) {
+                    $model->setAttribute('sort_order', (int) $original);
+
+                    return;
+                }
             }
+
+            $model->setAttribute('sort_order', static::nextSortOrder());
         });
 
         static::saved(function (Model $model): void {
@@ -43,7 +50,7 @@ trait HasAutoSortOrder
             return 1;
         }
 
-        return ((int) $max) + 1;
+        return max(1, ((int) $max) + 1);
     }
 
     /**
@@ -53,6 +60,9 @@ trait HasAutoSortOrder
     protected static function interchangeSortOrderIfNeeded(Model $model): void
     {
         $order = (int) $model->getAttribute('sort_order');
+        if ($order <= 0) {
+            return;
+        }
 
         try {
             /** @var Model|null $other */
@@ -73,15 +83,12 @@ trait HasAutoSortOrder
         if ($previous !== null && $previous !== '' && (int) $previous !== $order) {
             $swapTo = (int) $previous;
         } else {
-            // Create (or no previous): bump the other item to the next free order
             $swapTo = static::nextSortOrder();
-            // nextSortOrder may equal $order if only these two exist — force higher
             if ($swapTo <= $order) {
                 $swapTo = $order + 1;
             }
         }
 
-        // Avoid a second conflict when possible
         try {
             $stillTaken = static::query()
                 ->where('sort_order', $swapTo)
