@@ -29,6 +29,23 @@
             <p class="mt-4 text-sm text-slate-500">{{ $items->count() }} open-source alternative{{ $items->count() === 1 ? '' : 's' }}</p>
         </header>
 
+        <div class="mb-8">
+            @php
+                $__shareTitle = $collection->name;
+                $__shareText = filled($collection->description)
+                    ? $collection->name.' — '.$collection->description
+                    : $collection->name.' — curated open-source list on '.config('app.name');
+                $__shareUrl = route('collections.show', $collection->slug);
+                $__shareImage = $collection->coverUrl();
+            @endphp
+            <x-share-buttons
+                :url="$__shareUrl"
+                :title="$__shareTitle"
+                :text="$__shareText"
+                :image="$__shareImage"
+            />
+        </div>
+
         <ol class="space-y-4" start="1">
             @forelse($items as $i => $item)
                 @php $alt = $item->alternative; @endphp
