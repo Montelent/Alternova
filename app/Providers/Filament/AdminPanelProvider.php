@@ -87,6 +87,10 @@ class AdminPanelProvider extends PanelProvider
                 'panels::head.end',
                 fn () => view('filament.hooks.admin-head'),
             )
+            ->renderHook(
+                'panels::body.end',
+                fn () => view('filament.hooks.admin-autosave'),
+            )
             ->middleware([
                 EnsureSessionIsConfigured::class,
                 EncryptCookies::class,

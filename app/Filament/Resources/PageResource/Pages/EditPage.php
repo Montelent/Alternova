@@ -2,12 +2,15 @@
 
 namespace App\Filament\Resources\PageResource\Pages;
 
+use App\Filament\Concerns\HasAutoSaveDraft;
 use App\Filament\Resources\PageResource;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
 
 class EditPage extends EditRecord
 {
+    use HasAutoSaveDraft;
+
     protected static string $resource = PageResource::class;
 
     protected function getHeaderActions(): array
@@ -20,5 +23,11 @@ class EditPage extends EditRecord
                 ->visible(fn () => $this->record->is_published),
             Actions\DeleteAction::make(),
         ];
+    }
+
+    protected function afterSave(): void
+    {
+        $this->clearAutoSaveDraft();
+        $this->dispatch('autosave-clear');
     }
 }

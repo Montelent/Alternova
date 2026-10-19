@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ProprietaryToolResource\Pages;
 
+use App\Filament\Concerns\HasAutoSaveDraft;
 use App\Filament\Resources\ProprietaryToolResource;
 use App\Models\SlugRedirect;
 use Filament\Actions;
@@ -9,6 +10,8 @@ use Filament\Resources\Pages\EditRecord;
 
 class EditProprietaryTool extends EditRecord
 {
+    use HasAutoSaveDraft;
+
     protected static string $resource = ProprietaryToolResource::class;
 
     protected ?string $originalSlug = null;
@@ -31,6 +34,8 @@ class EditProprietaryTool extends EditRecord
 
     protected function afterSave(): void
     {
+        $this->clearAutoSaveDraft();
+        $this->dispatch('autosave-clear');
         $newSlug = $this->record->slug;
         if ($this->originalSlug && $this->originalSlug !== $newSlug) {
             try {
