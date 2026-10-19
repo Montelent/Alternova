@@ -118,12 +118,7 @@ class CollectionShow extends Component
                 'url' => $site,
             ],
             'mainEntity' => [
-                '@type' => 'ItemList',
                 '@id' => $canonical.'#itemlist',
-                'name' => $collection->name,
-                'numberOfItems' => count($listElements),
-                'itemListOrder' => 'https://schema.org/ItemListOrderAscending',
-                'itemListElement' => $listElements,
             ],
         ];
 
@@ -160,10 +155,21 @@ class CollectionShow extends Component
             ],
         ];
 
+        $itemList = [
+            '@type' => 'ItemList',
+            '@id' => $canonical.'#itemlist',
+            'name' => $collection->name,
+            'description' => $description,
+            'url' => $canonical,
+            'numberOfItems' => count($listElements),
+            'itemListOrder' => 'https://schema.org/ItemListOrderAscending',
+            'itemListElement' => $listElements,
+        ];
+
         return [
             [
                 '@context' => 'https://schema.org',
-                '@graph' => [$collectionPage, $breadcrumb],
+                '@graph' => [$collectionPage, $itemList, $breadcrumb],
             ],
         ];
     }
