@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\OpenSourceAlternativeResource\Pages;
 
+use App\Filament\Concerns\HasAutoSaveDraft;
 use App\Filament\Resources\OpenSourceAlternativeResource;
 use App\Models\AdminActivityLog;
 use App\Models\SlugRedirect;
@@ -13,6 +14,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class EditOpenSourceAlternative extends EditRecord
 {
+    use HasAutoSaveDraft;
+
     protected static string $resource = OpenSourceAlternativeResource::class;
 
     protected ?string $originalSlug = null;
@@ -66,6 +69,8 @@ class EditOpenSourceAlternative extends EditRecord
 
     protected function afterSave(): void
     {
+        $this->clearAutoSaveDraft();
+        $this->dispatch('autosave-clear');
         $tags = $this->form->getState()['category_tags'] ?? [];
         $this->record->syncTagsWithType(is_array($tags) ? $tags : [], 'category');
 
@@ -76,7 +81,6 @@ class EditOpenSourceAlternative extends EditRecord
                 if ($firstId && (int) $this->record->proprietary_tool_id !== (int) $firstId) {
                     $this->record->forceFill(['proprietary_tool_id' => $firstId])->saveQuietly();
                 }
-                // Set pivot positions
                 $pos = 0;
                 foreach ($this->record->proprietaryTools as $tool) {
                     $this->record->proprietaryTools()->updateExistingPivot($tool->id, ['position' => $pos++]);
