@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Schema;
 /**
  * Offline-first auto-save for Filament create/edit forms.
  *
- * - localStorage: every ~2.5s when dirty (zero server load, survives offline)
+ * - localStorage: every ~2s when dirty (zero server load, survives offline)
  * - Server draft: at most every 60s when online (shared-hosting friendly)
  * - Restores local draft on load if present
  */
@@ -36,11 +36,23 @@ trait HasAutoSaveDraft
             'resource' => $this->getAutoSaveResourceKey(),
             'recordId' => $recordId,
             'userId' => $userId,
-            'localMs' => 2500,
+            'localMs' => 2000,
             'serverMs' => 60000,
             'enabled' => true,
             'demo' => DemoMode::enabled(),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function getAutoSaveSnapshot(): array
+    {
+        try {
+            return $this->sanitizeDraftPayload($this->form->getState() ?? []);
+        } catch (\Throwable) {
+            return [];
+        }
     }
 
     public function persistAutoSaveDraft(array $data = []): void
@@ -154,7 +166,12 @@ trait HasAutoSaveDraft
 
     public function renderedHasAutoSaveDraft(\Illuminate\View\View $view): void
     {
-        $cfg = json_encode($this->getAutoSaveConfig(), JSON_UNESCAPED_SLASHES);
-        $this->js("window.__alternovaAutosave&&window.__alternovaAutosave.init({$cfg})");
+        $cfg = json_encode($this->getAutoSaveConfig(), JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP);
+        $this->js('window.__alternovaAutosave&&window.__alternovaAutosave.init('.$cfg.')');
+    }
+
+    public function dehydrateHasAutoSaveDraft(): void
+    {
+        $this->dispatch('autosave-init', config: $this->getAutoSaveConfig());
     }
 }
