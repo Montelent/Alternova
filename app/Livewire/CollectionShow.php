@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\Collection;
 use App\Services\SeoManager;
+use App\Support\SoftwareApplicationSchema;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Component;
 
@@ -89,19 +90,18 @@ class CollectionShow extends Component
                 'position' => $i + 1,
                 'name' => $alt->name,
                 'url' => route('alternatives.show', $alt),
-                'item' => [
-                    '@type' => 'SoftwareApplication',
+                'item' => SoftwareApplicationSchema::make([
                     'name' => $alt->name,
                     'url' => route('alternatives.show', $alt),
-                    'applicationCategory' => 'OpenSourceSoftware',
-                ],
+                    'description' => $alt->description,
+                    'license' => $alt->license_type,
+                    'website' => $alt->website_url,
+                    'repo' => $alt->repo_url,
+                    'free' => true,
+                    'category' => 'UtilitiesApplication',
+                    'os' => 'Cross-platform',
+                ]),
             ];
-            if (filled($alt->description)) {
-                $entry['item']['description'] = \Illuminate\Support\Str::limit(strip_tags((string) $alt->description), 200);
-            }
-            if (filled($alt->license_type)) {
-                $entry['item']['license'] = (string) $alt->license_type;
-            }
             $listElements[] = $entry;
         }
 
