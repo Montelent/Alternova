@@ -23,8 +23,6 @@ class ListOpenSourceAlternatives extends ListRecords
 
     /**
      * Always return a real Eloquent builder with a model.
-     * Prevents "newQueryWithoutRelationships() on null" when Filament
-     * applies nested where() filters on Livewire updates (tabs/filters).
      */
     protected function getTableQuery(): Builder
     {
@@ -34,30 +32,28 @@ class ListOpenSourceAlternatives extends ListRecords
 
     public function getTabs(): array
     {
+        // Parameter MUST be named $query — Filament injects by name.
+        // Use deleted_at directly (SoftDeletingScope is already removed on the base query).
         return [
             'all' => Tab::make('All')
-                ->modifyQueryUsing(fn (Builder $q) => $q->whereNull(
-                    $q->getModel()->getQualifiedDeletedAtColumn()
-                )),
+                ->modifyQueryUsing(fn (Builder $query) => $query->whereNull('deleted_at')),
             'published' => Tab::make('Published')
-                ->modifyQueryUsing(fn (Builder $q) => $q
+                ->modifyQueryUsing(fn (Builder $query) => $query
                     ->where('is_published', true)
-                    ->whereNull($q->getModel()->getQualifiedDeletedAtColumn())),
+                    ->whereNull('deleted_at')),
             'drafts' => Tab::make('Drafts')
-                ->modifyQueryUsing(fn (Builder $q) => $q
+                ->modifyQueryUsing(fn (Builder $query) => $query
                     ->where('is_published', false)
-                    ->whereNull($q->getModel()->getQualifiedDeletedAtColumn())),
+                    ->whereNull('deleted_at')),
             'broken' => Tab::make('Broken links')
-                ->modifyQueryUsing(fn (Builder $q) => $q
+                ->modifyQueryUsing(fn (Builder $query) => $query
                     ->where(function (Builder $inner) {
                         $inner->where('repo_reachable', false)
                             ->orWhere('website_reachable', false);
                     })
-                    ->whereNull($q->getModel()->getQualifiedDeletedAtColumn())),
+                    ->whereNull('deleted_at')),
             'trash' => Tab::make('Trash')
-                ->modifyQueryUsing(fn (Builder $q) => $q->whereNotNull(
-                    $q->getModel()->getQualifiedDeletedAtColumn()
-                )),
+                ->modifyQueryUsing(fn (Builder $query) => $query->whereNotNull('deleted_at')),
         ];
     }
 }

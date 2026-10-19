@@ -21,9 +21,6 @@ class ListProprietaryTools extends ListRecords
         ];
     }
 
-    /**
-     * Always return a real Eloquent builder with a model (see OpenSource list).
-     */
     protected function getTableQuery(): Builder
     {
         return ProprietaryTool::query()
@@ -35,21 +32,17 @@ class ListProprietaryTools extends ListRecords
     {
         return [
             'all' => Tab::make('All')
-                ->modifyQueryUsing(fn (Builder $q) => $q->whereNull(
-                    $q->getModel()->getQualifiedDeletedAtColumn()
-                )),
+                ->modifyQueryUsing(fn (Builder $query) => $query->whereNull('deleted_at')),
             'published' => Tab::make('Published')
-                ->modifyQueryUsing(fn (Builder $q) => $q
+                ->modifyQueryUsing(fn (Builder $query) => $query
                     ->where('is_published', true)
-                    ->whereNull($q->getModel()->getQualifiedDeletedAtColumn())),
+                    ->whereNull('deleted_at')),
             'drafts' => Tab::make('Drafts')
-                ->modifyQueryUsing(fn (Builder $q) => $q
+                ->modifyQueryUsing(fn (Builder $query) => $query
                     ->where('is_published', false)
-                    ->whereNull($q->getModel()->getQualifiedDeletedAtColumn())),
+                    ->whereNull('deleted_at')),
             'trash' => Tab::make('Trash')
-                ->modifyQueryUsing(fn (Builder $q) => $q->whereNotNull(
-                    $q->getModel()->getQualifiedDeletedAtColumn()
-                )),
+                ->modifyQueryUsing(fn (Builder $query) => $query->whereNotNull('deleted_at')),
         ];
     }
 }
