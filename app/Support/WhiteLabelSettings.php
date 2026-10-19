@@ -136,4 +136,41 @@ class WhiteLabelSettings
             return null;
         }
     }
+
+    /** @return array{50: string, 100: string, 500: string, 600: string, 700: string} */
+    public static function palette(): array
+    {
+        $hex = self::primary();
+
+        return [
+            '50' => self::mix($hex, '#ffffff', 0.92),
+            '100' => self::mix($hex, '#ffffff', 0.85),
+            '500' => self::mix($hex, '#ffffff', 0.15),
+            '600' => $hex,
+            '700' => self::mix($hex, '#000000', 0.18),
+        ];
+    }
+
+    protected static function mix(string $hex, string $with, float $ratio): string
+    {
+        $a = self::hexToRgb($hex);
+        $b = self::hexToRgb($with);
+        $r = (int) round($a[0] * (1 - $ratio) + $b[0] * $ratio);
+        $g = (int) round($a[1] * (1 - $ratio) + $b[1] * $ratio);
+        $bl = (int) round($a[2] * (1 - $ratio) + $b[2] * $ratio);
+
+        return sprintf('#%02x%02x%02x', $r, $g, $bl);
+    }
+
+    /** @return array{0: int, 1: int, 2: int} */
+    protected static function hexToRgb(string $hex): array
+    {
+        $hex = ltrim($hex, '#');
+
+        return [
+            hexdec(substr($hex, 0, 2)),
+            hexdec(substr($hex, 2, 2)),
+            hexdec(substr($hex, 4, 2)),
+        ];
+    }
 }
