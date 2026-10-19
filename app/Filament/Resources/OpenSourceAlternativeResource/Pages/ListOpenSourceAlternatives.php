@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\OpenSourceAlternativeResource\Pages;
 
+use App\Filament\Concerns\HasContinueFormDraftAction;
 use App\Filament\Resources\OpenSourceAlternativeResource;
 use App\Models\OpenSourceAlternative;
 use Filament\Actions;
@@ -12,18 +13,18 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class ListOpenSourceAlternatives extends ListRecords
 {
+    use HasContinueFormDraftAction;
+
     protected static string $resource = OpenSourceAlternativeResource::class;
 
     protected function getHeaderActions(): array
     {
-        return [
+        return array_values(array_filter([
+            $this->getContinueFormDraftAction(),
             Actions\CreateAction::make(),
-        ];
+        ]));
     }
 
-    /**
-     * Always return a real Eloquent builder with a model.
-     */
     protected function getTableQuery(): Builder
     {
         return OpenSourceAlternative::query()
@@ -32,8 +33,7 @@ class ListOpenSourceAlternatives extends ListRecords
 
     public function getTabs(): array
     {
-        // Parameter MUST be named $query — Filament injects by name.
-        // Use deleted_at directly (SoftDeletingScope is already removed on the base query).
+        // $query name is required — Filament injects by parameter name.
         return [
             'all' => Tab::make('All')
                 ->modifyQueryUsing(fn (Builder $query) => $query->whereNull('deleted_at')),
