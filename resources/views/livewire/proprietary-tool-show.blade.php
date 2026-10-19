@@ -33,14 +33,12 @@
                 </div>
             </div>
 
-            {{-- 1) Proprietary description first (editor content) --}}
             @if(filled(trim(strip_tags((string) $tool->description))))
                 <div class="mt-6 text-sm sm:text-base text-slate-700 dark:text-slate-300 leading-relaxed max-w-3xl prose prose-slate dark:prose-invert prose-p:my-2 prose-a:text-brand-600">
                     {!! $tool->description !!}
                 </div>
             @endif
 
-            {{-- 2) Generated overview with linked alternative names in the prose --}}
             <div class="mt-6 space-y-4 text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-relaxed max-w-3xl">
                 <p>{!! $introHtml !!}</p>
                 <p>{!! $bodyHtml !!}</p>
@@ -72,6 +70,25 @@
                 </a>
             </div>
         </header>
+
+        <div class="mb-8">
+            @php
+                $__shareTitle = $count.' open-source alternatives to '.$tool->name;
+                $__shareText = $__shareTitle.' — discover free FOSS options on '.config('app.name');
+                $__shareUrl = route('alternativesto.show', $tool->slug);
+                try {
+                    $__shareImage = app(\App\Services\OgImageService::class)->toolUrl($tool);
+                } catch (\Throwable) {
+                    $__shareImage = null;
+                }
+            @endphp
+            <x-share-buttons
+                :url="$__shareUrl"
+                :title="$__shareTitle"
+                :text="$__shareText"
+                :image="$__shareImage"
+            />
+        </div>
 
         <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-5">
             <div>
