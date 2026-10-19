@@ -3,12 +3,13 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Forms\Components\TinyEditor;
-use App\Filament\Forms\ImageField;
+use App\Filament\Forms\SeoForm;
 use App\Filament\Resources\CollectionResource\Pages;
 use App\Models\Collection;
 use App\Models\OpenSourceAlternative;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -60,11 +61,12 @@ class CollectionResource extends Resource
                 Forms\Components\Textarea::make('description')
                     ->rows(3)
                     ->columnSpanFull()
-                    ->helperText('Short blurb shown on cards and under the title.'),
+                    ->helperText('Short plain-text blurb on cards and under the title (not HTML).'),
                 TinyEditor::make('intro_html')
                     ->label('Intro')
                     ->height(360)
-                    ->columnSpanFull(),
+                    ->columnSpanFull()
+                    ->helperText('Rich intro shown on the public collection page.'),
                 Forms\Components\FileUpload::make('cover_path')
                     ->label('Cover image (upload)')
                     ->image()
@@ -86,32 +88,55 @@ class CollectionResource extends Resource
                     ->helperText('Leave empty for next number. Setting a used number swaps with that item.'),
             ])->columns(2),
 
-            Forms\Components\Section::make('Items')->schema([
-                Forms\Components\Repeater::make('items')
-                    ->relationship()
-                    ->schema([
-                        Forms\Components\Select::make('open_source_alternative_id')
-                            ->label('Alternative')
-                            ->options(fn () => OpenSourceAlternative::query()->orderBy('name')->pluck('name', 'id'))
-                            ->searchable()
-                            ->required(),
-                        Forms\Components\TextInput::make('position')
-                            ->label('Position')
-                            ->numeric()
-                            ->default(0)
-                            ->helperText('Lower numbers appear first. Drag rows to reorder.'),
-                        Forms\Components\Textarea::make('note')->rows(2),
-                    ])
-                    ->orderColumn('position')
-                    ->reorderable()
-                    ->collapsible()
-                    ->columnSpanFull(),
-            ]),
+            Forms\Components\Section::make('Items')
+                ->description('Add open-source alternatives. Drag rows to set order (position is saved automatically).')
+                ->schema([
+                    Forms\Components\Repeater::make('items')
+                        ->relationship()
+                        ->schema([
+                            Forms\Components\Select::make('open_source_alternative_id')
+                                ->label('Open-source alternative')
+                                ->options(function (Get $get) {
+                                    return OpenSourceAlternative::query()
+                                        ->orderBy('name')
+                                        ->pluck('name', 'id')
+                                        ->all();
+                                })
+                                ->searchable()
+                                ->preload()
+                                ->required()
+                                ->distinct()
+                                ->disableOptionsWhenSelectedInSiblingRepeaterItems()
+                                ->columnSpanFull(),
+                            Forms\Components\Textarea::make('note')
+                                ->label('Note (optional)')
+                                ->rows(2)
+                                ->maxLength(500)
+                                ->columnSpanFull(),
+                        ])
+                        ->orderColumn('position')
+                        ->reorderable()
+                        ->reorderableWithButtons()
+                        ->collapsible()
+                        ->cloneable()
+                        ->itemLabel(function (array $state): ?string {
+                            $id = $state['open_source_alternative_id'] ?? null;
+                            if (! $id) {
+                                return 'New item';
+                            }
+                            static $cache = [];
+                            if (! isset($cache[$id])) {
+                                $cache[$id] = OpenSourceAlternative::query()->whereKey($id)->value('name') ?: ('#'.$id);
+                            }
 
-            Forms\Components\Section::make('SEO')->schema([
-                Forms\Components\TextInput::make('meta_title')->maxLength(70),
-                Forms\Components\Textarea::make('meta_description')->rows(2)->maxLength(160)->columnSpanFull(),
-            ])->columns(2)->collapsed(),
+                            return $cache[$id];
+                        })
+                        ->defaultItems(0)
+                        ->addActionLabel('Add alternative')
+                        ->columnSpanFull(),
+                ]),
+
+            ...SeoForm::schema('collection', 'slug', 'name', 'description'),
         ]);
     }
 
@@ -136,19 +161,13 @@ class CollectionResource extends Resource
                 Tables\Actions\Action::make('viewSite')
                     ->label('View')
                     ->icon('heroicon-o-arrow-top-right-on-square')
-                    ->url(fn (Collection $r) => route('collections.show', $r->slug), shouldOpenInNewTab: true)
-                    ->visible(fn (Collection $r) => $r->is_published),
+                    ->url(fn (Collection $record) => route('collections.show', $record->slug))
+                    ->openUrlInNewTab()
+                    ->visible(fn (Collection $record) => (bool) $record->is_published),
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\BulkAction::make('publish')
-                        ->label('Publish')
-                        ->action(fn ($records) => $records->each->update(['is_published' => true])),
-                    Tables\Actions\BulkAction::make('unpublish')
-                        ->label('Unpublish')
-                        ->action(fn ($records) => $records->each->update(['is_published' => false])),
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
