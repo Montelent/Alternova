@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class Collection extends Model
 {
@@ -26,6 +27,11 @@ class Collection extends Model
         'meta_title',
         'meta_description',
         'focus_keyword',
+        'robots_meta',
+        'canonical_url',
+        'og_title',
+        'og_description',
+        'og_image_url',
     ];
 
     protected $casts = [
@@ -95,24 +101,44 @@ class Collection extends Model
         return $this->cover_image_url ?: null;
     }
 
-    public function seoTitle(): string
+    public function canonicalUrl(): string
     {
-        if ($this->meta_title) {
-            return $this->meta_title;
+        if (filled($this->canonical_url)) {
+            return (string) $this->canonical_url;
         }
 
-        return $this->name.' | Alternova';
+        return route('collections.show', $this->slug);
+    }
+
+    public function seoTitle(): string
+    {
+        if (filled($this->meta_title)) {
+            return (string) $this->meta_title;
+        }
+
+        $site = config('app.name', 'Alternova');
+        try {
+            $site = app(\App\Services\SeoManager::class)->siteName();
+        } catch (\Throwable) {
+        }
+
+        return $this->name.' · Collection · '.$site;
     }
 
     public function seoDescription(): string
     {
-        if ($this->meta_description) {
-            return $this->meta_description;
+        if (filled($this->meta_description)) {
+            return Str::limit((string) $this->meta_description, 160);
         }
 
         $desc = trim((string) $this->description);
         if ($desc !== '') {
-            return str($desc)->limit(155)->toString();
+            return Str::limit($desc, 155);
+        }
+
+        $plain = trim(preg_replace('/\s+/', ' ', strip_tags((string) $this->intro_html)) ?? '');
+        if ($plain !== '') {
+            return Str::limit($plain, 155);
         }
 
         return 'Curated open-source alternatives: '.$this->name;
