@@ -1,7 +1,9 @@
 @component('layouts.app', [
     'title' => $title,
     'description' => $description,
+    'canonical' => $canonical ?? null,
     'robots' => $robots ?? null,
+    'jsonLd' => $jsonLd ?? null,
 ])
 <div class="max-w-3xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
     <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white">{{ $page->title }}</h1>

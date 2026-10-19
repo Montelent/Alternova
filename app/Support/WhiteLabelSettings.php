@@ -92,7 +92,8 @@ class WhiteLabelSettings
     {
         $path = trim((string) self::get('brand_logo_path', ''));
         if ($path !== '') {
-            return Storage::disk('public')->url($path);
+            // Logos live under public/uploads (Hostinger); /storage/... often 403
+            return MediaUrl::make($path, 'uploads');
         }
         $url = trim((string) self::get('brand_logo_url', ''));
 
@@ -103,7 +104,7 @@ class WhiteLabelSettings
     {
         $path = trim((string) self::get('brand_favicon_path', ''));
         if ($path !== '') {
-            return Storage::disk('public')->url($path);
+            return MediaUrl::make($path, 'uploads');
         }
         $url = trim((string) self::get('brand_favicon_url', ''));
 
@@ -129,7 +130,7 @@ class WhiteLabelSettings
                 $ext = 'png';
             }
             $name = 'branding/'.Str::slug($kind).'-'.Str::random(8).'.'.$ext;
-            Storage::disk('public')->put($name, $body);
+            Storage::disk('uploads')->put($name, $body);
 
             return $name;
         } catch (\Throwable) {
