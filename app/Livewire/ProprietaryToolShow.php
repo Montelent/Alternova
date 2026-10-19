@@ -120,8 +120,7 @@ class ProprietaryToolShow extends Component
             $listElements[] = [
                 '@type' => 'ListItem',
                 'position' => $pos++,
-                'url' => route('alternatives.show', $alt->slug),
-                'name' => $alt->name,
+                // Google carousels: ListItem must not combine url/name with nested "item"
                 'item' => SoftwareApplicationSchema::make([
                     'name' => $alt->name,
                     'url' => route('alternatives.show', $alt->slug),
