@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\OpenSourceAlternative;
+use App\Support\SoftwareApplicationSchema;
 use Illuminate\Support\Str;
 
 class AlternativeJsonLd
@@ -21,47 +22,28 @@ class AlternativeJsonLd
 
         $desc = Str::limit(strip_tags((string) $alt->description), 300);
 
-        $software = [
-            '@type' => 'SoftwareApplication',
-            '@id' => $canonical.'#software',
+        $software = SoftwareApplicationSchema::make([
             'name' => $alt->name,
-            'description' => $desc,
             'url' => $canonical,
-            'applicationCategory' => 'OpenSourceSoftware',
-            'operatingSystem' => 'Cross-platform',
-            'offers' => [
-                '@type' => 'Offer',
-                'price' => '0',
-                'priceCurrency' => 'USD',
-                'availability' => 'https://schema.org/InStock',
-            ],
-        ];
-
-        if (filled($alt->license_type)) {
-            $software['license'] = (string) $alt->license_type;
-        }
-
-        $sameAs = [];
-        if (filled($alt->website_url)) {
-            $sameAs[] = (string) $alt->website_url;
-        }
-        if (filled($alt->repo_url)) {
-            $sameAs[] = (string) $alt->repo_url;
-        }
-        if ($sameAs !== []) {
-            $software['sameAs'] = $sameAs;
-        }
+            'description' => $desc,
+            'license' => $alt->license_type,
+            'website' => $alt->website_url,
+            'repo' => $alt->repo_url,
+            'free' => true,
+            'category' => 'UtilitiesApplication',
+            'os' => 'Cross-platform',
+            'id' => $canonical.'#software',
+        ]);
 
         if ($prop && filled($prop->name ?? null)) {
-            $related = [
-                '@type' => 'SoftwareApplication',
+            $software['isRelatedTo'] = SoftwareApplicationSchema::make([
                 'name' => (string) $prop->name,
-                'applicationCategory' => 'BusinessApplication',
-            ];
-            if (filled($prop->website_url ?? null)) {
-                $related['url'] = (string) $prop->website_url;
-            }
-            $software['isRelatedTo'] = $related;
+                'url' => $prop->website_url ?: null,
+                'website' => $prop->website_url ?? null,
+                'free' => false,
+                'category' => 'BusinessApplication',
+                'os' => 'Cross-platform',
+            ]);
         }
 
         $webPage = [
