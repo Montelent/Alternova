@@ -39,6 +39,7 @@ class CollectionShow extends Component
 
         $items = $collection->items
             ->filter(fn ($item) => $item->alternative && $item->alternative->is_published)
+            ->sortBy(fn ($item) => (int) ($item->position ?? 0))
             ->values();
 
         $seo = app(SeoManager::class);
@@ -47,41 +48,123 @@ class CollectionShow extends Component
         $title = $social['title'];
         $description = $social['description'];
         $canonical = $social['url'];
+        $cover = $collection->coverUrl() ?: $social['image'];
 
-        $schema = [
-            '@context' => 'https://schema.org',
-            '@type' => 'CollectionPage',
-            'name' => $collection->name,
-            'description' => $description,
-            'url' => $canonical,
-            'mainEntity' => [
-                '@type' => 'ItemList',
-                'numberOfItems' => $items->count(),
-                'itemListElement' => $items->values()->map(function ($item, $i) {
-                    $alt = $item->alternative;
-
-                    return [
-                        '@type' => 'ListItem',
-                        'position' => $i + 1,
-                        'name' => $alt->name,
-                        'url' => route('alternatives.show', $alt),
-                    ];
-                })->all(),
-            ],
-        ];
+        $jsonLd = $this->buildJsonLd($collection, $items, $canonical, $description, $cover);
 
         return view('livewire.collection-show', [
             'collection' => $collection,
             'items' => $items,
-            'schema' => $schema,
         ])->layout('layouts.app', [
             'title' => $title,
             'description' => $description,
             'canonical' => $canonical,
+            'robots' => $collection->robots_meta ?: null,
             'ogType' => $social['type'],
             'ogTitle' => $social['title'],
             'ogDescription' => $social['description'],
-            'ogImage' => $social['image'],
+            'ogImage' => $cover,
+            'jsonLd' => $jsonLd,
         ]);
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection  $items
+     * @return list<array<string, mixed>>
+     */
+    protected function buildJsonLd(Collection $collection, $items, string $canonical, string $description, ?string $cover): array
+    {
+        $site = rtrim((string) config('app.url'), '/');
+        $siteName = config('app.name', 'Alternova');
+        try {
+            $siteName = app(SeoManager::class)->siteName();
+        } catch (\Throwable) {
+        }
+
+        $listElements = [];
+        foreach ($items->values() as $i => $item) {
+            $alt = $item->alternative;
+            $entry = [
+                '@type' => 'ListItem',
+                'position' => $i + 1,
+                'name' => $alt->name,
+                'url' => route('alternatives.show', $alt),
+                'item' => [
+                    '@type' => 'SoftwareApplication',
+                    'name' => $alt->name,
+                    'url' => route('alternatives.show', $alt),
+                    'applicationCategory' => 'OpenSourceSoftware',
+                ],
+            ];
+            if (filled($alt->description)) {
+                $entry['item']['description'] = \Illuminate\Support\Str::limit(strip_tags((string) $alt->description), 200);
+            }
+            if (filled($alt->license_type)) {
+                $entry['item']['license'] = (string) $alt->license_type;
+            }
+            $listElements[] = $entry;
+        }
+
+        $collectionPage = [
+            '@type' => 'CollectionPage',
+            '@id' => $canonical.'#webpage',
+            'url' => $canonical,
+            'name' => $collection->name,
+            'description' => $description,
+            'isPartOf' => [
+                '@type' => 'WebSite',
+                '@id' => $site.'/#website',
+                'name' => $siteName,
+                'url' => $site,
+            ],
+            'mainEntity' => [
+                '@type' => 'ItemList',
+                '@id' => $canonical.'#itemlist',
+                'name' => $collection->name,
+                'numberOfItems' => count($listElements),
+                'itemListOrder' => 'https://schema.org/ItemListOrderAscending',
+                'itemListElement' => $listElements,
+            ],
+        ];
+
+        if ($cover) {
+            $collectionPage['image'] = [$cover];
+            $collectionPage['primaryImageOfPage'] = [
+                '@type' => 'ImageObject',
+                'url' => $cover,
+            ];
+        }
+
+        $breadcrumb = [
+            '@type' => 'BreadcrumbList',
+            '@id' => $canonical.'#breadcrumb',
+            'itemListElement' => [
+                [
+                    '@type' => 'ListItem',
+                    'position' => 1,
+                    'name' => 'Home',
+                    'item' => $site,
+                ],
+                [
+                    '@type' => 'ListItem',
+                    'position' => 2,
+                    'name' => 'Collections',
+                    'item' => route('collections.index'),
+                ],
+                [
+                    '@type' => 'ListItem',
+                    'position' => 3,
+                    'name' => $collection->name,
+                    'item' => $canonical,
+                ],
+            ],
+        ];
+
+        return [
+            [
+                '@context' => 'https://schema.org',
+                '@graph' => [$collectionPage, $breadcrumb],
+            ],
+        ];
     }
 }
