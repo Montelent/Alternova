@@ -85,11 +85,10 @@ class CollectionShow extends Component
         $listElements = [];
         foreach ($items->values() as $i => $item) {
             $alt = $item->alternative;
-            $entry = [
+            $listElements[] = [
                 '@type' => 'ListItem',
                 'position' => $i + 1,
-                'name' => $alt->name,
-                'url' => route('alternatives.show', $alt),
+                // Google: ListItem must not combine url/name with nested "item"
                 'item' => SoftwareApplicationSchema::make([
                     'name' => $alt->name,
                     'url' => route('alternatives.show', $alt),
@@ -102,7 +101,6 @@ class CollectionShow extends Component
                     'os' => 'Cross-platform',
                 ]),
             ];
-            $listElements[] = $entry;
         }
 
         $collectionPage = [
