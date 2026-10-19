@@ -37,14 +37,14 @@ function status(msg,kind){
 }
 function saveLocal(data){
   if(!S.cfg||!S.cfg.key||empty(data))return;
-  try{var payload={t:Date.now(),resource:S.cfg.resource,recordId:S.cfg.recordId,data:data};var json=JSON.stringify(payload);if(json===S.lj)return;if(json.length>1500000){status('Draft too large','error');return}localStorage.setItem(S.cfg.key,json);S.lj=json;status('Draft saved · '+new Date().toLocaleTimeString(),'ok')}catch(e){status('Could not save draft offline','error')}
+  try{var payload={t:Date.now(),resource:S.cfg.resource,recordId:S.cfg.recordId,data:data};var json=JSON.stringify(payload);if(json===S.lj)return;if(json.length>1500000){status('Draft too large','error');return}localStorage.setItem(S.cfg.key,json);S.lj=json;status('Form backup on this device · '+new Date().toLocaleTimeString()+' (not in Drafts list)','ok')}catch(e){status('Could not save draft offline','error')}
 }
 function readLocal(){if(!S.cfg||!S.cfg.key)return null;try{var r=localStorage.getItem(S.cfg.key);return r?JSON.parse(r):null}catch(e){return null}}
 function clearLocal(){if(!S.cfg||!S.cfg.key)return;try{localStorage.removeItem(S.cfg.key)}catch(e){}S.lj='';status('',null)}
 function syncServer(data,force){
   if(!S.cfg||S.cfg.demo||(!S.on&&!force)||empty(data))return;var w=findWire();if(!w)return;
   var json=JSON.stringify(data),now=Date.now();if(!force&&json===S.sj)return;if(!force&&(now-S.sa)<(S.cfg.serverMs||60000))return;S.sa=now;S.sj=json;
-  try{w.call('persistAutoSaveDraft',data);status('Draft synced · '+new Date().toLocaleTimeString(),'ok')}catch(e){status('Offline — draft kept on this device','error')}
+  try{w.call('persistAutoSaveDraft',data);status('Form backup synced · '+new Date().toLocaleTimeString()+' (open Create again to resume)','ok')}catch(e){status('Offline — draft kept on this device','error')}
 }
 function tickL(){if(!isPage()||!S.cfg)return;saveLocal(collect())}
 function tickS(){if(!S.on||!isPage()||!S.cfg)return;syncServer(collect(),false)}
@@ -54,7 +54,7 @@ function restore(){
   if(d.t&&(Date.now()-d.t)>7*24*3600*1000){clearLocal();return}
   var w=findWire();if(!w){setTimeout(restore,500);return}
   var when=d.t?new Date(d.t).toLocaleString():'earlier';
-  try{w.call('restoreAutoSaveDraft',d.data);status('Restored draft from '+when,'ok')}catch(e){status('Could not restore draft','error')}
+  try{w.call('restoreAutoSaveDraft',d.data);status('Restored form backup from '+when,'ok')}catch(e){status('Could not restore draft','error')}
 }
 function onAct(){clearTimeout(S._db);S._db=setTimeout(tickL,600)}
 function bind(){
