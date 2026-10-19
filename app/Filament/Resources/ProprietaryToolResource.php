@@ -63,33 +63,32 @@ class ProprietaryToolResource extends Resource
                             ->icon('heroicon-o-sparkles')
                             ->color('gray')
                             ->action(function (Get $get, Set $set) {
-                                $url = trim((string) $get('website_url'));
-                                if ($url === '') {
+                                $url = $get('website_url');
+                                if (! $url) {
                                     Notification::make()->title('Add a website URL first')->warning()->send();
 
                                     return;
                                 }
-                                try {
-                                    $text = app(DescriptionGeneratorService::class)->fromUrl($url);
-                                    if ($text) {
-                                        $set('description', $text);
-                                        Notification::make()->title('Description generated')->success()->send();
-                                    } else {
-                                        Notification::make()->title('Could not generate description')->warning()->send();
-                                    }
-                                } catch (\Throwable $e) {
-                                    Notification::make()->title('Generate failed')->body($e->getMessage())->danger()->send();
+                                $result = app(DescriptionGeneratorService::class)->fromUrl($url);
+                                if ($result['description'] ?? null) {
+                                    $set('description', $result['description']);
                                 }
+                                Notification::make()
+                                    ->title(($result['success'] ?? false) ? 'Description generated' : 'Partial result')
+                                    ->body($result['message'] ?? '')
+                                    ->{($result['success'] ?? false) ? 'success' : 'warning'}()
+                                    ->send();
                             }),
                     ])->columnSpanFull(),
-                    TagsField::make('key_features', 'Key features')->columnSpanFull(),
-                    Forms\Components\Textarea::make('target_audience')
-                        ->rows(2)
-                        ->columnSpanFull(),
-                    Forms\Components\Toggle::make('is_published')->default(true),
+                    Forms\Components\TextInput::make('target_audience')->maxLength(120),
+                    TagsField::make('category_tags', 'Categories')->columnSpanFull(),
                 ])->columns(2),
 
-                ...SeoForm::schema('proprietary tool', 'slug', 'name', 'description'),
+                Forms\Components\Section::make('Publishing')->schema([
+                    Forms\Components\Toggle::make('is_published')->label('Published')->default(false),
+                ]),
+
+                ...SeoForm::schema('proprietary tool', 'slug'),
             ]);
     }
 
@@ -98,15 +97,14 @@ class ProprietaryToolResource extends Resource
         return $table
             ->defaultSort('updated_at', 'desc')
             ->columns([
-                Tables\Columns\ImageColumn::make('logo_path')
-                    ->label('')
-                    ->height(32)
-                    ->width(32)
-                    ->getStateUsing(fn (ProprietaryTool $r) => $r->logo_url)
-                    ->defaultImageUrl(null),
+                Tables\Columns\ImageColumn::make('logo_url')
+                    ->label('Logo')
+                    ->getStateUsing(fn ($record) => $record->logo_url ?? MediaUrl::to($record->logo_path))
+                    ->circular()
+                    ->height(40)
+                    ->width(40)
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('name')->searchable()->sortable(),
-                Tables\Columns\TextColumn::make('slug')->toggleable(),
-                Tables\Columns\TextColumn::make('focus_keyword')->label('Keyphrase')->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\IconColumn::make('is_published')->boolean(),
                 Tables\Columns\TextColumn::make('alternatives_total_count')
                     ->label('Alternatives')
@@ -117,7 +115,6 @@ class ProprietaryToolResource extends Resource
             ])
             ->filters([
                 Tables\Filters\TernaryFilter::make('is_published'),
-                Tables\Filters\TrashedFilter::make(),
             ])
             ->actions([
                 Tables\Actions\Action::make('viewSite')
@@ -147,10 +144,8 @@ class ProprietaryToolResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()
-            ->withoutGlobalScopes([
-                SoftDeletingScope::class,
-            ])
+        return ProprietaryTool::query()
+            ->withoutGlobalScopes([SoftDeletingScope::class])
             ->withAlternativesTotalCount();
     }
 
