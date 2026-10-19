@@ -1,8 +1,6 @@
 <div class="min-h-screen bg-slate-50 dark:bg-slate-950">
-    <script type="application/ld+json">{!! json_encode($schema, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE) !!}</script>
-
     <div class="max-w-4xl mx-auto px-4 sm:px-6 py-10">
-        <nav class="mb-6 text-sm text-slate-500 dark:text-slate-400">
+        <nav class="mb-6 text-sm text-slate-500 dark:text-slate-400" aria-label="Breadcrumb">
             <a href="{{ route('home') }}" class="hover:text-brand-600 dark:hover:text-brand-300">Home</a>
             <span class="mx-1.5 text-slate-300 dark:text-slate-600">/</span>
             <a href="{{ route('collections.index') }}" class="hover:text-brand-600 dark:hover:text-brand-300">Collections</a>
@@ -11,6 +9,11 @@
         </nav>
 
         <header class="mb-10">
+            @if($collection->coverUrl())
+                <div class="mb-6 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900">
+                    <img src="{{ $collection->coverUrl() }}" alt="" class="w-full max-h-64 object-cover" loading="lazy" width="1200" height="630">
+                </div>
+            @endif
             @if($collection->is_featured)
                 <span class="inline-block rounded-full bg-brand-100 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200 text-[10px] font-bold uppercase tracking-wide px-2.5 py-0.5 mb-3">Featured collection</span>
             @endif
@@ -18,20 +21,20 @@
             @if($collection->description)
                 <p class="mt-3 text-lg text-slate-600 dark:text-slate-300">{{ $collection->description }}</p>
             @endif
-            @if($collection->intro_html)
-                <div class="mt-6 prose prose-slate dark:prose-invert max-w-none text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-                    {!! nl2br(e($collection->intro_html)) !!}
+            @if(filled($collection->intro_html))
+                <div class="mt-6 cms-content prose prose-slate dark:prose-invert max-w-none text-base leading-relaxed text-slate-600 dark:text-slate-300">
+                    {!! $collection->intro_html !!}
                 </div>
             @endif
             <p class="mt-4 text-sm text-slate-500">{{ $items->count() }} open-source alternative{{ $items->count() === 1 ? '' : 's' }}</p>
         </header>
 
-        <ol class="space-y-4">
+        <ol class="space-y-4" start="1">
             @forelse($items as $i => $item)
                 @php $alt = $item->alternative; @endphp
-                <li class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 shadow-sm">
+                <li class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 shadow-sm" id="item-{{ $i + 1 }}">
                     <div class="flex items-start gap-4">
-                        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-50 dark:bg-brand-500/15 text-brand-700 dark:text-brand-200 text-sm font-bold">{{ $i + 1 }}</span>
+                        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-50 dark:bg-brand-500/15 text-brand-700 dark:text-brand-200 text-sm font-bold" aria-hidden="true">{{ $i + 1 }}</span>
                         <div class="min-w-0 flex-1">
                             <div class="flex flex-wrap items-start justify-between gap-2">
                                 <div>
@@ -61,7 +64,7 @@
                     </div>
                 </li>
             @empty
-                <li class="text-center py-12 text-slate-500">This collection has no published alternatives yet.</li>
+                <li class="text-center py-12 text-slate-500 list-none">This collection has no published alternatives yet.</li>
             @endforelse
         </ol>
 
