@@ -7,10 +7,6 @@ use Filament\Actions\Action;
 
 trait HasContinueFormDraftAction
 {
-    /**
-     * Resource basename matching HasAutoSaveDraft::getAutoSaveResourceKey(),
-     * e.g. OpenSourceAlternativeResource.
-     */
     protected function getFormDraftResourceKey(): string
     {
         return class_basename(static::getResource());
@@ -20,6 +16,12 @@ trait HasContinueFormDraftAction
     {
         $draft = AdminDraft::unfinishedCreateFor($this->getFormDraftResourceKey());
         if (! $draft) {
+            return null;
+        }
+
+        $payload = is_array($draft->payload) ? $draft->payload : [];
+        $name = trim((string) ($payload['name'] ?? $payload['title'] ?? ''));
+        if ($name === '' && ! $this->payloadLooksUseful($payload)) {
             return null;
         }
 
@@ -35,7 +37,21 @@ trait HasContinueFormDraftAction
             ->label('Continue form backup')
             ->icon('heroicon-o-document-text')
             ->color('warning')
-            ->url($resource::getUrl('create'))
-            ->tooltip("{$label} · saved {$when}. This is a form backup, not a Drafts-tab record.");
+            ->url($resource::getUrl('create').'?resume=1')
+            ->tooltip("{$label} · saved {$when}");
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    protected function payloadLooksUseful(array $payload): bool
+    {
+        foreach ($payload as $v) {
+            if (is_string($v) && mb_strlen(trim(strip_tags($v))) >= 2) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

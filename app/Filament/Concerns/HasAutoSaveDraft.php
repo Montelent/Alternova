@@ -8,14 +8,16 @@ use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Offline-first auto-save for Filament create/edit forms.
+ * Offline-first form backup for Filament create/edit.
  *
- * - localStorage: every ~2s when dirty (zero server load, survives offline)
- * - Server draft: at most every 60s when online (shared-hosting friendly)
- * - Restores local draft on load if present
+ * - localStorage: only when the form has meaningful text (name/title/etc.)
+ * - Server draft: rare sync; create drafts are resume-able via ?resume=1
+ * - Never calls form->getState() during restore (that validates and breaks the form)
  */
 trait HasAutoSaveDraft
 {
+    public bool $autoSaveDidRestore = false;
+
     public function getAutoSaveResourceKey(): string
     {
         return class_basename(static::getResource());
@@ -36,11 +38,61 @@ trait HasAutoSaveDraft
             'resource' => $this->getAutoSaveResourceKey(),
             'recordId' => $recordId,
             'userId' => $userId,
-            'localMs' => 2000,
+            'localMs' => 2500,
             'serverMs' => 60000,
             'enabled' => true,
             'demo' => DemoMode::enabled(),
+            'resume' => request()->boolean('resume'),
+            'isCreate' => $recordId === null,
         ];
+    }
+
+    /**
+     * Raw form data without validation (Filament public $data on Create/Edit pages).
+     *
+     * @return array<string, mixed>
+     */
+    protected function getFormDataRaw(): array
+    {
+        if (property_exists($this, 'data') && is_array($this->data)) {
+            return $this->data;
+        }
+
+        try {
+            return $this->form->getRawState();
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    protected function draftHasMeaningfulContent(array $data): bool
+    {
+        $keys = [
+            'name', 'title', 'slug', 'description', 'repo_url', 'website_url',
+            'intro_html', 'body_html', 'body', 'content', 'meta_title',
+            'meta_description', 'focus_keyword', 'target_audience',
+        ];
+
+        foreach ($keys as $key) {
+            if (! array_key_exists($key, $data)) {
+                continue;
+            }
+            $v = $data[$key];
+            if (is_string($v) && trim(strip_tags($v)) !== '') {
+                return true;
+            }
+        }
+
+        foreach ($data as $v) {
+            if (is_string($v) && mb_strlen(trim(strip_tags($v))) >= 2) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -48,11 +100,7 @@ trait HasAutoSaveDraft
      */
     public function getAutoSaveSnapshot(): array
     {
-        try {
-            return $this->sanitizeDraftPayload($this->form->getState() ?? []);
-        } catch (\Throwable) {
-            return [];
-        }
+        return $this->sanitizeDraftPayload($this->getFormDataRaw());
     }
 
     public function persistAutoSaveDraft(array $data = []): void
@@ -70,7 +118,13 @@ trait HasAutoSaveDraft
             return;
         }
 
-        $payload = $this->sanitizeDraftPayload($data !== [] ? $data : ($this->form->getState() ?? []));
+        $payload = $this->sanitizeDraftPayload(
+            $data !== [] ? $data : $this->getFormDataRaw()
+        );
+
+        if (! $this->draftHasMeaningfulContent($payload)) {
+            return;
+        }
 
         $encoded = json_encode($payload);
         if (is_string($encoded) && strlen($encoded) > 200_000) {
@@ -91,25 +145,57 @@ trait HasAutoSaveDraft
         );
     }
 
-    public function restoreAutoSaveDraft(array $data): void
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function restoreAutoSaveDraft(array $data, bool $notify = true): void
     {
-        if ($data === []) {
+        if ($this->autoSaveDidRestore) {
             return;
         }
 
         $payload = $this->sanitizeDraftPayload($data);
-        $current = $this->form->getState() ?? [];
-        $this->form->fill(array_merge($current, $payload));
 
-        Notification::make()
-            ->title('Draft restored')
-            ->body('Your previous unsaved work was loaded.')
-            ->success()
-            ->send();
+        if (! $this->draftHasMeaningfulContent($payload)) {
+            return;
+        }
+
+        // Never use form->getState() here — it validates and surfaces required errors.
+        $current = $this->getFormDataRaw();
+        $merged = array_merge($current, $payload);
+
+        foreach ($payload as $k => $v) {
+            if ($v === null || $v === '') {
+                continue;
+            }
+            if (is_array($v) && $v === []) {
+                continue;
+            }
+            $merged[$k] = $v;
+        }
+
+        $this->form->fill($merged);
+        $this->autoSaveDidRestore = true;
+
+        if ($notify) {
+            Notification::make()
+                ->title('Form backup restored')
+                ->body('Your previous unsaved work was loaded. Complete required fields, then Save.')
+                ->success()
+                ->send();
+        }
     }
 
-    public function clearAutoSaveDraft(): void
+    public function loadServerDraftIfNeeded(bool $force = false): void
     {
+        if ($this->autoSaveDidRestore) {
+            return;
+        }
+
+        if ($this->record?->getKey() && ! $force) {
+            return;
+        }
+
         if (! Schema::hasTable('admin_drafts')) {
             return;
         }
@@ -119,13 +205,54 @@ trait HasAutoSaveDraft
             return;
         }
 
-        $recordKey = $this->record?->getKey() ?? 0;
-
-        AdminDraft::query()
+        $draft = AdminDraft::query()
             ->where('user_id', $userId)
             ->where('resource', $this->getAutoSaveResourceKey())
-            ->where('record_id', $recordKey)
-            ->delete();
+            ->where('record_id', $this->record?->getKey() ?? 0)
+            ->latest('updated_at')
+            ->first();
+
+        if (! $draft || ! is_array($draft->payload)) {
+            return;
+        }
+
+        if (! $this->draftHasMeaningfulContent($draft->payload)) {
+            return;
+        }
+
+        $this->restoreAutoSaveDraft($draft->payload, notify: true);
+    }
+
+    public function clearAutoSaveDraft(): void
+    {
+        if (Schema::hasTable('admin_drafts')) {
+            $userId = auth()->id();
+            if ($userId) {
+                $recordKey = $this->record?->getKey() ?? 0;
+
+                AdminDraft::query()
+                    ->where('user_id', $userId)
+                    ->where('resource', $this->getAutoSaveResourceKey())
+                    ->where('record_id', $recordKey)
+                    ->delete();
+
+                if ($recordKey !== 0) {
+                    AdminDraft::query()
+                        ->where('user_id', $userId)
+                        ->where('resource', $this->getAutoSaveResourceKey())
+                        ->where('record_id', 0)
+                        ->delete();
+                }
+            }
+        }
+
+        $this->dispatch('autosave-clear');
+        $cfg = $this->getAutoSaveConfig();
+        $this->js(
+            'window.__alternovaAutosave&&window.__alternovaAutosave.clearKey('
+            .json_encode($cfg['key'])
+            .')'
+        );
     }
 
     /**
@@ -168,10 +295,5 @@ trait HasAutoSaveDraft
     {
         $cfg = json_encode($this->getAutoSaveConfig(), JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP);
         $this->js('window.__alternovaAutosave&&window.__alternovaAutosave.init('.$cfg.')');
-    }
-
-    public function dehydrateHasAutoSaveDraft(): void
-    {
-        $this->dispatch('autosave-init', config: $this->getAutoSaveConfig());
     }
 }
