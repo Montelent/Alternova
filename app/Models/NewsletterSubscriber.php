@@ -1,9 +1,9 @@
 <?php
 
-namespace App\\Models;
+namespace App\Models;
 
-use Illuminate\\Database\\Eloquent\\Model;
-use Illuminate\\Support\\Str;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class NewsletterSubscriber extends Model
 {
@@ -38,7 +38,7 @@ class NewsletterSubscriber extends Model
         $token = Str::random(48);
         try {
             $this->forceFill(['unsubscribe_token' => $token])->save();
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             // If the token column is unavailable, do not fall back to email-based authorization.
             return '';
         }
