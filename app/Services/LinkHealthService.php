@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\OpenSourceAlternative;
+use App\Support\PublicHttpUrl;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -29,11 +30,15 @@ class LinkHealthService
 
     public function isReachable(string $url): bool
     {
+        if (! PublicHttpUrl::isSafe($url)) {
+            return false;
+        }
+
         try {
             $response = Http::timeout(4)
                 ->connectTimeout(3)
                 ->withHeaders(['User-Agent' => 'Alternova-LinkChecker/1.0'])
-                ->withOptions(['allow_redirects' => true])
+                ->withOptions(['allow_redirects' => false])
                 ->head($url);
 
             if ($response->successful() || in_array($response->status(), [401, 403, 405], true)) {
@@ -44,11 +49,15 @@ class LinkHealthService
             $get = Http::timeout(4)
                 ->connectTimeout(3)
                 ->withHeaders(['User-Agent' => 'Alternova-LinkChecker/1.0'])
+                ->withOptions(['allow_redirects' => false])
                 ->get($url);
 
             return $get->successful() || in_array($get->status(), [401, 403], true);
         } catch (\Throwable $e) {
-            Log::debug('Link check failed for '.$url.': '.$e->getMessage());
+            Log::debug('Link check failed.', [
+                'host' => parse_url($url, PHP_URL_HOST),
+                'error' => $e->getMessage(),
+            ]);
 
             return false;
         }
