@@ -1,18 +1,18 @@
 <?php
 
-use App\\Http\\Middleware\\AuthenticateApiKey;
-use App\\Http\\Middleware\\CheckMaintenanceMode;
-use App\\Http\\Middleware\\EnsureNotInstalled;
-use App\\Http\\Middleware\\EnsureSessionIsConfigured;
-use App\\Http\\Middleware\\ForceHttps;
-use App\\Http\\Middleware\\ForcePreferredUrl;
-use App\\Http\\Middleware\\PreventDemoWrites;
-use App\\Http\\Middleware\\RedirectIfNotInstalled;
-use App\\Http\\Middleware\\SecurityHeaders;
-use App\\Http\\Middleware\\ThrottleApi;
-use Illuminate\\Foundation\\Application;
-use Illuminate\\Foundation\\Configuration\\Exceptions;
-use Illuminate\\Foundation\\Configuration\\Middleware;
+use App\Http\Middleware\AuthenticateApiKey;
+use App\Http\Middleware\CheckMaintenanceMode;
+use App\Http\Middleware\EnsureNotInstalled;
+use App\Http\Middleware\EnsureSessionIsConfigured;
+use App\Http\Middleware\ForceHttps;
+use App\Http\Middleware\ForcePreferredUrl;
+use App\Http\Middleware\PreventDemoWrites;
+use App\Http\Middleware\RedirectIfNotInstalled;
+use App\Http\Middleware\SecurityHeaders;
+use App\Http\Middleware\ThrottleApi;
+use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Configuration\Exceptions;
+use Illuminate\Foundation\Configuration\Middleware;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
