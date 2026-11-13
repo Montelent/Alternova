@@ -128,6 +128,7 @@ class Installer
         File::put(storage_path('app/'.self::REOPEN_FILE), json_encode([
             'token_hash' => hash('sha256', $token),
             'unlocked_at' => now()->toIso8601String(),
+            'expires_at' => now()->addMinutes(30)->toIso8601String(),
         ], JSON_PRETTY_PRINT));
 
         return $token;
@@ -138,8 +139,15 @@ class Installer
         try {
             $payload = json_decode(File::get(storage_path('app/'.self::REOPEN_FILE)), true);
             $expectedHash = is_array($payload) ? ($payload['token_hash'] ?? null) : null;
+            $expiresAt = is_array($payload) && is_string($payload['expires_at'] ?? null)
+                ? strtotime($payload['expires_at'])
+                : false;
 
-            if (! is_string($expectedHash) || $expectedHash === '') {
+            if (! is_string($expectedHash)
+                || $expectedHash === ''
+                || $expiresAt === false
+                || $expiresAt < time()
+            ) {
                 return false;
             }
 
@@ -164,7 +172,7 @@ class Installer
             }
 
             return true;
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             return false;
         }
     }
