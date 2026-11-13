@@ -26,6 +26,10 @@ class PublicHttpUrlTest extends TestCase
             'http://[::1]',
             'http://[fe80::1]',
             'http://[::ffff:127.0.0.1]',
+            'http://[64:ff9b::7f00:1]',
+            'http://[2002:7f00:1::]',
+            'http://[2001:0:4136:e378:8000:63bf:3fff:fdd2]',
+            'http://[2001:db8::1]',
             'http://metadata.google.internal',
             'http://service.local',
         ] as $url) {
