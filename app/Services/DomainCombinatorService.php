@@ -19,10 +19,14 @@ class DomainCombinatorService
         array $suffixes = [],
         array $tlds = ['com']
     ): array {
-        $keywords = array_map(fn ($k) => $this->sanitize($k), array_filter($keywords));
-        $prefixes = array_map(fn ($p) => $this->sanitize($p), array_filter($prefixes));
-        $suffixes = array_map(fn ($s) => $this->sanitize($s), array_filter($suffixes));
-        $tlds = array_map(fn ($t) => ltrim(strtolower($t), '.'), array_filter($tlds));
+        $keywords = array_slice(array_map(fn ($k) => $this->sanitize($k), array_filter($keywords, 'is_string')), 0, 8);
+        $prefixes = array_slice(array_map(fn ($p) => $this->sanitize($p), array_filter($prefixes, 'is_string')), 0, 12);
+        $suffixes = array_slice(array_map(fn ($s) => $this->sanitize($s), array_filter($suffixes, 'is_string')), 0, 12);
+        $allowedTlds = ['com', 'net', 'org', 'io', 'dev', 'app', 'co', 'ai', 'xyz', 'me'];
+        $tlds = array_slice(array_values(array_intersect(
+            $allowedTlds,
+            array_map(fn ($t) => ltrim(strtolower($t), '.'), array_filter($tlds, 'is_string'))
+        )), 0, 10);
 
         if (empty($keywords) || empty($tlds)) {
             return [];
