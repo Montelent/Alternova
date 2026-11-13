@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Webhook;
 use App\Models\WebhookDelivery;
+use App\Support\PublicHttpUrl;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -119,18 +120,23 @@ class WebhookDispatcher
         $error = null;
 
         try {
-            $response = Http::timeout(6)
-                ->connectTimeout(3)
-                ->withHeaders($headers)
-                ->withBody($json ?: '{}', 'application/json')
-                ->post($hook->url);
+            if (! PublicHttpUrl::isSafe((string) $hook->url)) {
+                $error = 'Webhook URL must resolve to a public HTTP or HTTPS address.';
+            } else {
+                $response = Http::timeout(6)
+                    ->connectTimeout(3)
+                    ->withOptions(['allow_redirects' => false])
+                    ->withHeaders($headers)
+                    ->withBody($json ?: '{}', 'application/json')
+                    ->post($hook->url);
 
-            $status = $response->status();
-            $responseBody = Str::limit($response->body(), 2000, '');
-            $success = $response->successful();
+                $status = $response->status();
+                $responseBody = Str::limit($response->body(), 2000, '');
+                $success = $response->successful();
 
-            if (! $success) {
-                $error = 'HTTP '.$status;
+                if (! $success) {
+                    $error = 'HTTP '.$status;
+                }
             }
         } catch (\Throwable $e) {
             $error = $e->getMessage();
