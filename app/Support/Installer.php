@@ -3,11 +3,20 @@
 namespace App\Support;
 
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class Installer
 {
     public const LOCK_FILE = 'installed';
+
+    /**
+     * Explicit marker written only by an authenticated administrator or CLI
+     * reinstall command. A missing lock file alone must never reopen setup.
+     */
+    public const REOPEN_FILE = 'installer-reopened';
 
     /**
      * Every .env key Alternova needs for shared-hosting production.
@@ -75,7 +84,23 @@ class Installer
 
     public static function isInstalled(): bool
     {
-        return File::exists(self::lockPath());
+        if (File::exists(self::lockPath())) {
+            return true;
+        }
+
+        // Only an explicit, privileged unlock may reopen the installer.
+        if (File::exists(storage_path('app/'.self::REOPEN_FILE))) {
+            return false;
+        }
+
+        // Recover safely if storage was restored without the lock file.
+        // An existing user table with at least one account is an installed app.
+        try {
+            return Schema::hasTable('users') && DB::table('users')->exists();
+        } catch (\\Throwable) {
+            // Database may not be configured yet on a genuine first install.
+            return false;
+        }
     }
 
     public static function lock(): void
@@ -85,6 +110,8 @@ class Installer
             'installed_at' => now()->toIso8601String(),
             'version' => '1.0.0',
         ], JSON_PRETTY_PRINT));
+
+        File::delete(storage_path('app/'.self::REOPEN_FILE));
     }
 
     public static function unlock(): void
@@ -92,6 +119,9 @@ class Installer
         if (File::exists(self::lockPath())) {
             File::delete(self::lockPath());
         }
+
+        File::ensureDirectoryExists(storage_path('app'));
+        File::put(storage_path('app/'.self::REOPEN_FILE), now()->toIso8601String());
     }
 
     /**
@@ -518,6 +548,17 @@ class Installer
         string $username,
         string $password
     ): array {
+        // Prevent DSN parameter injection: these values are interpolated into
+        // PDO connection strings and must contain only host/name/port tokens.
+        $validHost = preg_match('/\\A(?:localhost|[A-Za-z0-9.-]+|\\[[0-9A-Fa-f:]+\\]|[0-9A-Fa-f:]+)\\z/', $host)
+            && ! str_contains($host, '..');
+        $validDatabase = preg_match('/\\A[A-Za-z0-9_.-]+\\z/', $database);
+        $validPort = ctype_digit($port) && (int) $port >= 1 && (int) $port <= 65535;
+
+        if (! $validHost || ! $validDatabase || ! $validPort) {
+            return ['success' => false, 'message' => 'Invalid database host, port, or database name.'];
+        }
+
         $last = 'Connection failed.';
 
         foreach (self::databaseDsnCandidates($connection, $host, $port, $database) as $candidate) {
@@ -536,15 +577,28 @@ class Installer
 
                 return ['success' => true, 'message' => $message, 'socket' => $candidate['socket'] ?? null];
             } catch (\Throwable $e) {
+                Log::warning('Installer database connection failed.', [
+                    'connection' => $connection,
+                    'host' => $host,
+                    'port' => $port,
+                    'database' => $database,
+                    'error' => $e->getMessage(),
+                ]);
                 $last = $e->getMessage();
             }
         }
 
         if (str_contains($last, 'Operation not permitted') || str_contains($last, '[2002]')) {
-            $last .= ' Hostinger blocks TCP to MySQL. Use host localhost (not 127.0.0.1). The installer now also tries the Unix socket.';
+            return [
+                'success' => false,
+                'message' => 'The database host refused the connection. On shared hosting, try the provider-supplied hostname or localhost.',
+            ];
         }
 
-        return ['success' => false, 'message' => $last];
+        return [
+            'success' => false,
+            'message' => 'Unable to connect to the database. Verify the host, port, database name, username, password, and that the database server accepts connections.',
+        ];
     }
 
     /**
