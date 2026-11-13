@@ -11,6 +11,12 @@ use Illuminate\Support\Facades\Schema;
 
 class SystemStatusWidget extends BaseWidget
 {
+
+    public static function canView(): bool
+    {
+        return auth()->user()?->canManageSystem() ?? false;
+    }
+
     protected static ?int $sort = 0;
 
     protected function getStats(): array
