@@ -1,14 +1,14 @@
 <?php
 
-namespace App\\Http\\Middleware;
+namespace App\Http\Middleware;
 
-use App\\Models\\ApiKey;
-use App\\Models\\User;
-use App\\Support\\ApiSettings;
+use App\Models\ApiKey;
+use App\Models\User;
+use App\Support\ApiSettings;
 use Closure;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\Schema;
-use Symfony\\Component\\HttpFoundation\\Response;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
+use Symfony\Component\HttpFoundation\Response;
 
 class AuthenticateApiKey
 {
@@ -75,7 +75,7 @@ class AuthenticateApiKey
             if ($user) {
                 $request->attributes->set('api_key_user', $user);
             }
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             // Table missing or DB error — deny when a key was presented
             return response()->json([
                 'error' => 'Unable to validate API key.',
@@ -93,7 +93,7 @@ class AuthenticateApiKey
     protected function extractKey(Request $request): ?string
     {
         $header = $request->header('Authorization');
-        if (is_string($header) && preg_match('/^Bearer\\s+(\\S+)$/i', $header, $m)) {
+        if (is_string($header) && preg_match('/^Bearer\s+(\S+)$/i', $header, $m)) {
             return $m[1];
         }
 
