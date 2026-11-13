@@ -19,15 +19,9 @@ class ForcePreferredUrl
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if ($this->envBool('FORCE_PREFERRED_URL', true) === false) {
-            return $next($request);
-        }
+        $forcePreferredUrl = $this->envBool('FORCE_PREFERRED_URL', true);
 
         if ($request->is('install', 'install/*', 'up')) {
-            return $next($request);
-        }
-
-        if (! $request->isMethodSafe()) {
             return $next($request);
         }
 
@@ -46,38 +40,52 @@ class ForcePreferredUrl
 
         $currentHost = strtolower($request->getHost());
         if (str_contains($currentHost, ':')) {
-            [$h, $port] = explode(':', $currentHost, 2);
+            [$host, $port] = explode(':', $currentHost, 2);
             if (in_array($port, ['80', '443'], true)) {
-                $currentHost = $h;
+                $currentHost = $host;
             }
         }
         if (str_contains($preferredHost, ':')) {
-            [$h, $port] = explode(':', $preferredHost, 2);
+            [$host, $port] = explode(':', $preferredHost, 2);
             if (in_array($port, ['80', '443'], true)) {
-                $preferredHost = $h;
+                $preferredHost = $host;
             }
         }
 
-        $currentIsHttps = $this->requestIsHttps($request);
-        $currentScheme = $currentIsHttps ? 'https' : 'http';
-
         $currentHostAllowed = CanonicalUrl::isTrustedHost($currentHost);
-        $hostMismatch = ! $currentHostAllowed;
-        $schemeMismatch = $preferredScheme === 'https' && $currentScheme !== 'https';
-        $targetHost = $currentHostAllowed ? $currentHost : $preferredHost;
+        $currentIsHttps = $this->requestIsHttps($request);
+        $schemeMismatch = $preferredScheme === 'https' && ! $currentIsHttps;
+        $safeMethod = $request->isMethodSafe();
 
-        if (! $hostMismatch && ! $schemeMismatch) {
-            return $next($request);
+        if (! $currentHostAllowed) {
+            // Redirect only safe requests. Never process state-changing requests
+            // under an untrusted Host header, even when redirects are disabled.
+            if ($forcePreferredUrl && $safeMethod) {
+                $uri = $request->getRequestUri();
+                if ($uri === '' || $uri[0] !== '/') {
+                    $uri = '/'.$uri;
+                }
+
+                return redirect()->to($preferredScheme.'://'.$preferredHost.$uri, 301);
+            }
+
+            abort(400, 'Unrecognized request host.');
         }
 
-        $uri = $request->getRequestUri();
-        if ($uri === '' || $uri[0] !== '/') {
-            $uri = '/'.$uri;
+        if ($forcePreferredUrl && $schemeMismatch) {
+            if (! $safeMethod) {
+                abort(400, 'HTTPS is required for state-changing requests.');
+            }
+
+            $uri = $request->getRequestUri();
+            if ($uri === '' || $uri[0] !== '/') {
+                $uri = '/'.$uri;
+            }
+
+            return redirect()->to($preferredScheme.'://'.$currentHost.$uri, 301);
         }
 
-        $target = $preferredScheme.'://'.$targetHost.$uri;
-
-        return redirect()->to($target, 301);
+        return $next($request);
     }
 
     protected function envBool(string $key, bool $default): bool
