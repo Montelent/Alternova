@@ -98,13 +98,19 @@ class DomainCombinator extends Component
     public function toggleSave(string $domain, int $score = 0, string $status = ''): void
     {
         $domain = strtolower(trim($domain));
+        $allowedTlds = ['com', 'net', 'org', 'io', 'dev', 'app', 'co', 'ai', 'xyz', 'me'];
+        $tld = strtolower(substr(strrchr($domain, '.') ?: '', 1));
         if (strlen($domain) > 253
+            || ! in_array($tld, $allowedTlds, true)
             || ! preg_match('/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])$/i', $domain)
         ) {
             $this->errorMessage = 'Invalid domain name.';
 
             return;
         }
+
+        $score = max(0, min(100, $score));
+        $status = in_array($status, ['available', 'taken', 'unknown', 'pending'], true) ? $status : 'unknown';
 
         try {
             $sid = $this->sessionKey();
@@ -135,7 +141,8 @@ class DomainCombinator extends Component
 
             $this->loadSaved();
         } catch (\Throwable $e) {
-            $this->errorMessage = 'Could not save domain: '.$e->getMessage();
+            Log::warning('Saved domain update failed: '.$e->getMessage());
+            $this->errorMessage = 'Could not save this domain right now.';
         }
     }
 
