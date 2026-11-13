@@ -34,7 +34,7 @@ class DomainSearchLogResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return static::tableReady();
+        return static::tableReady() && (auth()->user()?->canManageSystem() ?? false);
     }
 
     public static function canAccess(): bool
