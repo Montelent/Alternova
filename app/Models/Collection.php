@@ -1,8 +1,8 @@
 <?php
 
 namespace App\Models;
-use App\Support\HtmlSanitizer;
 
+use App\Support\HtmlSanitizer;
 use App\Models\Concerns\HasAutoSortOrder;
 use App\Services\WebhookDispatcher;
 use Illuminate\Database\Eloquent\Model;
@@ -153,5 +153,4 @@ class Collection extends Model
     {
         $this->attributes['intro_html'] = $value === null ? null : HtmlSanitizer::clean((string) $value);
     }
-
 }
