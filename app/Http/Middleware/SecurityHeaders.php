@@ -38,7 +38,9 @@ class SecurityHeaders
             'support/*',
             'submission-status/*',
             'collection-submission-status/*',
-            'newsletter/unsubscribe/*'
+            'newsletter/unsubscribe/*',
+            'install',
+            'install/*'
         );
         $response->headers->set(
             'Referrer-Policy',
