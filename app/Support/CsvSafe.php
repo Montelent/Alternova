@@ -15,7 +15,7 @@ class CsvSafe
 
         $text = is_scalar($value) ? (string) $value : '';
 
-        if (preg_match('/\A[\s\x00-\x20]*[=+\-@]/u', $text)) {
+        if (preg_match('/\A[\s\x00-\x20]*[=+\-@]/', $text)) {
             return "'".$text;
         }
 
