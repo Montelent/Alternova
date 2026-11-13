@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\PublicHttpUrl;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -121,7 +122,7 @@ class DomainCheckService
 
             // Only A/NS — skip slow multi-type scans
             if (function_exists('dns_get_record')) {
-                $a = @dns_get_record($domain, DNS_A);
+                $a = @dns_get_record($domain, DNS_A | DNS_AAAA);
                 if (! empty($a)) {
                     return true;
                 }
@@ -155,15 +156,23 @@ class DomainCheckService
             $url = rtrim($base, '/').'/domain/'.rawurlencode($domain);
             $response = Http::timeout(1.8)
                 ->connectTimeout(1.2)
+                ->withOptions([
+                    'allow_redirects' => PublicHttpUrl::safeRedirectOptions(),
+                    'stream' => true,
+                ])
                 ->withHeaders(['Accept' => 'application/rdap+json, application/json'])
                 ->get($url);
 
+            $stream = $response->toPsrResponse()->getBody();
             if ($response->status() === 404) {
+                $stream->close();
+
                 return false;
             }
 
             if ($response->successful()) {
-                $body = $response->json();
+                $body = json_decode($stream->read(65536), true);
+                $stream->close();
                 if (is_array($body) && (
                     isset($body['objectClassName'])
                     || isset($body['ldhName'])
@@ -171,6 +180,8 @@ class DomainCheckService
                 )) {
                     return true;
                 }
+            } else {
+                $stream->close();
             }
         } catch (\Throwable $e) {
             Log::debug('RDAP check failed for '.$domain.': '.$e->getMessage());
