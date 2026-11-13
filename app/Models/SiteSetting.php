@@ -26,9 +26,11 @@ class SiteSetting extends Model
         try {
             return Crypt::decryptString(substr($value, strlen(self::ENCRYPTED_PREFIX)));
         } catch (\Throwable $e) {
-            Log::error('Unable to decrypt sensitive site setting.', ['key' => $key, 'exception' => $e->getMessage()]);
+            // A legacy plaintext secret may coincidentally begin with the
+            // marker. Preserve it rather than breaking the integration.
+            Log::warning('Sensitive site setting could not be decrypted; treating as legacy plaintext.', ['key' => $key]);
 
-            return $default;
+            return $value;
         }
     }
 
@@ -61,8 +63,18 @@ class SiteSetting extends Model
     {
         $plain = is_bool($value) ? ($value ? '1' : '0') : (string) ($value ?? '');
 
-        if (! static::isSensitiveKey($key) || $plain === '' || str_starts_with($plain, self::ENCRYPTED_PREFIX)) {
+        if (! static::isSensitiveKey($key) || $plain === '') {
             return $plain;
+        }
+
+        if (str_starts_with($plain, self::ENCRYPTED_PREFIX)) {
+            try {
+                Crypt::decryptString(substr($plain, strlen(self::ENCRYPTED_PREFIX)));
+
+                return $plain;
+            } catch (\Throwable) {
+                // Treat a literal user secret beginning with the marker as plaintext.
+            }
         }
 
         return self::ENCRYPTED_PREFIX.Crypt::encryptString($plain);
