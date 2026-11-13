@@ -37,6 +37,7 @@ class PublicHttpUrlTest extends TestCase
     {
         self::assertTrue(PublicHttpUrl::isSafe('https://8.8.8.8'));
         self::assertTrue(PublicHttpUrl::isSafe('https://[2001:4860:4860::8888]'));
+        self::assertTrue(PublicHttpUrl::isSafe('https://[::ffff:8.8.8.8]'));
     }
 
     public function test_credentials_and_unsupported_hosts_are_rejected(): void
