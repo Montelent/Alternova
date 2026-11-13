@@ -55,11 +55,7 @@ class PublicHttpUrl
             }
 
             foreach (array_unique($addresses) as $address) {
-                if (! filter_var(
-                    $address,
-                    FILTER_VALIDATE_IP,
-                    FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
-                )) {
+                if (! self::isPublicAddress($address)) {
                     return false;
                 }
             }
@@ -68,6 +64,31 @@ class PublicHttpUrl
         } catch (\Throwable) {
             return false;
         }
+    }
+
+    private static function isPublicAddress(string $address): bool
+    {
+        // PHP 8.2 may classify IPv4-mapped IPv6 addresses as public even when
+        // their embedded IPv4 target is loopback/private. Normalize and check
+        // the embedded address explicitly before applying the normal filters.
+        $packed = @inet_pton($address);
+        $mappedPrefix = str_repeat("\\0", 10)."\\xff\\xff";
+
+        if (is_string($packed) && strlen($packed) === 16 && substr($packed, 0, 12) === $mappedPrefix) {
+            $ipv4 = inet_ntop(substr($packed, 12));
+
+            return is_string($ipv4) && filter_var(
+                $ipv4,
+                FILTER_VALIDATE_IP,
+                FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
+            ) !== false;
+        }
+
+        return filter_var(
+            $address,
+            FILTER_VALIDATE_IP,
+            FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
+        ) !== false;
     }
 
     /**
