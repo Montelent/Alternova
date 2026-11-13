@@ -69,4 +69,23 @@ class PublicHttpUrl
             return false;
         }
     }
+
+    /**
+     * Guzzle redirect policy: follow only a small number of redirects, and
+     * validate every resolved destination before the client follows it.
+     *
+     * @return array{max: int, on_redirect: \Closure}
+     */
+    public static function safeRedirectOptions(): array
+    {
+        return [
+            'max' => 3,
+            'on_redirect' => static function ($request, $response, $uri): void {
+                if (! self::isSafe((string) $uri)) {
+                    throw new \RuntimeException('Blocked redirect to a non-public address.');
+                }
+            },
+        ];
+    }
+
 }
