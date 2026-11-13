@@ -42,7 +42,7 @@ class IntegrationsPage extends Page implements HasForms
     public function mount(): void
     {
         $this->form->fill([
-            'github_token' => SiteSetting::get('github_token', ''),
+            'github_token' => '',
         ]);
     }
 
@@ -65,8 +65,8 @@ class IntegrationsPage extends Page implements HasForms
                         TextInput::make('github_token')
                             ->label('GitHub personal access token')
                             ->password()
-                            ->revealable()
-                            ->helperText('Stored in the database (site settings). Leave blank to keep using GITHUB_TOKEN from .env if set.')
+                            ->placeholder('Leave blank to keep the saved token')
+                            ->helperText('Saved encrypted in the database. Enter a new token to rotate it; leave blank to keep the current token.')
                             ->columnSpanFull(),
                     ]),
             ])
@@ -76,7 +76,9 @@ class IntegrationsPage extends Page implements HasForms
     public function save(): void
     {
         $token = trim((string) ($this->form->getState()['github_token'] ?? ''));
-        SiteSetting::set('github_token', $token);
+        if ($token !== '') {
+            SiteSetting::set('github_token', $token);
+        }
         IntegrationsSettings::apply();
 
         Notification::make()
