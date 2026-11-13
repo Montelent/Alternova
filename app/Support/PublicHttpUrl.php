@@ -12,7 +12,8 @@ class PublicHttpUrl
 {
     public static function isSafe(string $url): bool
     {
-        $parts = parse_url(trim($url));
+        try {
+            $parts = parse_url(trim($url));
 
         if (! is_array($parts)) {
             return false;
@@ -63,6 +64,9 @@ class PublicHttpUrl
             }
         }
 
-        return true;
+            return true;
+        } catch (\Throwable) {
+            return false;
+        }
     }
 }
