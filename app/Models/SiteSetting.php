@@ -4,30 +4,42 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 class SiteSetting extends Model
 {
+    private const ENCRYPTED_PREFIX = 'enc:v1:';
+
     protected $fillable = ['key', 'value'];
 
     public static function get(string $key, mixed $default = null): mixed
     {
         $all = static::allCached();
+        $value = $all[$key] ?? $default;
 
-        return $all[$key] ?? $default;
+        if (! static::isSensitiveKey($key) || ! is_string($value) || ! str_starts_with($value, self::ENCRYPTED_PREFIX)) {
+            return $value;
+        }
+
+        try {
+            return Crypt::decryptString(substr($value, strlen(self::ENCRYPTED_PREFIX)));
+        } catch (\Throwable $e) {
+            Log::error('Unable to decrypt sensitive site setting.', ['key' => $key, 'exception' => $e->getMessage()]);
+
+            return $default;
+        }
     }
 
     public static function set(string $key, mixed $value): void
     {
         static::query()->updateOrCreate(
             ['key' => $key],
-            ['value' => is_bool($value) ? ($value ? '1' : '0') : (string) $value]
+            ['value' => static::encodeValue($key, $value)]
         );
 
-        try {
-            Cache::forget('site_settings');
-        } catch (\Throwable) {
-        }
+        static::clearCache();
     }
 
     /**
@@ -38,10 +50,32 @@ class SiteSetting extends Model
         foreach ($pairs as $key => $value) {
             static::query()->updateOrCreate(
                 ['key' => $key],
-                ['value' => is_bool($value) ? ($value ? '1' : '0') : (string) ($value ?? '')]
+                ['value' => static::encodeValue((string) $key, $value)]
             );
         }
 
+        static::clearCache();
+    }
+
+    protected static function encodeValue(string $key, mixed $value): string
+    {
+        $plain = is_bool($value) ? ($value ? '1' : '0') : (string) ($value ?? '');
+
+        if (! static::isSensitiveKey($key) || $plain === '' || str_starts_with($plain, self::ENCRYPTED_PREFIX)) {
+            return $plain;
+        }
+
+        return self::ENCRYPTED_PREFIX.Crypt::encryptString($plain);
+    }
+
+    protected static function isSensitiveKey(string $key): bool
+    {
+        return in_array($key, ['github_token', 'mail_smtp_password', 'mail_resend_key'], true)
+            || preg_match('/(?:token|secret|password|(?:api|resend|access|private)[_-]?key)$/i', $key) === 1;
+    }
+
+    protected static function clearCache(): void
+    {
         try {
             Cache::forget('site_settings');
         } catch (\Throwable) {
