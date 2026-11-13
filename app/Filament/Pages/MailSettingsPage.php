@@ -59,9 +59,9 @@ class MailSettingsPage extends Page implements HasForms
             'mail_smtp_host' => SiteSetting::get('mail_smtp_host', ''),
             'mail_smtp_port' => SiteSetting::get('mail_smtp_port', '587'),
             'mail_smtp_username' => SiteSetting::get('mail_smtp_username', ''),
-            'mail_smtp_password' => SiteSetting::get('mail_smtp_password', ''),
+            'mail_smtp_password' => '',
             'mail_smtp_encryption' => SiteSetting::get('mail_smtp_encryption', 'tls'),
-            'mail_resend_key' => SiteSetting::get('mail_resend_key', ''),
+            'mail_resend_key' => '',
             'test_to' => SiteSetting::get('mail_admin_email', ''),
         ]);
     }
@@ -133,8 +133,9 @@ class MailSettingsPage extends Page implements HasForms
                         TextInput::make('mail_resend_key')
                             ->label('Resend API key')
                             ->password()
-                            ->revealable()
-                            ->required(fn (Get $get) => $get('mail_mailer') === 'resend')
+                            ->placeholder('Leave blank to keep the saved key')
+                            ->helperText('Stored encrypted. Enter a new key to rotate it; leave blank to keep the current key.')
+                            ->required(fn (Get $get) => $get('mail_mailer') === 'resend' && ! filled(SiteSetting::get('mail_resend_key')))
                             ->columnSpanFull(),
                     ]),
 
@@ -145,7 +146,7 @@ class MailSettingsPage extends Page implements HasForms
                         TextInput::make('mail_smtp_host')->label('Host'),
                         TextInput::make('mail_smtp_port')->label('Port'),
                         TextInput::make('mail_smtp_username')->label('Username'),
-                        TextInput::make('mail_smtp_password')->label('Password')->password()->revealable(),
+                        TextInput::make('mail_smtp_password')->label('Password')->password()->placeholder('Leave blank to keep the saved password')->helperText('Stored encrypted. Enter a new password to rotate it; leave blank to keep the current password.'),
                         Select::make('mail_smtp_encryption')
                             ->label('Encryption')
                             ->options([
@@ -183,10 +184,18 @@ class MailSettingsPage extends Page implements HasForms
             'mail_smtp_host' => trim((string) ($state['mail_smtp_host'] ?? '')),
             'mail_smtp_port' => trim((string) ($state['mail_smtp_port'] ?? '587')),
             'mail_smtp_username' => trim((string) ($state['mail_smtp_username'] ?? '')),
-            'mail_smtp_password' => (string) ($state['mail_smtp_password'] ?? ''),
             'mail_smtp_encryption' => (string) ($state['mail_smtp_encryption'] ?? 'tls'),
-            'mail_resend_key' => trim((string) ($state['mail_resend_key'] ?? '')),
         ]);
+
+        $smtpPassword = (string) ($state['mail_smtp_password'] ?? '');
+        if ($smtpPassword !== '') {
+            SiteSetting::set('mail_smtp_password', $smtpPassword);
+        }
+
+        $resendKey = trim((string) ($state['mail_resend_key'] ?? ''));
+        if ($resendKey !== '') {
+            SiteSetting::set('mail_resend_key', $resendKey);
+        }
 
         MailSettings::apply();
 
