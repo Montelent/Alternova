@@ -97,6 +97,15 @@ class DomainCombinator extends Component
 
     public function toggleSave(string $domain, int $score = 0, string $status = ''): void
     {
+        $domain = strtolower(trim($domain));
+        if (strlen($domain) > 253
+            || ! preg_match('/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])$/i', $domain)
+        ) {
+            $this->errorMessage = 'Invalid domain name.';
+
+            return;
+        }
+
         try {
             $sid = $this->sessionKey();
             $uid = Auth::id();
@@ -215,6 +224,35 @@ class DomainCombinator extends Component
             }
             RateLimiter::hit($key, 3600);
 
+            // Livewire public properties are client-controlled. Re-apply the
+            // UI limits server-side before doing combinatorial work.
+            $cleanList = static function (array $values, int $maxItems, int $maxLength): array {
+                $clean = [];
+                foreach (array_slice($values, 0, $maxItems) as $value) {
+                    if (! is_string($value)) {
+                        continue;
+                    }
+                    $value = substr(strtolower(preg_replace('/[^a-z0-9]/i', '', $value) ?? ''), 0, $maxLength);
+                    if ($value !== '') {
+                        $clean[] = $value;
+                    }
+                }
+
+                return array_values(array_unique($clean));
+            };
+
+            $this->keywords = $cleanList($this->keywords, 8, 32);
+            $this->prefixes = $cleanList($this->prefixes, 12, 16);
+            $this->suffixes = $cleanList($this->suffixes, 12, 16);
+            $allowedTlds = ['com', 'net', 'org', 'io', 'dev', 'app', 'co', 'ai', 'xyz', 'me'];
+            $requestedTlds = array_filter($this->selectedTlds, 'is_string');
+            $this->selectedTlds = array_values(array_unique(array_intersect(
+                $allowedTlds,
+                array_map(fn ($tld) => strtolower(ltrim($tld, '.')), $requestedTlds)
+            )));
+            $this->maxLength = max(4, min(30, (int) $this->maxLength));
+            $this->minBrandability = max(0, min(100, (int) $this->minBrandability));
+
             // Auto-add typed keyword if user forgot to click Add
             if ($this->keywordInput !== '') {
                 $this->addKeyword();
@@ -283,7 +321,7 @@ class DomainCombinator extends Component
             $this->isChecking = true;
         } catch (\Throwable $e) {
             Log::warning('Domain generate failed: '.$e->getMessage());
-            $this->errorMessage = 'Generation failed: '.$e->getMessage();
+            $this->errorMessage = 'Generation failed. Please check your inputs and try again.';
             $this->results = [];
             $this->isChecking = false;
         }
@@ -296,6 +334,15 @@ class DomainCombinator extends Component
 
             return;
         }
+
+        $checkKey = 'domain-check:'.(request()->ip() ?: 'unknown');
+        if (RateLimiter::tooManyAttempts($checkKey, 30)) {
+            $this->errorMessage = 'Availability checks are temporarily rate-limited. Please wait a minute.';
+            $this->isChecking = false;
+
+            return;
+        }
+        RateLimiter::hit($checkKey, 60);
 
         $pending = collect($this->results)
             ->where('status', 'pending')
