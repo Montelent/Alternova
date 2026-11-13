@@ -54,7 +54,7 @@ class SecurityHeaders
         if ($isSecure) {
             $response->headers->set(
                 'Strict-Transport-Security',
-                'max-age=31536000; includeSubDomains; preload'
+                'max-age=31536000'
             );
         }
 
