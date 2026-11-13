@@ -6,7 +6,6 @@ use App\Models\User;
 use App\Support\Installer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rules\Password;
 
@@ -114,10 +113,10 @@ class InstallController extends Controller
             'app_name' => ['required', 'string', 'max:255'],
             'app_url' => ['required', 'url'],
             'db_connection' => ['required', 'in:pgsql,mysql'],
-            'db_host' => ['required', 'string'],
-            'db_port' => ['required', 'string'],
-            'db_database' => ['required', 'string'],
-            'db_username' => ['required', 'string'],
+            'db_host' => ['required', 'string', 'max:253', 'regex:/\\A(?:localhost|[A-Za-z0-9.-]+|\\[[0-9A-Fa-f:]+\\]|[0-9A-Fa-f:]+)\\z/'],
+            'db_port' => ['required', 'integer', 'min:1', 'max:65535'],
+            'db_database' => ['required', 'string', 'max:128', 'regex:/\\A[A-Za-z0-9_.-]+\\z/'],
+            'db_username' => ['required', 'string', 'max:128'],
             'db_password' => ['nullable', 'string'],
             'action' => ['nullable', 'string'],
         ]);
@@ -241,20 +240,21 @@ class InstallController extends Controller
                 return redirect()->route('install.index');
             }
 
-            $existing = User::query()->where('email', $data['admin_email'])->first();
-            if ($existing) {
-                $existing->update([
-                    'name' => $data['admin_name'],
-                    'password' => Hash::make($data['admin_password']),
-                ]);
-            } else {
-                User::create([
-                    'name' => $data['admin_name'],
-                    'email' => $data['admin_email'],
-                    'password' => Hash::make($data['admin_password']),
-                    'email_verified_at' => now(),
-                ]);
+            if (User::query()->where('email', $data['admin_email'])->exists()) {
+                $request->session()->flash(
+                    'install_error',
+                    'That email address already exists. Choose a different email; the installer never changes an existing account.'
+                );
+
+                return redirect()->route('install.index');
             }
+
+            User::create([
+                'name' => $data['admin_name'],
+                'email' => $data['admin_email'],
+                'password' => $data['admin_password'],
+                'email_verified_at' => now(),
+            ]);
 
             Installer::lock();
             $request->session()->put('install_step', 5);
