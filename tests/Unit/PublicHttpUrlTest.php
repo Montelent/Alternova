@@ -25,6 +25,9 @@ class PublicHttpUrlTest extends TestCase
             'http://169.254.169.254',
             'http://[::1]',
             'http://[fe80::1]',
+            'http://[::ffff:127.0.0.1]',
+            'http://metadata.google.internal',
+            'http://service.local',
         ] as $url) {
             self::assertFalse(PublicHttpUrl::isSafe($url), $url);
         }
