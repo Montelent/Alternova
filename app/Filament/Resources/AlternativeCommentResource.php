@@ -14,6 +14,12 @@ use Illuminate\Support\Facades\Schema;
 
 class AlternativeCommentResource extends Resource
 {
+
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->canManageSystem() ?? false;
+    }
+
     protected static ?string $model = AlternativeComment::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-chat-bubble-left-right';
