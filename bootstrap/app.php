@@ -30,12 +30,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Only trust forwarded headers from explicitly configured reverse proxies.
         // Set TRUSTED_PROXIES to a comma-separated list of proxy IPs/CIDRs per host.
-        $trustedProxies = env('TRUSTED_PROXIES');
-        if (is_string($trustedProxies) && trim($trustedProxies) !== '') {
-            $proxies = array_values(array_filter(array_map('trim', explode(',', $trustedProxies))));
-            if ($proxies !== []) {
-                $middleware->trustProxies(at: $proxies);
-            }
+        $proxies = config('alternova.trusted_proxies', []);
+        if (is_array($proxies) && $proxies !== []) {
+            $middleware->trustProxies(at: $proxies);
         }
 
         // Keep Laravel's normal CSRF protection enabled for every state-changing
