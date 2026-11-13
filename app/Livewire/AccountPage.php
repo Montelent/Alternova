@@ -1,29 +1,31 @@
 <?php
 
-namespace App\Livewire;
+namespace App\\Livewire;
 
-use App\Models\ApiKey;
-use App\Models\ContactMessage;
-use App\Models\OpenSourceAlternative;
-use App\Models\SavedDomain;
-use App\Models\User;
-use App\Services\FavoriteService;
-use App\Services\SeoManager;
-use App\Services\WatchlistService;
-use App\Support\ApiSettings;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Password;
-use Livewire\Component;
+use App\\Models\\ApiKey;
+use App\\Models\\ContactMessage;
+use App\\Models\\OpenSourceAlternative;
+use App\\Models\\SavedDomain;
+use App\\Models\\User;
+use App\\Services\\FavoriteService;
+use App\\Services\\SeoManager;
+use App\\Services\\WatchlistService;
+use App\\Support\\ApiSettings;
+use Illuminate\\Support\\Collection;
+use Illuminate\\Support\\Facades\\Auth;
+use Illuminate\\Support\\Facades\\Hash;
+use Illuminate\\Support\\Facades\\Schema;
+use Illuminate\\Validation\\Rule;
+use Illuminate\\Validation\\Rules\\Password;
+use Livewire\\Component;
 
 class AccountPage extends Component
 {
     public string $name = '';
 
     public string $email = '';
+
+    public string $profile_current_password = '';
 
     public string $current_password = '';
 
@@ -60,17 +62,42 @@ class AccountPage extends Component
         $this->profileMessage = '';
         /** @var User $user */
         $user = Auth::user();
+        $newEmail = strtolower(trim($this->email));
+        $emailChanged = $newEmail !== strtolower((string) $user->email);
 
-        $this->validate([
+        // This app does not yet implement signed email-verification links.
+        // Never let a privileged account change its verified login identity
+        // while retaining the old email_verified_at timestamp.
+        if ($emailChanged && in_array($user->role, [User::ROLE_ADMIN, User::ROLE_EDITOR], true)) {
+            $this->addError('email', 'For security, administrator and editor email changes must be handled by another administrator until email re-verification is available.');
+
+            return;
+        }
+
+        $rules = [
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:190', Rule::unique('users', 'email')->ignore($user->id)],
-        ]);
+        ];
 
-        $user->forceFill([
+        if ($emailChanged) {
+            $rules['profile_current_password'] = ['required', 'current_password'];
+        }
+
+        $this->validate($rules);
+
+        $attributes = [
             'name' => trim($this->name),
-            'email' => strtolower(trim($this->email)),
-        ])->save();
+            'email' => $newEmail,
+        ];
 
+        if ($emailChanged) {
+            $attributes['email_verified_at'] = null;
+        }
+
+        $user->forceFill($attributes)->save();
+
+        $this->email = $newEmail;
+        $this->reset('profile_current_password');
         $this->profileMessage = 'Profile saved.';
     }
 
@@ -159,7 +186,7 @@ class AccountPage extends Component
     {
         try {
             return Schema::hasTable('api_keys');
-        } catch (\Throwable) {
+        } catch (\\Throwable) {
             return false;
         }
     }
@@ -179,7 +206,7 @@ class AccountPage extends Component
     {
         try {
             return app(FavoriteService::class)->list();
-        } catch (\Throwable) {
+        } catch (\\Throwable) {
             return collect();
         }
     }
@@ -189,7 +216,7 @@ class AccountPage extends Component
     {
         try {
             return app(WatchlistService::class)->listFor(Auth::user());
-        } catch (\Throwable) {
+        } catch (\\Throwable) {
             return collect();
         }
     }
@@ -203,7 +230,7 @@ class AccountPage extends Component
             }
 
             return SavedDomain::query()->where('user_id', Auth::id())->orderByDesc('created_at')->limit(50)->get();
-        } catch (\Throwable) {
+        } catch (\\Throwable) {
             return collect();
         }
     }
@@ -228,7 +255,7 @@ class AccountPage extends Component
                 ->orderByDesc('updated_at')
                 ->limit(30)
                 ->get();
-        } catch (\Throwable) {
+        } catch (\\Throwable) {
             return collect();
         }
     }
