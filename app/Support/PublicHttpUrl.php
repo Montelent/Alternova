@@ -5,8 +5,8 @@ namespace App\Support;
 /**
  * Guard server-side HTTP requests against SSRF to local/private infrastructure.
  *
- * Redirects must remain disabled by callers: every redirect target would need
- * to pass this check independently before another request is made.
+ * Callers may use safeRedirectOptions() to follow a small number of redirects
+ * only after each resolved destination passes this same public-address check.
  */
 class PublicHttpUrl
 {
