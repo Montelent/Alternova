@@ -24,6 +24,11 @@ class SupportTicketShow extends Component
             ->firstOrFail();
 
         $token = request()->query('token');
+
+        if (! is_string($token) || $token === '') {
+            $token = session('support_ticket_token_'.$ticket->id);
+        }
+
         $user = Auth::user();
 
         if (! $ticket->canBeViewedBy($user, is_string($token) ? $token : null)) {
