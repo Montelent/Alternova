@@ -9,7 +9,7 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * Canonical scheme from APP_URL; permit additional explicitly allow-listed domains.
  *
- * - www vs non-www: the host inside APP_URL is the only public host (301)
+ * - APP_URL is the fallback host; explicitly allow-listed hosts remain active
  * - http → https when APP_URL uses https
  * - Safe methods only (never 301 POST — Livewire / CSRF)
  * - Skips installer, health check, and local/dev preferred hosts
