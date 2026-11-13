@@ -3,6 +3,9 @@
 namespace Tests\Unit;
 
 use App\Support\PublicHttpUrl;
+use GuzzleHttp\Psr7\Request;
+use GuzzleHttp\Psr7\Response;
+use GuzzleHttp\Psr7\Uri;
 use PHPUnit\Framework\TestCase;
 
 class PublicHttpUrlTest extends TestCase
@@ -42,6 +45,18 @@ class PublicHttpUrlTest extends TestCase
         self::assertTrue(PublicHttpUrl::isSafe('https://8.8.8.8'));
         self::assertTrue(PublicHttpUrl::isSafe('https://[2001:4860:4860::8888]'));
         self::assertTrue(PublicHttpUrl::isSafe('https://[::ffff:8.8.8.8]'));
+    }
+
+    public function test_https_redirects_cannot_downgrade_to_http(): void
+    {
+        $options = PublicHttpUrl::safeRedirectOptions();
+        $this->expectException(\RuntimeException::class);
+
+        ($options['on_redirect'])(
+            new Request('GET', 'https://8.8.8.8'),
+            new Response(302),
+            new Uri('http://8.8.8.8')
+        );
     }
 
     public function test_credentials_and_unsupported_hosts_are_rejected(): void
