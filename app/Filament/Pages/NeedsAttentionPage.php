@@ -35,7 +35,12 @@ class NeedsAttentionPage extends Page
 
     public static function canAccess(): bool
     {
-        return auth()->check();
+        return auth()->user()?->canManageSystem() ?? false;
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canAccess();
     }
 
     public static function getNavigationBadge(): ?string
