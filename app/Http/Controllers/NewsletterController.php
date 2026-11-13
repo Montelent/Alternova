@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\NewsletterSubscriber;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class NewsletterController extends Controller
@@ -61,6 +62,9 @@ class NewsletterController extends Controller
             $sub->update([
                 'status' => 'unsubscribed',
                 'unsubscribed_at' => now(),
+                // Revoke the bearer link so an old email cannot unsubscribe
+                // the address again after a later resubscription.
+                'unsubscribe_token' => Str::random(48),
             ]);
         }
 
