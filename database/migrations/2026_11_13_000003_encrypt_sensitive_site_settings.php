@@ -27,8 +27,17 @@ return new class extends Migration
                     }
 
                     $value = (string) $setting->value;
-                    if ($value === '' || str_starts_with($value, self::PREFIX)) {
+                    if ($value === '') {
                         continue;
+                    }
+
+                    if (str_starts_with($value, self::PREFIX)) {
+                        try {
+                            Crypt::decryptString(substr($value, strlen(self::PREFIX)));
+                            continue;
+                        } catch (\\Throwable) {
+                            // Legacy plaintext may coincidentally begin with the marker.
+                        }
                     }
 
                     DB::table('site_settings')
@@ -64,9 +73,15 @@ return new class extends Migration
                         continue;
                     }
 
+                    try {
+                        $plain = Crypt::decryptString(substr($value, strlen(self::PREFIX)));
+                    } catch (\\Throwable) {
+                        continue;
+                    }
+
                     DB::table('site_settings')
                         ->where('id', $setting->id)
-                        ->update(['value' => Crypt::decryptString(substr($value, strlen(self::PREFIX)))]);
+                        ->update(['value' => $plain]);
                 }
             });
 
