@@ -262,16 +262,74 @@ class Installer
 
     public static function detectAppUrl(): string
     {
-        if (! empty($_SERVER['HTTP_HOST'])) {
-            $scheme = (! empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-                || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
-                ? 'https'
-                : 'http';
+        $parseHost = static function (?string $value): ?string {
+            $value = trim((string) $value);
 
-            return $scheme.'://'.$_SERVER['HTTP_HOST'];
+            if ($value === '' || ! preg_match('/\\A(?:[A-Za-z0-9.-]+|\\[[0-9A-Fa-f:]+\\])(?::[0-9]{1,5})?\\z/', $value)) {
+                return null;
+            }
+
+            $host = parse_url('http://'.$value, PHP_URL_HOST);
+
+            if (! is_string($host) || $host === '') {
+                return null;
+            }
+
+            $host = strtolower(trim($host, '[]'));
+
+            if ($host !== 'localhost'
+                && ! filter_var($host, FILTER_VALIDATE_IP)
+                && ! filter_var($host, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME)
+            ) {
+                return null;
+            }
+
+            return $host;
+        };
+
+        $serverHost = $parseHost($_SERVER['SERVER_NAME'] ?? null);
+        $requestHost = $parseHost($_SERVER['HTTP_HOST'] ?? null);
+        $allowedHosts = array_values(array_filter(array_map(
+            $parseHost,
+            explode(',', (string) env('APP_ALLOWED_HOSTS', ''))
+        )));
+
+        if ($serverHost !== null) {
+            $allowedHosts[] = $serverHost;
         }
 
-        return 'http://localhost';
+        $host = $requestHost !== null && in_array($requestHost, $allowedHosts, true)
+            ? $requestHost
+            : $serverHost;
+
+        if ($host === null) {
+            return 'http://localhost';
+        }
+
+        // request()->isSecure() honors forwarded headers only from proxies
+        // explicitly trusted in bootstrap/app.php. Never trust the raw
+        // X-Forwarded-Proto header here.
+        $secure = ! empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off';
+        try {
+            if (app()->bound('request') && request()->isSecure()) {
+                $secure = true;
+            }
+        } catch (\\Throwable) {
+            // Console / early boot: fall back to the direct HTTPS server flag.
+        }
+
+        $scheme = $secure ? 'https' : 'http';
+        $port = null;
+        $rawHost = trim((string) ($_SERVER['HTTP_HOST'] ?? ''));
+
+        if ($requestHost === $host && $rawHost !== '') {
+            $port = parse_url('http://'.$rawHost, PHP_URL_PORT);
+        }
+
+        $defaultPort = $secure ? 443 : 80;
+        $portSuffix = is_int($port) && $port !== $defaultPort ? ':'.$port : '';
+
+        return $scheme.'://'.$host.$portSuffix;
     }
 
     /**
