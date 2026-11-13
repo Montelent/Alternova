@@ -1,18 +1,18 @@
 <?php
 
-namespace App\\Filament\\Resources;
+namespace App\Filament\Resources;
 
-use App\\Filament\\Resources\\WebhookResource\\Pages;
-use App\\Models\\Webhook;
-use App\\Services\\WebhookDispatcher;
-use Filament\\Forms;
-use Filament\\Forms\\Form;
-use Filament\\Notifications\\Notification;
-use Filament\\Resources\\Resource;
-use Filament\\Tables;
-use Filament\\Tables\\Table;
-use Illuminate\\Support\\Facades\\Schema;
-use Illuminate\\Support\\Str;
+use App\Filament\Resources\WebhookResource\Pages;
+use App\Models\Webhook;
+use App\Services\WebhookDispatcher;
+use Filament\Forms;
+use Filament\Forms\Form;
+use Filament\Notifications\Notification;
+use Filament\Resources\Resource;
+use Filament\Tables;
+use Filament\Tables\Table;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class WebhookResource extends Resource
 {
@@ -39,7 +39,7 @@ class WebhookResource extends Resource
 
         try {
             return Schema::hasTable('webhooks');
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             return false;
         }
     }
@@ -47,26 +47,26 @@ class WebhookResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\\Components\\TextInput::make('name')->required()->maxLength(120),
-            Forms\\Components\\TextInput::make('url')
+            Forms\Components\TextInput::make('name')->required()->maxLength(120),
+            Forms\Components\TextInput::make('url')
                 ->label('Endpoint URL')
                 ->url()
                 ->required()
                 ->maxLength(500)
                 ->columnSpanFull()
                 ->helperText('POST JSON. Signature header X-Alternova-Signature: sha256=… when secret is set.'),
-            Forms\\Components\\TextInput::make('secret')
+            Forms\Components\TextInput::make('secret')
                 ->password()
                 ->maxLength(120)
                 ->formatStateUsing(fn () => null)
                 ->dehydrated(fn (?string $state): bool => filled($state))
                 ->helperText('Optional HMAC secret. Leave blank to keep the current secret; enter a new value to rotate it.')
                 ->columnSpanFull(),
-            Forms\\Components\\CheckboxList::make('events')
+            Forms\Components\CheckboxList::make('events')
                 ->options(Webhook::eventOptions())
                 ->required()
                 ->columns(1),
-            Forms\\Components\\Toggle::make('is_active')->label('Active')->default(true),
+            Forms\Components\Toggle::make('is_active')->label('Active')->default(true),
         ]);
     }
 
@@ -74,16 +74,16 @@ class WebhookResource extends Resource
     {
         return $table
             ->columns([
-                Tables\\Columns\\TextColumn::make('name')->searchable()->sortable(),
-                Tables\\Columns\\TextColumn::make('url')->limit(40)->toggleable(),
-                Tables\\Columns\\IconColumn::make('is_active')->boolean(),
-                Tables\\Columns\\TextColumn::make('success_count')->label('OK'),
-                Tables\\Columns\\TextColumn::make('failure_count')->label('Fail'),
-                Tables\\Columns\\TextColumn::make('last_triggered_at')->dateTime()->sortable()->toggleable(),
-                Tables\\Columns\\TextColumn::make('last_error')->limit(30)->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('name')->searchable()->sortable(),
+                Tables\Columns\TextColumn::make('url')->limit(40)->toggleable(),
+                Tables\Columns\IconColumn::make('is_active')->boolean(),
+                Tables\Columns\TextColumn::make('success_count')->label('OK'),
+                Tables\Columns\TextColumn::make('failure_count')->label('Fail'),
+                Tables\Columns\TextColumn::make('last_triggered_at')->dateTime()->sortable()->toggleable(),
+                Tables\Columns\TextColumn::make('last_error')->limit(30)->toggleable(isToggledHiddenByDefault: true),
             ])
             ->actions([
-                Tables\\Actions\\Action::make('test')
+                Tables\Actions\Action::make('test')
                     ->label('Send test')
                     ->icon('heroicon-o-paper-airplane')
                     ->action(function (Webhook $record) {
@@ -108,20 +108,20 @@ class WebhookResource extends Resource
 
                         $notification->send();
                     }),
-                Tables\\Actions\\EditAction::make(),
-                Tables\\Actions\\DeleteAction::make(),
+                Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
-                Tables\\Actions\\DeleteBulkAction::make(),
+                Tables\Actions\DeleteBulkAction::make(),
             ]);
     }
 
     public static function getPages(): array
     {
         return [
-            'index' => Pages\\ListWebhooks::route('/'),
-            'create' => Pages\\CreateWebhook::route('/create'),
-            'edit' => Pages\\EditWebhook::route('/{record}/edit'),
+            'index' => Pages\ListWebhooks::route('/'),
+            'create' => Pages\CreateWebhook::route('/create'),
+            'edit' => Pages\EditWebhook::route('/{record}/edit'),
         ];
     }
 }
