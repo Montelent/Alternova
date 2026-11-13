@@ -12,17 +12,23 @@ class SearchSuggestController extends Controller
 {
     public function __invoke(Request $request): JsonResponse
     {
-        $q = trim((string) $request->query('q', ''));
+        $validated = $request->validate([
+            'q' => ['nullable', 'string', 'max:100'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:12'],
+        ]);
+
+        $q = trim((string) ($validated['q'] ?? ''));
         if (mb_strlen($q) < 2) {
             return response()->json(['data' => []]);
         }
 
-        $limit = min(12, max(1, (int) $request->query('limit', 8)));
+        $limit = (int) ($validated['limit'] ?? 8);
+        $term = str_replace(['%', '_'], ['\\%', '\\_'], $q);
 
         try {
             $tools = ProprietaryTool::query()
                 ->where('is_published', true)
-                ->where('name', 'like', '%'.$q.'%')
+                ->where('name', 'like', '%'.$term.'%')
                 ->orderBy('name')
                 ->limit($limit)
                 ->get(['id', 'name', 'slug']);
