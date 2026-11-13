@@ -40,7 +40,7 @@ class NewsletterSubscriberResource extends Resource
 
     public static function canAccess(): bool
     {
-        return static::tableReady();
+        return static::tableReady() && (auth()->user()?->canManageSystem() ?? false);
     }
 
     public static function form(Form $form): Form
