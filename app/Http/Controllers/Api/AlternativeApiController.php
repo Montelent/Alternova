@@ -129,7 +129,6 @@ class AlternativeApiController extends Controller
             $data['pros'] = $alt->pros;
             $data['cons'] = $alt->cons;
             $data['docker_compose'] = $alt->docker_compose_blueprint;
-            $data['editor_note'] = $alt->editor_note;
         }
 
         return $data;
