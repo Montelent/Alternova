@@ -35,7 +35,7 @@ class PublicHttpUrl
 
             $addresses = [];
 
-            if (filter_var($host, FILTER_VALIDATE_IP)) {
+            if (filter_var($host, FILTER_VALIDATE_IP) || @inet_pton($host) !== false) {
                 $addresses[] = $host;
             } else {
                 $records = @dns_get_record($host, DNS_A | DNS_AAAA);
