@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class Installer
 {
@@ -88,9 +89,10 @@ class Installer
             return true;
         }
 
-        // Only an explicit, privileged unlock may reopen the installer.
+        // Reopening requires the private token created by the privileged
+        // admin action or CLI command. The token is stored as a hash only.
         if (File::exists(storage_path('app/'.self::REOPEN_FILE))) {
-            return false;
+            return ! self::hasValidReopenToken();
         }
 
         // Recover safely if storage was restored without the lock file.
@@ -114,14 +116,57 @@ class Installer
         File::delete(storage_path('app/'.self::REOPEN_FILE));
     }
 
-    public static function unlock(): void
+    public static function unlock(): string
     {
         if (File::exists(self::lockPath())) {
             File::delete(self::lockPath());
         }
 
         File::ensureDirectoryExists(storage_path('app'));
-        File::put(storage_path('app/'.self::REOPEN_FILE), now()->toIso8601String());
+
+        $token = Str::random(64);
+        File::put(storage_path('app/'.self::REOPEN_FILE), json_encode([
+            'token_hash' => hash('sha256', $token),
+            'unlocked_at' => now()->toIso8601String(),
+        ], JSON_PRETTY_PRINT));
+
+        return $token;
+    }
+
+    protected static function hasValidReopenToken(): bool
+    {
+        try {
+            $payload = json_decode(File::get(storage_path('app/'.self::REOPEN_FILE)), true);
+            $expectedHash = is_array($payload) ? ($payload['token_hash'] ?? null) : null;
+
+            if (! is_string($expectedHash) || $expectedHash === '') {
+                return false;
+            }
+
+            $request = request();
+            $providedToken = $request->query('reinstall_token');
+
+            if (! is_string($providedToken) || $providedToken === '') {
+                $providedToken = $request->hasSession()
+                    ? $request->session()->get('installer_reopen_token')
+                    : null;
+            }
+
+            if (! is_string($providedToken)
+                || $providedToken === ''
+                || ! hash_equals($expectedHash, hash('sha256', $providedToken))
+            ) {
+                return false;
+            }
+
+            if ($request->hasSession()) {
+                $request->session()->put('installer_reopen_token', $providedToken);
+            }
+
+            return true;
+        } catch (\\Throwable) {
+            return false;
+        }
     }
 
     /**
