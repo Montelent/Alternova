@@ -15,54 +15,54 @@ class PublicHttpUrl
         try {
             $parts = parse_url(trim($url));
 
-        if (! is_array($parts)) {
-            return false;
-        }
-
-        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
-        $host = strtolower(trim(rtrim((string) ($parts['host'] ?? ''), '.'), '[]'));
-
-        if (! in_array($scheme, ['http', 'https'], true)
-            || $host === ''
-            || isset($parts['user'])
-            || isset($parts['pass'])
-            || str_contains($host, '%')
-            || in_array($host, ['localhost', 'localhost.localdomain'], true)
-            || preg_match('/\.(?:local|internal|localhost|test|invalid|example|onion)$/i', $host)
-        ) {
-            return false;
-        }
-
-        $addresses = [];
-
-        if (filter_var($host, FILTER_VALIDATE_IP)) {
-            $addresses[] = $host;
-        } else {
-            $records = @dns_get_record($host, DNS_A | DNS_AAAA);
-
-            foreach ($records ?: [] as $record) {
-                if (! empty($record['ip'])) {
-                    $addresses[] = $record['ip'];
-                }
-                if (! empty($record['ipv6'])) {
-                    $addresses[] = $record['ipv6'];
-                }
-            }
-        }
-
-        if ($addresses === []) {
-            return false;
-        }
-
-        foreach (array_unique($addresses) as $address) {
-            if (! filter_var(
-                $address,
-                FILTER_VALIDATE_IP,
-                FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
-            )) {
+            if (! is_array($parts)) {
                 return false;
             }
-        }
+
+            $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+            $host = strtolower(trim(rtrim((string) ($parts['host'] ?? ''), '.'), '[]'));
+
+            if (! in_array($scheme, ['http', 'https'], true)
+                || $host === ''
+                || isset($parts['user'])
+                || isset($parts['pass'])
+                || str_contains($host, '%')
+                || in_array($host, ['localhost', 'localhost.localdomain'], true)
+                || preg_match('/\.(?:local|internal|localhost|test|invalid|example|onion)$/i', $host)
+            ) {
+                return false;
+            }
+
+            $addresses = [];
+
+            if (filter_var($host, FILTER_VALIDATE_IP)) {
+                $addresses[] = $host;
+            } else {
+                $records = @dns_get_record($host, DNS_A | DNS_AAAA);
+
+                foreach ($records ?: [] as $record) {
+                    if (! empty($record['ip'])) {
+                        $addresses[] = $record['ip'];
+                    }
+                    if (! empty($record['ipv6'])) {
+                        $addresses[] = $record['ipv6'];
+                    }
+                }
+            }
+
+            if ($addresses === []) {
+                return false;
+            }
+
+            foreach (array_unique($addresses) as $address) {
+                if (! filter_var(
+                    $address,
+                    FILTER_VALIDATE_IP,
+                    FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
+                )) {
+                    return false;
+                }
+            }
 
             return true;
         } catch (\Throwable) {
