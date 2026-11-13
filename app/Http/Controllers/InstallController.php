@@ -33,7 +33,7 @@ class InstallController extends Controller
             'migrateOutput' => $request->session()->get('migrate_output'),
             'old' => $request->session()->get('install_input', [
                 'app_name' => 'Alternova',
-                'app_url' => rtrim($request->getSchemeAndHttpHost(), '/'),
+                'app_url' => rtrim(Installer::detectAppUrl(), '/'),
                 'db_connection' => 'mysql',
                 'db_host' => '127.0.0.1',
                 'db_port' => '3306',
