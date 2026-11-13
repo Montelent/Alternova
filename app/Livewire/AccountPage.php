@@ -1,23 +1,23 @@
 <?php
 
-namespace App\\Livewire;
+namespace App\Livewire;
 
-use App\\Models\\ApiKey;
-use App\\Models\\ContactMessage;
-use App\\Models\\OpenSourceAlternative;
-use App\\Models\\SavedDomain;
-use App\\Models\\User;
-use App\\Services\\FavoriteService;
-use App\\Services\\SeoManager;
-use App\\Services\\WatchlistService;
-use App\\Support\\ApiSettings;
-use Illuminate\\Support\\Collection;
-use Illuminate\\Support\\Facades\\Auth;
-use Illuminate\\Support\\Facades\\Hash;
-use Illuminate\\Support\\Facades\\Schema;
-use Illuminate\\Validation\\Rule;
-use Illuminate\\Validation\\Rules\\Password;
-use Livewire\\Component;
+use App\Models\ApiKey;
+use App\Models\ContactMessage;
+use App\Models\OpenSourceAlternative;
+use App\Models\SavedDomain;
+use App\Models\User;
+use App\Services\FavoriteService;
+use App\Services\SeoManager;
+use App\Services\WatchlistService;
+use App\Support\ApiSettings;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
+use Livewire\Component;
 
 class AccountPage extends Component
 {
@@ -186,7 +186,7 @@ class AccountPage extends Component
     {
         try {
             return Schema::hasTable('api_keys');
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             return false;
         }
     }
@@ -206,7 +206,7 @@ class AccountPage extends Component
     {
         try {
             return app(FavoriteService::class)->list();
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             return collect();
         }
     }
@@ -216,7 +216,7 @@ class AccountPage extends Component
     {
         try {
             return app(WatchlistService::class)->listFor(Auth::user());
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             return collect();
         }
     }
@@ -230,7 +230,7 @@ class AccountPage extends Component
             }
 
             return SavedDomain::query()->where('user_id', Auth::id())->orderByDesc('created_at')->limit(50)->get();
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             return collect();
         }
     }
@@ -255,7 +255,7 @@ class AccountPage extends Component
                 ->orderByDesc('updated_at')
                 ->limit(30)
                 ->get();
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             return collect();
         }
     }
