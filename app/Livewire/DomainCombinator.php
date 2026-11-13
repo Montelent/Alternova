@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use App\Support\CsvSafe;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -36,14 +37,19 @@ class DomainCombinator extends Component
 
     public int $minBrandability = 40;
 
+    #[Locked]
     public array $results = [];
 
+    #[Locked]
     public bool $isGenerating = false;
 
+    #[Locked]
     public bool $isChecking = false;
 
+    #[Locked]
     public array $saved = [];
 
+    #[Locked]
     public string $errorMessage = '';
 
     public function mount(): void
@@ -172,7 +178,7 @@ class DomainCombinator extends Component
 
     public function addKeyword(): void
     {
-        $kw = strtolower(trim(preg_replace('/[^a-z0-9\s-]/i', '', $this->keywordInput) ?? ''));
+        $kw = strtolower(trim(preg_replace('/[^a-z0-9\s-]/i', '', substr($this->keywordInput, 0, 128)) ?? ''));
         $kw = str_replace([' ', '-'], '', $kw);
         if ($kw !== '' && ! in_array($kw, $this->keywords, true) && count($this->keywords) < 8) {
             $this->keywords[] = $kw;
@@ -187,7 +193,7 @@ class DomainCombinator extends Component
 
     public function addPrefix(): void
     {
-        $p = strtolower(trim(preg_replace('/[^a-z0-9]/i', '', $this->prefixInput) ?? ''));
+        $p = strtolower(trim(preg_replace('/[^a-z0-9]/i', '', substr($this->prefixInput, 0, 128)) ?? ''));
         if ($p !== '' && ! in_array($p, $this->prefixes, true) && count($this->prefixes) < 12) {
             $this->prefixes[] = $p;
         }
@@ -201,7 +207,7 @@ class DomainCombinator extends Component
 
     public function addSuffix(): void
     {
-        $s = strtolower(trim(preg_replace('/[^a-z0-9]/i', '', $this->suffixInput) ?? ''));
+        $s = strtolower(trim(preg_replace('/[^a-z0-9]/i', '', substr($this->suffixInput, 0, 128)) ?? ''));
         if ($s !== '' && ! in_array($s, $this->suffixes, true) && count($this->suffixes) < 12) {
             $this->suffixes[] = $s;
         }
