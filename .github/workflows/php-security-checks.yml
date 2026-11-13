@@ -31,3 +31,33 @@ jobs:
 
       - name: Validate Composer manifest
         run: composer validate --no-check-publish --no-check-lock
+
+  dependency-audit:
+    name: Composer and npm dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+
+      - name: Resolve Composer dependencies for audit
+        run: composer update --no-install --no-scripts --no-plugins --prefer-dist
+
+      - name: Audit Composer dependencies
+        run: composer audit --locked
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Generate temporary npm lockfile
+        run: npm install --package-lock-only --ignore-scripts --no-audit
+
+      - name: Audit npm dependencies
+        run: npm audit --audit-level=high
