@@ -147,7 +147,7 @@ Route::get('/ads.txt', function () {
 
 Route::get('/robots.txt', function () {
     $path = public_path('robots.txt');
-    $base = rtrim(config('app.url'), '/');
+    $base = CanonicalUrl::base();
     $body = is_file($path) ? file_get_contents($path) : "User-agent: *\nAllow: /\n";
     $body = preg_replace('/^Sitemap:.*$/m', 'Sitemap: '.$base.'/sitemap.xml', $body);
     if (! str_contains($body, 'Sitemap:')) {
