@@ -91,7 +91,7 @@ class InstallWizard extends Component
             'db_port' => ['required', 'integer', 'min:1', 'max:65535'],
             'db_database' => ['required', 'string', 'max:128', 'regex:/\\A[A-Za-z0-9_.-]+\\z/'],
             'db_username' => ['required', 'string', 'max:128'],
-            'db_password' => ['nullable', 'string'],
+            'db_password' => ['nullable', 'string', 'max:255'],
         ]);
 
         $result = Installer::testDatabaseConnection(
@@ -165,13 +165,13 @@ class InstallWizard extends Component
 
         $this->validate([
             'app_name' => ['required', 'string', 'max:255'],
-            'app_url' => ['required', 'url'],
+            'app_url' => ['required', 'url', 'regex:/\\Ahttps?:\\/\\//i', 'max:2048'],
             'db_connection' => ['required', 'in:pgsql,mysql'],
             'db_host' => ['required', 'string', 'max:253', 'regex:/\\A(?:localhost|[A-Za-z0-9.-]+|\\[[0-9A-Fa-f:]+\\]|[0-9A-Fa-f:]+)\\z/'],
             'db_port' => ['required', 'integer', 'min:1', 'max:65535'],
             'db_database' => ['required', 'string', 'max:128', 'regex:/\\A[A-Za-z0-9_.-]+\\z/'],
             'db_username' => ['required', 'string', 'max:128'],
-            'db_password' => ['nullable', 'string'],
+            'db_password' => ['nullable', 'string', 'max:255'],
         ]);
 
         $test = Installer::testDatabaseConnection(
