@@ -47,10 +47,18 @@ class Login extends Component
             ]);
         }
 
+        $user = Auth::user();
+
+        if (! $user || ! $user->isActive()) {
+            Auth::logout();
+
+            throw ValidationException::withMessages([
+                'email' => 'This account is currently disabled. Contact the site administrator.',
+            ]);
+        }
+
         RateLimiter::clear($key);
         request()->session()->regenerate();
-
-        $user = Auth::user();
         try {
             app(FavoriteService::class)->mergeSessionIntoUser($user);
             app(SavedDomainService::class)->mergeSessionIntoUser($user->id);
