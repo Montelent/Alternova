@@ -35,7 +35,7 @@ class SearchSuggestController extends Controller
 
             $alternatives = OpenSourceAlternative::query()
                 ->where('is_published', true)
-                ->where('name', 'like', '%'.$q.'%')
+                ->where('name', 'like', '%'.$term.'%')
                 ->orderBy('name')
                 ->limit($limit)
                 ->get(['id', 'name', 'slug']);
