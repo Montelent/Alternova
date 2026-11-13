@@ -171,11 +171,18 @@ class DescriptionGeneratorService
         try {
             $response = Http::timeout(6)
                 ->connectTimeout(3)
-                ->withOptions(['allow_redirects' => PublicHttpUrl::safeRedirectOptions()])
+                ->withOptions([
+                    'allow_redirects' => PublicHttpUrl::safeRedirectOptions(),
+                    'stream' => true,
+                ])
                 ->withHeaders(['User-Agent' => 'Alternova-DescriptionBot/1.0'])
                 ->get($websiteUrl);
 
+            $stream = $response->toPsrResponse()->getBody();
+
             if (! $response->successful()) {
+                $stream->close();
+
                 return [
                     'description' => $this->composeProprietaryFallback($name),
                     'success' => false,
@@ -183,7 +190,10 @@ class DescriptionGeneratorService
                 ];
             }
 
-            $html = $response->body();
+            // Only the document head is needed for meta extraction. Read a
+            // small bounded prefix and close the remote stream immediately.
+            $html = $stream->read(262144);
+            $stream->close();
             $meta = $this->extractMetaDescription($html);
 
             if ($meta) {
