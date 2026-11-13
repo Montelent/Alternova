@@ -86,12 +86,12 @@ class Page extends Model
     {
         return app(\App\Services\SeoManager::class)->cmsPageDescription($this);
     }
-    public function getBody_htmlAttribute($value): ?string
+    public function getBodyHtmlAttribute($value): ?string
     {
         return $value === null ? null : HtmlSanitizer::clean((string) $value);
     }
 
-    public function setBody_htmlAttribute($value): void
+    public function setBodyHtmlAttribute($value): void
     {
         $this->attributes['body_html'] = $value === null ? null : HtmlSanitizer::clean((string) $value);
     }
