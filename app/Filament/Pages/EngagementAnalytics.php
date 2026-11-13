@@ -14,6 +14,12 @@ use Illuminate\Support\Facades\Schema;
 
 class EngagementAnalytics extends Page
 {
+
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->canManageSystem() ?? false;
+    }
+
     protected static ?string $navigationIcon = 'heroicon-o-chart-bar-square';
 
     protected static ?string $navigationGroup = 'Engagement';
