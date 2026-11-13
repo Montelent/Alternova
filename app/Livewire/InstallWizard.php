@@ -166,10 +166,10 @@ class InstallWizard extends Component
             'app_name' => ['required', 'string', 'max:255'],
             'app_url' => ['required', 'url'],
             'db_connection' => ['required', 'in:pgsql,mysql'],
-            'db_host' => ['required', 'string'],
-            'db_port' => ['required', 'string'],
-            'db_database' => ['required', 'string'],
-            'db_username' => ['required', 'string'],
+            'db_host' => ['required', 'string', 'max:253', 'regex:/\\A(?:localhost|[A-Za-z0-9.-]+|\\[[0-9A-Fa-f:]+\\]|[0-9A-Fa-f:]+)\\z/'],
+            'db_port' => ['required', 'integer', 'min:1', 'max:65535'],
+            'db_database' => ['required', 'string', 'max:128', 'regex:/\\A[A-Za-z0-9_.-]+\\z/'],
+            'db_username' => ['required', 'string', 'max:128'],
             'db_password' => ['nullable', 'string'],
         ]);
 
