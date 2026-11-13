@@ -71,7 +71,7 @@ class SiteSetting extends Model
     protected static function isSensitiveKey(string $key): bool
     {
         return in_array($key, ['github_token', 'mail_smtp_password', 'mail_resend_key'], true)
-            || preg_match('/(?:token|secret|password|(?:api|resend|access|private)[_-]?key)$/i', $key) === 1;
+            || preg_match('/(?:token|secret|password|(?:api|resend|access|private|secret)[_-]?key)$/i', $key) === 1;
     }
 
     protected static function clearCache(): void
