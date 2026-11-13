@@ -18,6 +18,14 @@ class InstallController extends Controller
             abort(403, 'Application is already installed.');
         }
 
+        // Keep the private reopen token out of the browser address bar after
+        // the middleware has validated it and stored it in this session.
+        if ($request->query->has('reinstall_token')
+            && $request->session()->has('installer_reopen_token')
+        ) {
+            return redirect()->route('install.index');
+        }
+
         Installer::ensureStorageDirectories();
         Installer::ensureEnvFile();
         Installer::ensureAppKey();
