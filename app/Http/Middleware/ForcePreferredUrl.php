@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Canonical host + scheme from APP_URL (chosen during install / .env).
+ * Canonical scheme from APP_URL; permit additional explicitly allow-listed domains.
  *
  * - www vs non-www: the host inside APP_URL is the only public host (301)
  * - http → https when APP_URL uses https
@@ -72,7 +72,7 @@ class ForcePreferredUrl
             $uri = '/'.$uri;
         }
 
-        $target = $preferredScheme.'://'.$preferredHost.$uri;
+        $target = $preferredScheme.'://'.$targetHost.$uri;
 
         return redirect()->to($target, 301);
     }
