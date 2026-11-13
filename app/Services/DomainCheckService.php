@@ -16,6 +16,16 @@ class DomainCheckService
     public function check(string $domain): array
     {
         $domain = strtolower(trim($domain));
+
+        if (! $this->isValidPublicDomain($domain)) {
+            return [
+                'domain' => substr($domain, 0, 253),
+                'available' => null,
+                'status' => 'invalid',
+                'checked_at' => now()->toIso8601String(),
+            ];
+        }
+
         $cacheKey = 'domain_check:v3:'.$domain;
 
         return Cache::remember($cacheKey, now()->addHours(24), function () use ($domain) {
@@ -56,7 +66,7 @@ class DomainCheckService
     public function checkMany(array $domains): array
     {
         $out = [];
-        foreach ($domains as $domain) {
+        foreach (array_slice($domains, 0, 10) as $domain) {
             try {
                 $out[$domain] = $this->check($domain);
             } catch (\Throwable $e) {
@@ -85,6 +95,20 @@ class DomainCheckService
             'porkbun' => url('/go/porkbun?domain='.rawurlencode($domain)),
             'godaddy' => url('/go/godaddy?domain='.rawurlencode($domain)),
         ];
+    }
+
+    protected function isValidPublicDomain(string $domain): bool
+    {
+        if (strlen($domain) > 253
+            || ! preg_match('/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])$/i', $domain)
+        ) {
+            return false;
+        }
+
+        $reservedTlds = ['local', 'internal', 'localhost', 'test', 'example', 'invalid', 'onion', 'home', 'lan'];
+        $tld = strtolower(substr(strrchr($domain, '.') ?: '', 1));
+
+        return $tld !== '' && ! in_array($tld, $reservedTlds, true);
     }
 
     protected function hasDnsRecords(string $domain): bool
@@ -128,7 +152,7 @@ class DomainCheckService
         }
 
         try {
-            $url = rtrim($base, '/').'/domain/'.$domain;
+            $url = rtrim($base, '/').'/domain/'.rawurlencode($domain);
             $response = Http::timeout(1.8)
                 ->connectTimeout(1.2)
                 ->withHeaders(['Accept' => 'application/rdap+json, application/json'])
