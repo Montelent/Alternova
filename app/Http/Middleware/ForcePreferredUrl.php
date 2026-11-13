@@ -2,7 +2,8 @@
 
 namespace App\Http\Middleware;
 
-use App\Support\CanonicalUrl;\nuse Closure;
+use App\Support\CanonicalUrl;
+use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
