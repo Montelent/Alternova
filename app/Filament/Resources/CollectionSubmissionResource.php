@@ -20,6 +20,12 @@ use Illuminate\Support\Str;
 
 class CollectionSubmissionResource extends Resource
 {
+
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->canManageSystem() ?? false;
+    }
+
     protected static ?string $model = CollectionSubmission::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-inbox-stack';
