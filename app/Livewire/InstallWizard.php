@@ -6,7 +6,6 @@ use App\Livewire\Concerns\NormalizesInstallUrl;
 use App\Models\User;
 use App\Support\Installer;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rules\Password;
 use Livewire\Attributes\Layout;
@@ -87,10 +86,10 @@ class InstallWizard extends Component
     {
         $this->validate([
             'db_connection' => ['required', 'in:pgsql,mysql'],
-            'db_host' => ['required', 'string'],
-            'db_port' => ['required', 'string'],
-            'db_database' => ['required', 'string'],
-            'db_username' => ['required', 'string'],
+            'db_host' => ['required', 'string', 'max:253', 'regex:/\\A(?:localhost|[A-Za-z0-9.-]+|\\[[0-9A-Fa-f:]+\\]|[0-9A-Fa-f:]+)\\z/'],
+            'db_port' => ['required', 'integer', 'min:1', 'max:65535'],
+            'db_database' => ['required', 'string', 'max:128', 'regex:/\\A[A-Za-z0-9_.-]+\\z/'],
+            'db_username' => ['required', 'string', 'max:128'],
             'db_password' => ['nullable', 'string'],
         ]);
 
@@ -315,21 +314,21 @@ class InstallWizard extends Component
                 return;
             }
 
-            $existing = User::query()->where('email', $this->admin_email)->first();
+            if (User::query()->where('email', $this->admin_email)->exists()) {
+                $this->addError(
+                    'admin_email',
+                    'That email address already exists. Choose a different email; the installer never changes an existing account.'
+                );
 
-            if ($existing) {
-                $existing->update([
-                    'name' => $this->admin_name,
-                    'password' => Hash::make($this->admin_password),
-                ]);
-            } else {
-                User::create([
-                    'name' => $this->admin_name,
-                    'email' => $this->admin_email,
-                    'password' => Hash::make($this->admin_password),
-                    'email_verified_at' => now(),
-                ]);
+                return;
             }
+
+            User::create([
+                'name' => $this->admin_name,
+                'email' => $this->admin_email,
+                'password' => $this->admin_password,
+                'email_verified_at' => now(),
+            ]);
 
             Installer::applyRecommendedEnv();
             Installer::writeEnv([
