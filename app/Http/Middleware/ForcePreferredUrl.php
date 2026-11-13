@@ -100,24 +100,7 @@ class ForcePreferredUrl
 
     protected function requestIsHttps(Request $request): bool
     {
-        if ($request->isSecure()) {
-            return true;
-        }
-
-        $proto = strtolower((string) $request->headers->get('X-Forwarded-Proto', ''));
-        if ($proto === 'https' || str_starts_with($proto, 'https,')) {
-            return true;
-        }
-
-        if ($request->headers->get('X-Forwarded-Ssl') === 'on') {
-            return true;
-        }
-
-        if ((string) $request->server('HTTPS') === 'on'
-            || strtolower((string) $request->server('HTTP_X_FORWARDED_PROTO')) === 'https') {
-            return true;
-        }
-
-        return false;
-    }
-}
+        // Laravel only honors forwarded scheme headers from proxies explicitly
+        // configured in TRUSTED_PROXIES. Never trust raw client-supplied headers.
+        return $request->isSecure();
+    }}
