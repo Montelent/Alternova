@@ -57,7 +57,7 @@ class CanonicalUrl
                 if (str_contains($candidate, '://')) {
                     $candidate = (string) parse_url($candidate, PHP_URL_HOST);
                 } else {
-                    $candidate = preg_replace('/:\\d+$/', '', $candidate) ?? $candidate;
+                    $candidate = preg_replace('/:\d+$/', '', $candidate) ?? $candidate;
                 }
 
                 return strtolower(rtrim($candidate, '.'));
