@@ -487,8 +487,9 @@ class SystemTools extends Page implements HasForms
 
     public function unlockInstaller(): void
     {
-        Installer::unlock();
-        $this->lastOutput = 'Installer unlocked. Visit /install to run the wizard again.';
-        Notification::make()->title('Installer unlocked')->warning()->body($this->lastOutput)->send();
+        $token = Installer::unlock();
+        $url = url('/install').'?reinstall_token='.rawurlencode($token);
+        $this->lastOutput = 'Installer access is now protected by a private one-time URL. Open this URL in the browser: '.$url;
+        Notification::make()->title('Installer access token created')->warning()->body($this->lastOutput)->persistent()->send();
     }
 }
