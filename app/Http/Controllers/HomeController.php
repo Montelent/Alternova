@@ -145,7 +145,14 @@ class HomeController extends Controller
                 ->with($with)
                 ->where('is_published', true)
                 ->whereIn('id', $ids)
-                ->orderByRaw('FIELD(id, '.$ids->implode(',').')')
+                ->orderByRaw(
+                    'CASE id '.implode(' ', array_map(
+                        static fn ($id, $position) => 'WHEN ? THEN '.$position,
+                        $ids->values()->all(),
+                        array_keys($ids->values()->all())
+                    )).' ELSE '.count($ids).' END',
+                    $ids->values()->all()
+                )
                 ->get();
         } catch (\Throwable) {
             return collect();
