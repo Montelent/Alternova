@@ -314,7 +314,7 @@ class Installer
             if (app()->bound('request') && request()->isSecure()) {
                 $secure = true;
             }
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             // Console / early boot: fall back to the direct HTTPS server flag.
         }
 
