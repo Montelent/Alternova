@@ -11,6 +11,12 @@ class EnsureActiveUser
 {
     public function handle(Request $request, Closure $next): Response
     {
+        // API routes authenticate their own API key/user and must return JSON,
+        // not a browser login redirect.
+        if ($request->is('api/*')) {
+            return $next($request);
+        }
+
         $user = $request->user();
 
         if ($user && ! $user->isActive()) {
