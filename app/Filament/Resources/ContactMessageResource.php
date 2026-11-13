@@ -15,6 +15,12 @@ use Illuminate\Support\Facades\Schema;
 
 class ContactMessageResource extends Resource
 {
+
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->canManageSystem() ?? false;
+    }
+
     protected static ?string $model = ContactMessage::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-ticket';
