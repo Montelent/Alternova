@@ -8,7 +8,7 @@ use App\Models\OssCategory;
 use App\Models\Page;
 use App\Models\ProprietaryTool;
 use App\Models\SiteSetting;
-use App\Support\CategoryCatalog;
+use App\Support\CategoryCatalog;\nuse App\Support\CanonicalUrl;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
