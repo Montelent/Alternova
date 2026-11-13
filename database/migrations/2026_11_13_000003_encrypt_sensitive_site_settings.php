@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -35,6 +36,8 @@ return new class extends Migration
                         ->update(['value' => self::PREFIX.Crypt::encryptString($value)]);
                 }
             });
+
+        Cache::forget('site_settings');
     }
 
     public function down(): void
@@ -63,6 +66,8 @@ return new class extends Migration
                         ->update(['value' => Crypt::decryptString(substr($value, strlen(self::PREFIX)))]);
                 }
             });
+
+        Cache::forget('site_settings');
     }
 
     private function isSensitive(string $key): bool
