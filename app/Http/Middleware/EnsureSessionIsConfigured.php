@@ -78,4 +78,5 @@ class EnsureSessionIsConfigured
         // APP_URL remains a safe fallback for TLS-terminating reverse proxies.
         return $request->isSecure()
             || str_starts_with(strtolower((string) config('app.url')), 'https://');
-    }}
+    }
+}
