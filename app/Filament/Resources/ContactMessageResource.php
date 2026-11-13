@@ -201,10 +201,14 @@ class ContactMessageResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
+        if (! (auth()->user()?->canManageSystem() ?? false)) {
+            return false;
+        }
+
         try {
             return Schema::hasTable('contact_messages');
         } catch (\Throwable) {
-            return true;
+            return false;
         }
     }
 }
