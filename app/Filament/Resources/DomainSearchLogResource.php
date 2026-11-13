@@ -8,6 +8,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Schema;
+use App\Support\CsvSafe;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DomainSearchLogResource extends Resource
@@ -75,13 +76,13 @@ class DomainSearchLogResource extends Resource
                             $h = fopen('php://output', 'w');
                             fputcsv($h, ['when', 'keywords', 'tlds', 'generated', 'ip']);
                             foreach ($rows as $r) {
-                                fputcsv($h, [
+                                fputcsv($h, CsvSafe::row([
                                     optional($r->created_at)->toDateTimeString(),
                                     is_array($r->seed_keywords) ? implode('|', $r->seed_keywords) : $r->seed_keywords,
                                     is_array($r->selected_tlds) ? implode('|', $r->selected_tlds) : $r->selected_tlds,
                                     $r->domain_generated_count,
                                     $r->ip_address,
-                                ]);
+                                ]));
                             }
                             fclose($h);
                         }, 'domain-searches-'.date('Y-m-d').'.csv', ['Content-Type' => 'text/csv']);
