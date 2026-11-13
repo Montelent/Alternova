@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Models;
+use App\Support\HtmlSanitizer;
 
 use App\Models\Concerns\HasAutoSortOrder;
 use App\Services\WebhookDispatcher;
@@ -143,4 +144,14 @@ class Collection extends Model
 
         return 'Curated open-source alternatives: '.$this->name;
     }
+    public function getIntro_htmlAttribute($value): ?string
+    {
+        return $value === null ? null : HtmlSanitizer::clean((string) $value);
+    }
+
+    public function setIntro_htmlAttribute($value): void
+    {
+        $this->attributes['intro_html'] = $value === null ? null : HtmlSanitizer::clean((string) $value);
+    }
+
 }
