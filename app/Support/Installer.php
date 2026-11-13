@@ -291,7 +291,7 @@ class Installer
         $requestHost = $parseHost($_SERVER['HTTP_HOST'] ?? null);
         $allowedHosts = array_values(array_filter(array_map(
             $parseHost,
-            explode(',', (string) env('APP_ALLOWED_HOSTS', ''))
+            (array) config('alternova.allowed_hosts', [])
         )));
 
         if ($serverHost !== null) {
