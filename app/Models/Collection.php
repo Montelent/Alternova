@@ -144,12 +144,12 @@ class Collection extends Model
 
         return 'Curated open-source alternatives: '.$this->name;
     }
-    public function getIntro_htmlAttribute($value): ?string
+    public function getIntroHtmlAttribute($value): ?string
     {
         return $value === null ? null : HtmlSanitizer::clean((string) $value);
     }
 
-    public function setIntro_htmlAttribute($value): void
+    public function setIntroHtmlAttribute($value): void
     {
         $this->attributes['intro_html'] = $value === null ? null : HtmlSanitizer::clean((string) $value);
     }
