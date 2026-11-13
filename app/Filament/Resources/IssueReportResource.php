@@ -39,7 +39,7 @@ class IssueReportResource extends Resource
 
     public static function canAccess(): bool
     {
-        return static::tableReady();
+        return static::tableReady() && (auth()->user()?->canManageSystem() ?? false);
     }
 
     public static function getNavigationBadge(): ?string
