@@ -10,6 +10,7 @@ use App\Services\SeoManager;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
+use App\Support\CsvSafe;
 use Livewire\Component;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -360,7 +361,7 @@ class DomainCombinator extends Component
             $handle = fopen('php://output', 'w');
             fputcsv($handle, ['domain', 'brandability_score']);
             foreach ($available as $item) {
-                fputcsv($handle, [$item['domain'], $item['score']]);
+                fputcsv($handle, CsvSafe::row([$item['domain'], $item['score']]));
             }
             fclose($handle);
         }, 'available-domains.csv', [
