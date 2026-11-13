@@ -33,7 +33,7 @@ class ImageField
                 '4:3',
             ])
             ->maxSize(8192)
-            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'])
+            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
             ->disk('uploads')
             ->directory($directory)
             ->visibility('public')
