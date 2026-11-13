@@ -1,10 +1,10 @@
 <?php
 
-namespace App\\Http\\Controllers;
+namespace App\Http\Controllers;
 
-use App\\Models\\NewsletterSubscriber;
-use Illuminate\\Http\\Request;
-use Illuminate\\View\\View;
+use App\Models\NewsletterSubscriber;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class NewsletterController extends Controller
 {
