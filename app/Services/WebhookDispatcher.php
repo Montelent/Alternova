@@ -125,14 +125,20 @@ class WebhookDispatcher
             } else {
                 $response = Http::timeout(6)
                     ->connectTimeout(3)
-                    ->withOptions(['allow_redirects' => false])
+                    ->withOptions([
+                        'allow_redirects' => false,
+                        'stream' => true,
+                    ])
                     ->withHeaders($headers)
                     ->withBody($json ?: '{}', 'application/json')
                     ->post($hook->url);
 
                 $status = $response->status();
-                $responseBody = Str::limit($response->body(), 2000, '');
                 $success = $response->successful();
+
+                // Delivery status is enough for diagnostics. Never buffer an
+                // arbitrary webhook response body into PHP memory or storage.
+                $response->toPsrResponse()->getBody()->close();
 
                 if (! $success) {
                     $error = 'HTTP '.$status;
