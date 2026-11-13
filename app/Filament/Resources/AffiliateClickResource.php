@@ -12,6 +12,12 @@ use Illuminate\Support\Facades\Schema;
 
 class AffiliateClickResource extends Resource
 {
+
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->canManageSystem() ?? false;
+    }
+
     protected static ?string $model = AffiliateClick::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-cursor-arrow-rays';
