@@ -68,6 +68,16 @@ jobs:
       - name: Build production frontend assets
         run: npm run build
 
+      - name: Upload resolved dependency lockfiles
+        uses: actions/upload-artifact@v4
+        with:
+          name: alternova-dependency-lockfiles
+          path: |
+            composer.lock
+            package-lock.json
+          if-no-files-found: error
+          retention-days: 1
+
 
   unit-tests:
     name: Security helper unit tests
