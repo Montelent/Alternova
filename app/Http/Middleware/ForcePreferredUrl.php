@@ -2,7 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use Closure;
+use App\Support\CanonicalUrl;\nuse Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -60,8 +60,10 @@ class ForcePreferredUrl
         $currentIsHttps = $this->requestIsHttps($request);
         $currentScheme = $currentIsHttps ? 'https' : 'http';
 
-        $hostMismatch = ! hash_equals($preferredHost, $currentHost);
+        $currentHostAllowed = CanonicalUrl::isTrustedHost($currentHost);
+        $hostMismatch = ! $currentHostAllowed;
         $schemeMismatch = $preferredScheme === 'https' && $currentScheme !== 'https';
+        $targetHost = $currentHostAllowed ? $currentHost : $preferredHost;
 
         if (! $hostMismatch && ! $schemeMismatch) {
             return $next($request);
