@@ -21,12 +21,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        if (! Schema::hasColumn('users', 'role')) {
-            return;
-        }
-
-        Schema::table('users', function (Blueprint $table) {
-            $table->string('role', 32)->default('admin')->change();
-        });
+        // Intentionally keep the safer member default on rollback. Restoring
+        // an admin default would reintroduce public-registration privilege escalation.
     }
 };
