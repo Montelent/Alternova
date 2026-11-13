@@ -35,7 +35,7 @@ return new class extends Migration
                         try {
                             Crypt::decryptString(substr($value, strlen(self::PREFIX)));
                             continue;
-                        } catch (\\Throwable) {
+                        } catch (\Throwable) {
                             // Legacy plaintext may coincidentally begin with the marker.
                         }
                     }
@@ -47,7 +47,10 @@ return new class extends Migration
             });
 
         try {
+            try {
             Cache::forget('site_settings');
+        } catch (\Throwable) {
+        }
         } catch (\Throwable) {
         }
     }
@@ -75,7 +78,7 @@ return new class extends Migration
 
                     try {
                         $plain = Crypt::decryptString(substr($value, strlen(self::PREFIX)));
-                    } catch (\\Throwable) {
+                    } catch (\Throwable) {
                         continue;
                     }
 
