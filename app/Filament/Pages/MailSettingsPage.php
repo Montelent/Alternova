@@ -20,6 +20,12 @@ use Illuminate\Support\Facades\Mail;
 
 class MailSettingsPage extends Page implements HasForms
 {
+
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->canManageSystem() ?? false;
+    }
+
     use InteractsWithForms;
 
     protected static ?string $navigationIcon = 'heroicon-o-envelope';
