@@ -320,4 +320,14 @@ class OpenSourceAlternative extends Model
         $this->attributes['description'] = $value === null ? null : HtmlSanitizer::clean((string) $value);
     }
 
+    public function getChangelogAttribute($value): ?string
+    {
+        return $value === null ? null : HtmlSanitizer::clean((string) $value);
+    }
+
+    public function setChangelogAttribute($value): void
+    {
+        $this->attributes['changelog'] = $value === null ? null : HtmlSanitizer::clean((string) $value);
+    }
+
 }
