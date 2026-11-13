@@ -68,13 +68,27 @@ class PublicHttpUrl
 
     private static function isPublicAddress(string $address): bool
     {
-        // PHP 8.2 may classify IPv4-mapped IPv6 addresses as public even when
-        // their embedded IPv4 target is loopback/private. Normalize and check
-        // the embedded address explicitly before applying the normal filters.
+        // Normalize binary addresses so PHP-version-specific FILTER_VALIDATE_IP
+        // behavior cannot make an embedded private IPv4 address appear public.
         $packed = @inet_pton($address);
-        $mappedPrefix = str_repeat("\\0", 10)."\\xff\\xff";
+        if (! is_string($packed)) {
+            return false;
+        }
 
-        if (is_string($packed) && strlen($packed) === 16 && substr($packed, 0, 12) === $mappedPrefix) {
+        if (strlen($packed) === 4) {
+            return filter_var(
+                $address,
+                FILTER_VALIDATE_IP,
+                FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
+            ) !== false;
+        }
+
+        if (strlen($packed) !== 16) {
+            return false;
+        }
+
+        $mappedPrefix = str_repeat("\\0", 10)."\\xff\\xff";
+        if (substr($packed, 0, 12) === $mappedPrefix) {
             $ipv4 = inet_ntop(substr($packed, 12));
 
             return is_string($ipv4) && filter_var(
@@ -84,11 +98,52 @@ class PublicHttpUrl
             ) !== false;
         }
 
+        // Only global-unicast IPv6 (2000::/3) is eligible. Explicitly reject
+        // transition, documentation, benchmarking, and ORCHID special ranges.
+        if ((ord($packed[0]) & 0xe0) !== 0x20) {
+            return false;
+        }
+
+        $reservedPrefixes = [
+            ['2001::', 32],      // Teredo
+            ['2001:2::', 48],    // Benchmarking
+            ['2001:10::', 28],   // ORCHID
+            ['2001:20::', 28],   // ORCHIDv2
+            ['2001:db8::', 32],  // Documentation
+            ['2002::', 16],      // 6to4
+            ['3fff::', 20],      // Documentation
+        ];
+
+        foreach ($reservedPrefixes as [$network, $prefixLength]) {
+            $networkPacked = inet_pton($network);
+            if (is_string($networkPacked) && self::matchesIpv6Prefix($packed, $networkPacked, $prefixLength)) {
+                return false;
+            }
+        }
+
         return filter_var(
             $address,
             FILTER_VALIDATE_IP,
             FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
         ) !== false;
+    }
+
+    private static function matchesIpv6Prefix(string $address, string $network, int $prefixLength): bool
+    {
+        $wholeBytes = intdiv($prefixLength, 8);
+        $remainingBits = $prefixLength % 8;
+
+        if (substr($address, 0, $wholeBytes) !== substr($network, 0, $wholeBytes)) {
+            return false;
+        }
+
+        if ($remainingBits === 0) {
+            return true;
+        }
+
+        $mask = (0xff << (8 - $remainingBits)) & 0xff;
+
+        return (ord($address[$wholeBytes]) & $mask) === (ord($network[$wholeBytes]) & $mask);
     }
 
     /**
