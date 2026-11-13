@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Support\Installer;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules\Password;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -242,7 +243,8 @@ class InstallWizard extends Component
             $this->dbTestMessage = 'Connection successful. Environment saved.';
             $this->step = 3;
         } catch (\Throwable $e) {
-            $this->errorMessage = 'Failed to write .env: '.$e->getMessage();
+            Log::error('Livewire installer failed to write the environment file.', ['error' => $e->getMessage()]);
+            $this->errorMessage = 'Failed to save the environment configuration. Check the server logs.';
         }
     }
 
@@ -262,8 +264,19 @@ class InstallWizard extends Component
                 "database.connections.{$this->db_connection}.password" => $this->db_password,
             ]);
 
-            Artisan::call('migrate', ['--force' => true]);
-            $this->migrateOutput = Artisan::output();
+            $exitCode = Artisan::call('migrate', ['--force' => true]);
+            $output = Artisan::output();
+
+            if ($exitCode !== 0) {
+                Log::error('Livewire installer migrations failed.', ['output' => $output]);
+                $this->migrateSuccess = false;
+                $this->migrateOutput = 'Migration failed. Check the server logs.';
+                $this->errorMessage = 'Migration failed. Check the server logs.';
+
+                return;
+            }
+
+            $this->migrateOutput = $output;
             $this->migrateSuccess = true;
 
             Installer::writeEnv([
@@ -282,9 +295,10 @@ class InstallWizard extends Component
 
             $this->step = 4;
         } catch (\Throwable $e) {
+            Log::error('Livewire installer migration threw an exception.', ['error' => $e->getMessage()]);
             $this->migrateSuccess = false;
-            $this->migrateOutput = $e->getMessage();
-            $this->errorMessage = 'Migration failed: '.$e->getMessage();
+            $this->migrateOutput = 'Migration failed. Check the server logs.';
+            $this->errorMessage = 'Migration failed. Check the server logs.';
         }
     }
 
@@ -346,7 +360,8 @@ class InstallWizard extends Component
             Installer::lock();
             $this->step = 5;
         } catch (\Throwable $e) {
-            $this->errorMessage = 'Failed to create admin user: '.$e->getMessage();
+            Log::error('Livewire installer failed to create the initial administrator.', ['error' => $e->getMessage()]);
+            $this->errorMessage = 'Failed to create the administrator account. Check the server logs.';
         }
     }
 
