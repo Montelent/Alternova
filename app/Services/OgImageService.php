@@ -560,6 +560,12 @@ class OgImageService
             return;
         }
 
+        $width = (int) ($info[0] ?? 0);
+        $height = (int) ($info[1] ?? 0);
+        if ($width < 1 || $height < 1 || $width > 5000 || $height > 5000 || ($width * $height) > 25000000) {
+            return;
+        }
+
         $src = match ($info[2] ?? 0) {
             IMAGETYPE_JPEG => @imagecreatefromjpeg($logoPath),
             IMAGETYPE_PNG => @imagecreatefrompng($logoPath),
