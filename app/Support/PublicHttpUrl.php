@@ -19,7 +19,7 @@ class PublicHttpUrl
         }
 
         $scheme = strtolower((string) ($parts['scheme'] ?? ''));
-        $host = strtolower(rtrim((string) ($parts['host'] ?? ''), '.'));
+        $host = strtolower(trim(rtrim((string) ($parts['host'] ?? ''), '.'), '[]'));
 
         if (! in_array($scheme, ['http', 'https'], true)
             || $host === ''
