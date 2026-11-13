@@ -1,8 +1,8 @@
 <?php
 
 namespace App\Models;
-use App\Support\HtmlSanitizer;
 
+use App\Support\HtmlSanitizer;
 use App\Models\Concerns\HasAutoSortOrder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -95,5 +95,4 @@ class Page extends Model
     {
         $this->attributes['body_html'] = $value === null ? null : HtmlSanitizer::clean((string) $value);
     }
-
 }
