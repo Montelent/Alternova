@@ -37,7 +37,10 @@ return new class extends Migration
                 }
             });
 
-        Cache::forget('site_settings');
+        try {
+            Cache::forget('site_settings');
+        } catch (\Throwable) {
+        }
     }
 
     public function down(): void
