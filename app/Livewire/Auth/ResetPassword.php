@@ -61,9 +61,23 @@ class ResetPassword extends Component
         );
 
         if ($status === Password::PASSWORD_RESET) {
-            Auth::attempt(['email' => $this->email, 'password' => $this->password]);
-            request()->session()->regenerate();
-            $this->redirect(route('account'), navigate: true);
+            if (Auth::attempt(['email' => $this->email, 'password' => $this->password])) {
+                $user = Auth::user();
+
+                if (! $user || ! $user->isActive()) {
+                    Auth::logout();
+                    $this->status = 'Your password was reset, but this account is disabled. Contact the site administrator.';
+
+                    return;
+                }
+
+                request()->session()->regenerate();
+                $this->redirect(route('account'), navigate: true);
+
+                return;
+            }
+
+            $this->status = 'Your password was reset. You can now sign in.';
 
             return;
         }
