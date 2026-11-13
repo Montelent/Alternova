@@ -33,6 +33,12 @@ class SupportTicketShow extends Component
         // Store token in session so later visits without query still work
         if (is_string($token) && $token !== '') {
             session(['support_ticket_token_'.$ticket->id => $token]);
+
+            // Remove the access token from the address bar and subsequent
+            // same-origin Referer headers after storing it in the session.
+            $this->redirect(route('support.show', ['publicId' => $ticket->public_id]), navigate: false);
+
+            return;
         }
 
         $this->ticket = $ticket->load(['publicReplies']);
