@@ -87,7 +87,7 @@ class PublicHttpUrl
             return false;
         }
 
-        $mappedPrefix = str_repeat("\\0", 10)."\\xff\\xff";
+        $mappedPrefix = str_repeat("\0", 10)."\xff\xff";
         if (substr($packed, 0, 12) === $mappedPrefix) {
             $ipv4 = inet_ntop(substr($packed, 12));
 
@@ -157,8 +157,11 @@ class PublicHttpUrl
         return [
             'max' => 3,
             'on_redirect' => static function ($request, $response, $uri): void {
-                if (! self::isSafe((string) $uri)) {
-                    throw new \RuntimeException('Blocked redirect to a non-public address.');
+                $sourceScheme = strtolower($request->getUri()->getScheme());
+                $targetScheme = strtolower($uri->getScheme());
+
+                if (($sourceScheme === 'https' && $targetScheme !== 'https') || ! self::isSafe((string) $uri)) {
+                    throw new \RuntimeException('Blocked redirect to an unsafe or downgraded destination.');
                 }
             },
         ];
