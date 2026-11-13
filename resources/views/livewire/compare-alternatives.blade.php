@@ -1,6 +1,6 @@
 <div class="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
     @if($schema)
-        <script type="application/ld+json">{!! json_encode($schema, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE) !!}</script>
+        <script type="application/ld+json">{!! json_encode($schema, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE) !!}</script>
     @endif
 
     <div class="text-center mb-10">
