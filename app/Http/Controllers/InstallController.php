@@ -7,6 +7,7 @@ use App\Support\Installer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules\Password;
 
 class InstallController extends Controller
@@ -174,7 +175,8 @@ class InstallController extends Controller
             $request->session()->flash('db_test_success', true);
             $request->session()->flash('db_test_message', 'Connection successful. Environment saved.');
         } catch (\Throwable $e) {
-            $request->session()->flash('install_error', 'Failed to write .env: ' . $e->getMessage());
+            Log::error('Installer failed to write the environment file.', ['error' => $e->getMessage()]);
+            $request->session()->flash('install_error', 'Failed to save the environment configuration. Check the server logs.');
         }
 
         return redirect()->route('install.index');
@@ -196,18 +198,21 @@ class InstallController extends Controller
             ]);
 
             $result = Installer::runArtisan('migrate', ['--force' => true]);
-            $request->session()->flash('migrate_output', $result['output'] ?: '(no output)');
 
             if (! $result['success']) {
-                $request->session()->flash('install_error', 'Migration failed. Check the output below.');
+                Log::error('Installer migrations failed.', ['output' => $result['output']]);
+                $request->session()->flash('migrate_output', 'Migration failed. Check the server logs.');
+                $request->session()->flash('install_error', 'Migration failed. Check the server logs.');
 
                 return redirect()->route('install.index');
             }
 
+            $request->session()->flash('migrate_output', $result['output'] ?: '(no output)');
             $request->session()->put('install_step', 4);
         } catch (\Throwable $e) {
-            $request->session()->flash('install_error', 'Migration error: ' . $e->getMessage());
-            $request->session()->flash('migrate_output', $e->getMessage());
+            Log::error('Installer migration threw an exception.', ['error' => $e->getMessage()]);
+            $request->session()->flash('install_error', 'Migration failed. Check the server logs.');
+            $request->session()->flash('migrate_output', 'Migration failed. Check the server logs.');
         }
 
         return redirect()->route('install.index');
@@ -261,7 +266,8 @@ class InstallController extends Controller
             $request->session()->put('install_step', 5);
             $request->session()->forget(['install_error', 'install_input']);
         } catch (\Throwable $e) {
-            $request->session()->flash('install_error', 'Failed to create admin: ' . $e->getMessage());
+            Log::error('Installer failed to create the initial administrator.', ['error' => $e->getMessage()]);
+            $request->session()->flash('install_error', 'Failed to create the administrator account. Check the server logs.');
         }
 
         return redirect()->route('install.index');
