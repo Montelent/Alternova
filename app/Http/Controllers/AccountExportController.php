@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\FavoriteService;
 use App\Services\WatchlistService;
+use App\Support\CsvSafe;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -64,7 +65,7 @@ class AccountExportController extends Controller
             fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM for Excel
             fputcsv($out, ['Name', 'Slug', 'Proprietary', 'Health', 'License', 'Repo URL', 'Page URL']);
             foreach ($rows as $row) {
-                fputcsv($out, $map($row));
+                fputcsv($out, CsvSafe::row($map($row)));
             }
             fclose($out);
         }, $filename, $headers);
