@@ -25,7 +25,7 @@
     Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
     Header unset X-Powered-By
     # HSTS only when the request arrived over HTTPS
-    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" env=HTTPS
+    Header always set Strict-Transport-Security "max-age=31536000" env=HTTPS
 </IfModule>
 
 # Block sensitive patterns under public/
