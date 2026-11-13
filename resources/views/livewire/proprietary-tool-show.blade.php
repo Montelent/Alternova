@@ -41,7 +41,7 @@
 
             <div class="mt-6 space-y-4 text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-relaxed max-w-3xl">
                 <p>{!! \App\Support\HtmlSanitizer::clean($introHtml) !!}</p>
-                <p>{!! $bodyHtml !!}</p>
+                <p>{!! \App\Support\HtmlSanitizer::clean($bodyHtml) !!}</p>
             </div>
 
             @if(is_array($tool->key_features) && count($tool->key_features))
