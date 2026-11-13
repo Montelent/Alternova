@@ -62,7 +62,7 @@ class InstallWizard extends Component
             abort(403, 'Application is already installed.');
         }
 
-        $this->app_url = $this->normalizeAppUrl(request()->getSchemeAndHttpHost());
+        $this->app_url = $this->normalizeAppUrl(Installer::detectAppUrl());
         Installer::ensureStorageDirectories();
         Installer::ensureEnvFile();
         Installer::ensureInstallSafeDrivers();
