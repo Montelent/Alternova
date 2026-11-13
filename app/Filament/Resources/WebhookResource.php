@@ -16,6 +16,12 @@ use Illuminate\Support\Str;
 
 class WebhookResource extends Resource
 {
+
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->canManageSystem() ?? false;
+    }
+
     protected static ?string $model = Webhook::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-bolt';
