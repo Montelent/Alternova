@@ -10,6 +10,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Schema;
+use App\Support\CsvSafe;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class NewsletterSubscriberResource extends Resource
@@ -86,12 +87,12 @@ class NewsletterSubscriberResource extends Resource
                             $h = fopen('php://output', 'w');
                             fputcsv($h, ['email', 'status', 'source', 'subscribed_at']);
                             foreach ($rows as $r) {
-                                fputcsv($h, [
+                                fputcsv($h, CsvSafe::row([
                                     $r->email,
                                     $r->status,
                                     $r->source,
                                     optional($r->subscribed_at)->toDateTimeString(),
-                                ]);
+                                ]));
                             }
                             fclose($h);
                         }, 'newsletter-'.date('Y-m-d').'.csv', ['Content-Type' => 'text/csv']);
