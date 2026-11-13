@@ -49,7 +49,7 @@ class HtmlSanitizer
         $config->set('AutoFormat.RemoveEmpty', true);
 
         $app = function_exists('app') ? app() : null;
-        $cachePath = $app instanceof \\Illuminate\\Foundation\\Application
+        $cachePath = $app instanceof \Illuminate\Foundation\Application
             ? $app->storagePath('framework/cache/htmlpurifier')
             : sys_get_temp_dir().'/alternova-htmlpurifier';
         if (! is_dir($cachePath)) {
