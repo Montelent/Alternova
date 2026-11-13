@@ -8,7 +8,9 @@ use App\Services\SavedDomainService;
 use App\Services\SeoManager;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -32,6 +34,16 @@ class Register extends Component
 
     public function register(): void
     {
+        $key = 'register:'.request()->ip();
+
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            throw ValidationException::withMessages([
+                'email' => 'Too many registration attempts. Try again in a few minutes.',
+            ]);
+        }
+
+        RateLimiter::hit($key, 600);
+
         $data = $this->validate([
             'name' => 'required|string|max:120',
             'email' => 'required|email|max:190|unique:users,email',
