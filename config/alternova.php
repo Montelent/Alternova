@@ -16,8 +16,8 @@ return [
         explode(',', (string) env('APP_ALLOWED_HOSTS', ''))
     ))),
 
-    'trusted_proxies' => array_values(array_filter(array_map(
-        'trim',
-        explode(',', (string) env('TRUSTED_PROXIES', ''))
-    ))),
+    'trusted_proxies' => array_values(array_filter(
+        array_map('trim', explode(',', (string) env('TRUSTED_PROXIES', ''))),
+        static fn (string $proxy): bool => $proxy !== '' && $proxy !== '*'
+    )),
 ];
