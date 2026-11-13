@@ -48,7 +48,9 @@ class HtmlSanitizer
         $config->set('HTML.SafeEmbed', false);
         $config->set('AutoFormat.RemoveEmpty', true);
 
-        $cachePath = storage_path('framework/cache/htmlpurifier');
+        $cachePath = function_exists('storage_path')
+            ? storage_path('framework/cache/htmlpurifier')
+            : sys_get_temp_dir().'/alternova-htmlpurifier';
         if (! is_dir($cachePath)) {
             @mkdir($cachePath, 0755, true);
         }
