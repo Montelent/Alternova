@@ -44,11 +44,11 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->web(append: [
-            EnsureActiveUser::class,
             ForcePreferredUrl::class, // host (www/non-www) + HTTPS from APP_URL
             RedirectIfNotInstalled::class,
             CheckMaintenanceMode::class,
             SecurityHeaders::class,
+            EnsureActiveUser::class,
             PreventDemoWrites::class,
         ]);
     })
