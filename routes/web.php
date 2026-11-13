@@ -1,45 +1,45 @@
 <?php
 
-use App\\Http\\Controllers\\AccountExportController;
-use App\\Http\\Controllers\\ApiDocsController;
-use App\\Http\\Controllers\\AffiliateRedirectController;
-use App\\Http\\Controllers\\Api\\AlternativeApiController;
-use App\\Http\\Controllers\\Api\\ProsConsApiController;
-use App\\Http\\Controllers\\Api\\SearchSuggestController;
-use App\\Http\\Controllers\\BadgeController;
-use App\\Http\\Controllers\\CollectionSubmissionStatusController;
-use App\\Http\\Controllers\\EmbedController;
-use App\\Http\\Controllers\\FeedController;
-use App\\Http\\Controllers\\HomeController;
-use App\\Http\\Controllers\\InstallController;
-use App\\Http\\Controllers\\NewsletterController;
-use App\\Http\\Controllers\\OgImageController;
-use App\\Http\\Controllers\\PageController;
-use App\\Http\\Controllers\\SitemapController;
-use App\\Http\\Controllers\\SubmissionStatusController;
-use App\\Http\\Controllers\\WhatsNewController;
-use App\\Livewire\\AccountPage;
-use App\\Livewire\\AlternativeDetail;
-use App\\Livewire\\Auth\\ForgotPassword;
-use App\\Livewire\\Auth\\Login;
-use App\\Livewire\\Auth\\Register;
-use App\\Livewire\\Auth\\ResetPassword;
-use App\\Livewire\\BrowseHub;
-use App\\Livewire\\CollectionIndex;
-use App\\Livewire\\CollectionShow;
-use App\\Livewire\\CompareAlternatives;
-use App\\Livewire\\ContactForm;
-use App\\Livewire\\SupportTicketShow;
-use App\\Livewire\\DomainCombinator;
-use App\\Livewire\\FavoritesPage;
-use App\\Livewire\\Leaderboard;
-use App\\Livewire\\NotificationsPage;
-use App\\Livewire\\OpenSourceFinder;
-use App\\Livewire\\ProprietaryToolShow;
-use App\\Livewire\\SuggestAlternative;
-use App\\Livewire\\SuggestCollection;
-use App\\Livewire\\TrendingPage;
-use Illuminate\\Support\\Facades\\Route;
+use App\Http\Controllers\AccountExportController;
+use App\Http\Controllers\ApiDocsController;
+use App\Http\Controllers\AffiliateRedirectController;
+use App\Http\Controllers\Api\AlternativeApiController;
+use App\Http\Controllers\Api\ProsConsApiController;
+use App\Http\Controllers\Api\SearchSuggestController;
+use App\Http\Controllers\BadgeController;
+use App\Http\Controllers\CollectionSubmissionStatusController;
+use App\Http\Controllers\EmbedController;
+use App\Http\Controllers\FeedController;
+use App\Http\Controllers\HomeController;
+use App\Http\Controllers\InstallController;
+use App\Http\Controllers\NewsletterController;
+use App\Http\Controllers\OgImageController;
+use App\Http\Controllers\PageController;
+use App\Http\Controllers\SitemapController;
+use App\Http\Controllers\SubmissionStatusController;
+use App\Http\Controllers\WhatsNewController;
+use App\Livewire\AccountPage;
+use App\Livewire\AlternativeDetail;
+use App\Livewire\Auth\ForgotPassword;
+use App\Livewire\Auth\Login;
+use App\Livewire\Auth\Register;
+use App\Livewire\Auth\ResetPassword;
+use App\Livewire\BrowseHub;
+use App\Livewire\CollectionIndex;
+use App\Livewire\CollectionShow;
+use App\Livewire\CompareAlternatives;
+use App\Livewire\ContactForm;
+use App\Livewire\SupportTicketShow;
+use App\Livewire\DomainCombinator;
+use App\Livewire\FavoritesPage;
+use App\Livewire\Leaderboard;
+use App\Livewire\NotificationsPage;
+use App\Livewire\OpenSourceFinder;
+use App\Livewire\ProprietaryToolShow;
+use App\Livewire\SuggestAlternative;
+use App\Livewire\SuggestCollection;
+use App\Livewire\TrendingPage;
+use Illuminate\Support\Facades\Route;
 
 Route::middleware(['web', 'not.installed'])->prefix('install')->group(function () {
     Route::get('/', [InstallController::class, 'index'])->name('install.index');
@@ -111,7 +111,7 @@ Route::post('/newsletter/unsubscribe', [NewsletterController::class, 'confirmUns
 
 Route::get('/p/{slug}', function (string $slug) {
     return redirect()->route('pages.show', ['slug' => $slug], 301);
-})->where('slug', '[A-Za-z0-9\\-_]+');
+})->where('slug', '[A-Za-z0-9\-_]+');
 
 Route::get('/about', [PageController::class, 'about'])->name('about');
 Route::get('/privacy', [PageController::class, 'privacy'])->name('privacy');
@@ -148,10 +148,10 @@ Route::get('/ads.txt', function () {
 Route::get('/robots.txt', function () {
     $path = public_path('robots.txt');
     $base = rtrim(config('app.url'), '/');
-    $body = is_file($path) ? file_get_contents($path) : "User-agent: *\\nAllow: /\\n";
+    $body = is_file($path) ? file_get_contents($path) : "User-agent: *\nAllow: /\n";
     $body = preg_replace('/^Sitemap:.*$/m', 'Sitemap: '.$base.'/sitemap.xml', $body);
     if (! str_contains($body, 'Sitemap:')) {
-        $body = rtrim($body)."\\n\\nSitemap: {$base}/sitemap.xml\\n";
+        $body = rtrim($body)."\n\nSitemap: {$base}/sitemap.xml\n";
     }
 
     return response($body, 200)->header('Content-Type', 'text/plain');
@@ -162,5 +162,5 @@ Route::get('/robots.txt', function () {
  | Registered last so app routes always win.
  */
 Route::get('/{slug}', [PageController::class, 'show'])
-    ->where('slug', '[A-Za-z0-9\\-_]+')
+    ->where('slug', '[A-Za-z0-9\-_]+')
     ->name('pages.show');
