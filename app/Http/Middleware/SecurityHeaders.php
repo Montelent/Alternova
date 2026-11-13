@@ -33,7 +33,21 @@ class SecurityHeaders
         }
 
         $response->headers->set('X-Content-Type-Options', 'nosniff');
-        $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+        $sensitiveTokenPage = $request->is(
+            'support/*',
+            'submission-status/*',
+            'collection-submission-status/*'
+        );
+        $response->headers->set(
+            'Referrer-Policy',
+            $sensitiveTokenPage ? 'no-referrer' : 'strict-origin-when-cross-origin'
+        );
+
+        if ($sensitiveTokenPage) {
+            $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+            $response->headers->set('Pragma', 'no-cache');
+        }
 
         // Modern browsers ignore X-XSS-Protection; 0 avoids legacy filter issues
         $response->headers->set('X-XSS-Protection', '0');
