@@ -22,5 +22,5 @@ Disallow: /embed/
 # Prefer canonical /alternativesto/ URLs
 Disallow: /tools/
 
-# Sitemap line is rewritten at runtime to absolute APP_URL (see routes/web.php)
+# Sitemap origin is resolved from the validated active domain at runtime.
 Sitemap: /sitemap.xml
