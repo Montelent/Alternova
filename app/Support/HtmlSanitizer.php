@@ -36,8 +36,11 @@ class HtmlSanitizer
             'p,br,strong,b,em,i,u,s,del,ins,small,sub,sup,ul,ol,li,dl,dt,dd,h2,h3,h4,h5,blockquote,code,pre,hr,div,span,a[href|title|target],img[src|alt|width|height],figure,figcaption,table,thead,tbody,tr,th[colspan|rowspan],td[colspan|rowspan]'
         );
         $config->set('URI.AllowedSchemes', ['http' => true, 'https' => true, 'mailto' => true]);
-        $config->set('HTML.TargetBlank', true);
+        $config->set('HTML.Nofollow', true);
+        $config->set('HTML.TargetNoopener', true);
+        $config->set('HTML.TargetNoreferrer', true);
         $config->set('Attr.AllowedFrameTargets', ['_blank']);
+        $config->set('URI.DisableExternalResources', true);
         $config->set('Attr.EnableID', false);
         $config->set('CSS.AllowedProperties', []);
         $config->set('HTML.SafeIframe', false);
