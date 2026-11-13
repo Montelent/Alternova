@@ -103,4 +103,5 @@ class ForcePreferredUrl
         // Laravel only honors forwarded scheme headers from proxies explicitly
         // configured in TRUSTED_PROXIES. Never trust raw client-supplied headers.
         return $request->isSecure();
-    }}
+    }
+}
