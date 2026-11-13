@@ -97,7 +97,7 @@ class Installer
         // An existing user table with at least one account is an installed app.
         try {
             return Schema::hasTable('users') && DB::table('users')->exists();
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             // Database may not be configured yet on a genuine first install.
             return false;
         }
