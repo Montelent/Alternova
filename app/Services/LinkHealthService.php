@@ -38,7 +38,7 @@ class LinkHealthService
             $response = Http::timeout(4)
                 ->connectTimeout(3)
                 ->withHeaders(['User-Agent' => 'Alternova-LinkChecker/1.0'])
-                ->withOptions(['allow_redirects' => false])
+                ->withOptions(['allow_redirects' => PublicHttpUrl::safeRedirectOptions()])
                 ->head($url);
 
             if ($response->successful() || in_array($response->status(), [401, 403, 405], true)) {
@@ -49,7 +49,7 @@ class LinkHealthService
             $get = Http::timeout(4)
                 ->connectTimeout(3)
                 ->withHeaders(['User-Agent' => 'Alternova-LinkChecker/1.0'])
-                ->withOptions(['allow_redirects' => false])
+                ->withOptions(['allow_redirects' => PublicHttpUrl::safeRedirectOptions()])
                 ->get($url);
 
             return $get->successful() || in_array($get->status(), [401, 403], true);
