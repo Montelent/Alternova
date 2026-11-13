@@ -253,6 +253,7 @@ class InstallController extends Controller
                 'name' => $data['admin_name'],
                 'email' => $data['admin_email'],
                 'password' => $data['admin_password'],
+                'role' => User::ROLE_ADMIN,
                 'email_verified_at' => now(),
             ]);
 
