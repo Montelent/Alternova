@@ -105,7 +105,6 @@ Route::get('/submission-status/{token}', SubmissionStatusController::class)->nam
 Route::get('/collection-submission-status/{token}', CollectionSubmissionStatusController::class)->name('collection.submission.status');
 Route::get('/support/{publicId}', SupportTicketShow::class)->name('support.show');
 
-Route::get('/newsletter/confirm/{token}', [NewsletterController::class, 'confirm'])->name('newsletter.confirm');
 Route::get('/newsletter/unsubscribe/{token}', [NewsletterController::class, 'unsubscribe'])->name('newsletter.unsubscribe');
 Route::post('/newsletter/unsubscribe', [NewsletterController::class, 'confirmUnsubscribe'])->name('newsletter.unsubscribe.confirm');
 
