@@ -11,6 +11,7 @@ use App\Services\DemoDataSeeder;
 use App\Services\JsonCatalogRestorer;
 use App\Services\LinkHealthService;
 use App\Support\Installer;
+use App\Support\CsvSafe;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Concerns\InteractsWithForms;
@@ -378,7 +379,7 @@ class SystemTools extends Page implements HasForms
                 'language', 'difficulty', 'health', 'votes', 'published', 'featured',
             ]);
             foreach ($rows as $r) {
-                fputcsv($h, [
+                fputcsv($h, CsvSafe::row([
                     $r->name,
                     $r->slug,
                     $r->proprietaryTool?->name,
@@ -391,7 +392,7 @@ class SystemTools extends Page implements HasForms
                     $r->votes_count,
                     $r->is_published ? 1 : 0,
                     $r->is_featured ? 1 : 0,
-                ]);
+                ]));
             }
             fclose($h);
         }, 'alternova-catalog-'.date('Y-m-d').'.csv', [
