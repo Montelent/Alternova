@@ -38,6 +38,10 @@ class CollectionSubmissionResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
+        if (! (auth()->user()?->canManageSystem() ?? false)) {
+            return false;
+        }
+
         try {
             return Schema::hasTable('collection_submissions');
         } catch (\Throwable) {
