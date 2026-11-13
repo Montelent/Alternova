@@ -44,7 +44,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->web(append: [
-            ForcePreferredUrl::class, // host (www/non-www) + HTTPS from APP_URL
+            ForcePreferredUrl::class, // validated allowed hosts + HTTPS from trusted request metadata
             RedirectIfNotInstalled::class,
             CheckMaintenanceMode::class,
             SecurityHeaders::class,
