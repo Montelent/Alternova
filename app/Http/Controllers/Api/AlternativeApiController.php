@@ -12,12 +12,21 @@ class AlternativeApiController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $q = $request->string('q')->trim()->toString();
-        $license = $request->string('license')->trim()->toString();
-        $category = $request->string('category')->trim()->toString();
-        $sort = $request->string('sort', 'health')->toString();
-        $perPage = min(50, max(1, (int) $request->input('per_page', 20)));
-        $pageNum = max(1, (int) $request->input('page', 1));
+        $filters = $request->validate([
+            'q' => ['nullable', 'string', 'max:120'],
+            'license' => ['nullable', 'string', 'max:80'],
+            'category' => ['nullable', 'string', 'max:80'],
+            'sort' => ['nullable', 'string', 'in:health,stars,votes,name,newest'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'page' => ['nullable', 'integer', 'min:1', 'max:1000'],
+        ]);
+
+        $q = trim((string) ($filters['q'] ?? ''));
+        $license = trim((string) ($filters['license'] ?? ''));
+        $category = trim((string) ($filters['category'] ?? ''));
+        $sort = (string) ($filters['sort'] ?? 'health');
+        $perPage = (int) ($filters['per_page'] ?? 20);
+        $pageNum = (int) ($filters['page'] ?? 1);
 
         $cacheKey = 'api.alts.v1.'.md5(json_encode([
             $q, $license, $category, $sort, $perPage, $pageNum,
