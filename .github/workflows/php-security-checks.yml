@@ -61,3 +61,24 @@ jobs:
 
       - name: Audit npm dependencies
         run: npm audit --audit-level=moderate
+
+
+  unit-tests:
+    name: Security helper unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, dom, xml, curl, fileinfo, pdo_sqlite, sqlite3
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --no-scripts --no-plugins --prefer-dist --no-progress --no-interaction
+
+      - name: Run security helper unit tests
+        run: vendor/bin/phpunit tests/Unit
