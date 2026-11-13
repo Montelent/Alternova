@@ -12,6 +12,12 @@ use Illuminate\Support\Facades\Schema;
 
 class ApiKeyResource extends Resource
 {
+
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->canManageSystem() ?? false;
+    }
+
     protected static ?string $model = ApiKey::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-key';
