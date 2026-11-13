@@ -14,7 +14,7 @@ class PublicHttpUrlTest extends TestCase
     {
         self::assertFalse(PublicHttpUrl::isSafe('ftp://8.8.8.8'));
         self::assertFalse(PublicHttpUrl::isSafe('file:///etc/passwd'));
-        self::assertTrue(PublicHttpUrl::isSafe('https://8.8.8.8'));
+        self::assertTrue(PublicHttpUrl::isSafe('https://8.8.8.8'), 'public IPv4');
     }
 
     public function test_private_and_special_use_addresses_are_blocked(): void
@@ -43,8 +43,8 @@ class PublicHttpUrlTest extends TestCase
     public function test_public_ip_literals_are_allowed(): void
     {
         self::assertTrue(PublicHttpUrl::isSafe('https://8.8.8.8'));
-        self::assertTrue(PublicHttpUrl::isSafe('https://[2001:4860:4860::8888]'));
-        self::assertTrue(PublicHttpUrl::isSafe('https://[::ffff:8.8.8.8]'));
+        self::assertTrue(PublicHttpUrl::isSafe('https://[2001:4860:4860::8888]'), 'public IPv6');
+        self::assertTrue(PublicHttpUrl::isSafe('https://[::ffff:8.8.8.8]'), 'public mapped IPv4');
     }
 
     public function test_https_redirects_cannot_downgrade_to_http(): void
