@@ -1,18 +1,18 @@
 <?php
 
-use App\Http\Middleware\AuthenticateApiKey;
-use App\Http\Middleware\CheckMaintenanceMode;
-use App\Http\Middleware\EnsureNotInstalled;
-use App\Http\Middleware\EnsureSessionIsConfigured;
-use App\Http\Middleware\ForceHttps;
-use App\Http\Middleware\ForcePreferredUrl;
-use App\Http\Middleware\PreventDemoWrites;
-use App\Http\Middleware\RedirectIfNotInstalled;
-use App\Http\Middleware\SecurityHeaders;
-use App\Http\Middleware\ThrottleApi;
-use Illuminate\Foundation\Application;
-use Illuminate\Foundation\Configuration\Exceptions;
-use Illuminate\Foundation\Configuration\Middleware;
+use App\\Http\\Middleware\\AuthenticateApiKey;
+use App\\Http\\Middleware\\CheckMaintenanceMode;
+use App\\Http\\Middleware\\EnsureNotInstalled;
+use App\\Http\\Middleware\\EnsureSessionIsConfigured;
+use App\\Http\\Middleware\\ForceHttps;
+use App\\Http\\Middleware\\ForcePreferredUrl;
+use App\\Http\\Middleware\\PreventDemoWrites;
+use App\\Http\\Middleware\\RedirectIfNotInstalled;
+use App\\Http\\Middleware\\SecurityHeaders;
+use App\\Http\\Middleware\\ThrottleApi;
+use Illuminate\\Foundation\\Application;
+use Illuminate\\Foundation\\Configuration\\Exceptions;
+use Illuminate\\Foundation\\Configuration\\Middleware;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -28,18 +28,19 @@ return Application::configure(basePath: dirname(__DIR__))
             'api.throttle' => ThrottleApi::class,
         ]);
 
-        $middleware->trustProxies(at: '*');
+        // Only trust forwarded headers from explicitly configured reverse proxies.
+        // Set TRUSTED_PROXIES to a comma-separated list of proxy IPs/CIDRs per host.
+        $trustedProxies = env('TRUSTED_PROXIES');
+        if (is_string($trustedProxies) && trim($trustedProxies) !== '') {
+            $proxies = array_values(array_filter(array_map('trim', explode(',', $trustedProxies))));
+            if ($proxies !== []) {
+                $middleware->trustProxies(at: $proxies);
+            }
+        }
 
-        /*
-         | Livewire POSTs to /livewire/update. On multi-process shared hosting (Hostinger),
-         | file session locks + concurrent Livewire requests often produce false CSRF 419s.
-         | Livewire still validates component checksums (APP_KEY). Keep CSRF on all other routes.
-         */
-        $middleware->validateCsrfTokens(except: [
-            'livewire/update',
-            'livewire/*',
-        ]);
-
+        // Keep Laravel's normal CSRF protection enabled for every state-changing
+        // endpoint, including Livewire. Livewire component checksums are not a
+        // substitute for CSRF validation.
         $middleware->web(prepend: [
             EnsureSessionIsConfigured::class,
         ]);
