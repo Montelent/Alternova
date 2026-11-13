@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Models;
+use App\Support\HtmlSanitizer;
 
 use App\Support\MediaUrl;
 use Illuminate\Database\Eloquent\Builder;
@@ -197,4 +198,14 @@ SQL;
             'key_features' => $this->key_features,
         ];
     }
+    public function getDescriptionAttribute($value): ?string
+    {
+        return $value === null ? null : HtmlSanitizer::clean((string) $value);
+    }
+
+    public function setDescriptionAttribute($value): void
+    {
+        $this->attributes['description'] = $value === null ? null : HtmlSanitizer::clean((string) $value);
+    }
+
 }
