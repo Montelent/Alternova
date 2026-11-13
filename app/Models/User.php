@@ -69,16 +69,11 @@ class User extends Authenticatable implements FilamentUser, CanResetPasswordCont
 
     public function canAccessPanel(Panel $panel): bool
     {
-        if (! $this->isActive()) {
-            return false;
-        }
-
-        if (($this->role ?? '') === self::ROLE_MEMBER) {
-            return false;
-        }
-
-        return in_array($this->role, [self::ROLE_ADMIN, self::ROLE_EDITOR], true)
-            || $this->role === null;
+        // Public registrations are unverified and must never inherit admin
+        // access from a database default or a legacy null role.
+        return $this->isActive()
+            && $this->email_verified_at !== null
+            && in_array($this->role, [self::ROLE_ADMIN, self::ROLE_EDITOR], true);
     }
 
     public function isActive(): bool
@@ -106,12 +101,16 @@ class User extends Authenticatable implements FilamentUser, CanResetPasswordCont
 
     public function isAdmin(): bool
     {
-        return ($this->role ?? self::ROLE_ADMIN) === self::ROLE_ADMIN;
+        return $this->isActive()
+            && $this->email_verified_at !== null
+            && $this->role === self::ROLE_ADMIN;
     }
 
     public function isEditor(): bool
     {
-        return ($this->role ?? '') === self::ROLE_EDITOR;
+        return $this->isActive()
+            && $this->email_verified_at !== null
+            && $this->role === self::ROLE_EDITOR;
     }
 
     public function isMember(): bool
