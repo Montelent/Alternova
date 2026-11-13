@@ -15,6 +15,7 @@ use Filament\Pages\Page;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
+use App\Support\CsvSafe;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CatalogImportExportPage extends Page implements HasForms
@@ -120,7 +121,7 @@ class CatalogImportExportPage extends Page implements HasForms
                 ->chunk(100, function ($rows) use ($out) {
                     foreach ($rows as $alt) {
                         $plain = trim(preg_replace('/\s+/', ' ', strip_tags((string) $alt->description)) ?? '');
-                        fputcsv($out, [
+                        fputcsv($out, CsvSafe::row([
                             $alt->name,
                             $alt->slug,
                             mb_substr($plain, 0, 2000),
@@ -131,7 +132,7 @@ class CatalogImportExportPage extends Page implements HasForms
                             $alt->self_host_difficulty,
                             $alt->is_published ? 1 : 0,
                             $alt->proprietaryTools->pluck('slug')->filter()->implode(','),
-                        ]);
+                        ]));
                     }
                 });
 
@@ -157,7 +158,7 @@ class CatalogImportExportPage extends Page implements HasForms
                         $features = implode('|', $features);
                     }
                     $plain = trim(preg_replace('/\s+/', ' ', strip_tags((string) $tool->description)) ?? '');
-                    fputcsv($out, [
+                    fputcsv($out, CsvSafe::row([
                         $tool->name,
                         $tool->slug,
                         $tool->website_url,
@@ -165,7 +166,7 @@ class CatalogImportExportPage extends Page implements HasForms
                         $tool->target_audience,
                         $features,
                         $tool->is_published ? 1 : 0,
-                    ]);
+                    ]));
                 }
             });
 
