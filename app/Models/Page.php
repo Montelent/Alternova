@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Models;
+use App\Support\HtmlSanitizer;
 
 use App\Models\Concerns\HasAutoSortOrder;
 use Illuminate\Database\Eloquent\Builder;
@@ -85,4 +86,14 @@ class Page extends Model
     {
         return app(\App\Services\SeoManager::class)->cmsPageDescription($this);
     }
+    public function getBody_htmlAttribute($value): ?string
+    {
+        return $value === null ? null : HtmlSanitizer::clean((string) $value);
+    }
+
+    public function setBody_htmlAttribute($value): void
+    {
+        $this->attributes['body_html'] = $value === null ? null : HtmlSanitizer::clean((string) $value);
+    }
+
 }
