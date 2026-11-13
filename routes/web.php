@@ -39,7 +39,7 @@ use App\Livewire\ProprietaryToolShow;
 use App\Livewire\SuggestAlternative;
 use App\Livewire\SuggestCollection;
 use App\Livewire\TrendingPage;
-use Illuminate\Support\Facades\Route;
+use App\Support\CanonicalUrl;\nuse Illuminate\Support\Facades\Route;
 
 Route::middleware(['web', 'not.installed'])->prefix('install')->group(function () {
     Route::get('/', [InstallController::class, 'index'])->name('install.index');
