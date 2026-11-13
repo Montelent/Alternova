@@ -19,9 +19,9 @@ class DomainCombinatorService
         array $suffixes = [],
         array $tlds = ['com']
     ): array {
-        $keywords = array_slice(array_map(fn ($k) => $this->sanitize($k), array_filter($keywords, 'is_string')), 0, 8);
-        $prefixes = array_slice(array_map(fn ($p) => $this->sanitize($p), array_filter($prefixes, 'is_string')), 0, 12);
-        $suffixes = array_slice(array_map(fn ($s) => $this->sanitize($s), array_filter($suffixes, 'is_string')), 0, 12);
+        $keywords = array_slice(array_map(fn ($k) => substr($this->sanitize($k), 0, 32), array_filter($keywords, 'is_string')), 0, 8);
+        $prefixes = array_slice(array_map(fn ($p) => substr($this->sanitize($p), 0, 16), array_filter($prefixes, 'is_string')), 0, 12);
+        $suffixes = array_slice(array_map(fn ($s) => substr($this->sanitize($s), 0, 16), array_filter($suffixes, 'is_string')), 0, 12);
         $allowedTlds = ['com', 'net', 'org', 'io', 'dev', 'app', 'co', 'ai', 'xyz', 'me'];
         $tlds = array_slice(array_values(array_intersect(
             $allowedTlds,
