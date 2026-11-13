@@ -42,6 +42,7 @@ class Register extends Component
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
+            'role' => User::ROLE_MEMBER,
         ]);
 
         Auth::login($user);
