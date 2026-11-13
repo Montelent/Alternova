@@ -35,24 +35,21 @@ class LinkHealthService
         }
 
         try {
+            // HEAD avoids downloading arbitrary remote response bodies. Do not
+            // fall back to GET: an untrusted host could return an unbounded file.
             $response = Http::timeout(4)
                 ->connectTimeout(3)
                 ->withHeaders(['User-Agent' => 'Alternova-LinkChecker/1.0'])
-                ->withOptions(['allow_redirects' => PublicHttpUrl::safeRedirectOptions()])
+                ->withOptions([
+                    'allow_redirects' => PublicHttpUrl::safeRedirectOptions(),
+                    'stream' => true,
+                ])
                 ->head($url);
 
-            if ($response->successful() || in_array($response->status(), [401, 403, 405], true)) {
-                return true;
-            }
+            $status = $response->status();
+            $response->toPsrResponse()->getBody()->close();
 
-            // Some hosts block HEAD — try GET once with short timeout
-            $get = Http::timeout(4)
-                ->connectTimeout(3)
-                ->withHeaders(['User-Agent' => 'Alternova-LinkChecker/1.0'])
-                ->withOptions(['allow_redirects' => PublicHttpUrl::safeRedirectOptions()])
-                ->get($url);
-
-            return $get->successful() || in_array($get->status(), [401, 403], true);
+            return $response->successful() || in_array($status, [401, 403, 405], true);
         } catch (\Throwable $e) {
             Log::debug('Link check failed.', [
                 'host' => parse_url($url, PHP_URL_HOST),
