@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Support\GitHubUrl;
+use App\Support\PublicHttpUrl;
 use App\Support\IntegrationsSettings;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -159,9 +160,18 @@ class DescriptionGeneratorService
      */
     public function fromWebsite(string $websiteUrl, string $name = ''): array
     {
+        if (! PublicHttpUrl::isSafe($websiteUrl)) {
+            return [
+                'description' => $this->composeProprietaryFallback($name),
+                'success' => false,
+                'message' => 'The website URL must resolve to a public HTTP or HTTPS address.',
+            ];
+        }
+
         try {
             $response = Http::timeout(6)
                 ->connectTimeout(3)
+                ->withOptions(['allow_redirects' => false])
                 ->withHeaders(['User-Agent' => 'Alternova-DescriptionBot/1.0'])
                 ->get($websiteUrl);
 
@@ -198,7 +208,7 @@ class DescriptionGeneratorService
             return [
                 'description' => $this->composeProprietaryFallback($name),
                 'success' => false,
-                'message' => 'Fetch failed: '.$e->getMessage(),
+                'message' => 'The website could not be fetched. Check that the public URL is reachable and try again.',
             ];
         }
     }
