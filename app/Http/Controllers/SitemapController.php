@@ -18,7 +18,7 @@ class SitemapController extends Controller
     /** Sitemap index listing all child sitemaps. */
     public function index(): Response
     {
-        $base = rtrim((string) config('app.url'), '/');
+        $base = rtrim(CanonicalUrl::base(), '/');
         $now = now()->toAtomString();
 
         $sitemaps = [
@@ -37,7 +37,7 @@ class SitemapController extends Controller
 
     public function staticPages(): Response
     {
-        $base = rtrim((string) config('app.url'), '/');
+        $base = rtrim(CanonicalUrl::base(), '/');
         $includeDomains = SiteSetting::getBool('seo_sitemap_domains', true);
         $includeCompare = SiteSetting::getBool('seo_sitemap_compare', false);
 
@@ -86,7 +86,7 @@ class SitemapController extends Controller
                 }
             }
         } catch (\Throwable) {
-            $base = rtrim((string) config('app.url'), '/');
+            $base = rtrim(CanonicalUrl::base(), '/');
             foreach (['about', 'privacy', 'terms', 'disclosure'] as $slug) {
                 $urls[] = ['loc' => $base.'/'.$slug, 'changefreq' => 'yearly', 'priority' => '0.4'];
             }
@@ -97,7 +97,7 @@ class SitemapController extends Controller
 
     public function tools(): Response
     {
-        $base = rtrim((string) config('app.url'), '/');
+        $base = rtrim(CanonicalUrl::base(), '/');
         $urls = [];
 
         ProprietaryTool::query()
@@ -121,7 +121,7 @@ class SitemapController extends Controller
 
     public function alternatives(): Response
     {
-        $base = rtrim((string) config('app.url'), '/');
+        $base = rtrim(CanonicalUrl::base(), '/');
         $urls = [];
 
         OpenSourceAlternative::query()
@@ -145,7 +145,7 @@ class SitemapController extends Controller
 
     public function categories(): Response
     {
-        $base = rtrim((string) config('app.url'), '/');
+        $base = rtrim(CanonicalUrl::base(), '/');
         $urls = [];
 
         // Category hubs
@@ -205,7 +205,7 @@ class SitemapController extends Controller
 
     public function collections(): Response
     {
-        $base = rtrim((string) config('app.url'), '/');
+        $base = rtrim(CanonicalUrl::base(), '/');
         $urls = [];
 
         try {
