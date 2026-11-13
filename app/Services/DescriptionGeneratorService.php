@@ -171,7 +171,7 @@ class DescriptionGeneratorService
         try {
             $response = Http::timeout(6)
                 ->connectTimeout(3)
-                ->withOptions(['allow_redirects' => false])
+                ->withOptions(['allow_redirects' => PublicHttpUrl::safeRedirectOptions()])
                 ->withHeaders(['User-Agent' => 'Alternova-DescriptionBot/1.0'])
                 ->get($websiteUrl);
 
