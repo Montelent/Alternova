@@ -327,6 +327,7 @@ class InstallWizard extends Component
                 'name' => $this->admin_name,
                 'email' => $this->admin_email,
                 'password' => $this->admin_password,
+                'role' => User::ROLE_ADMIN,
                 'email_verified_at' => now(),
             ]);
 
