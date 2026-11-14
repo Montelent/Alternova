@@ -717,16 +717,7 @@ class Installer
     ): array {
         // Prevent DSN parameter injection: these values are interpolated into
         // PDO connection strings and must contain only host/name/port tokens.
-        $isPostgresSocketDirectory = $connection === 'pgsql'
-            && str_starts_with($host, '/')
-            && preg_match('/\\A\\/[A-Za-z0-9._\\/-]+\\z/', $host)
-            && ! preg_match('~(?:^|/)\\.\\.(?:/|$)~', $host)
-            && is_dir($host);
-
-        $validHost = $isPostgresSocketDirectory || (
-            preg_match('/\\A(?:localhost|[A-Za-z0-9.-]+|\\[[0-9A-Fa-f:]+\\]|[0-9A-Fa-f:]+)\\z/', $host)
-            && ! str_contains($host, '..')
-        );
+        $validHost = self::isValidDatabaseHost($connection, $host);
         $validDatabase = preg_match('/\\A[A-Za-z0-9_.-]+\\z/', $database);
         $validPort = ctype_digit($port) && (int) $port >= 1 && (int) $port <= 65535;
 
@@ -774,6 +765,21 @@ class Installer
             'success' => false,
             'message' => 'Unable to connect to the database. Verify the host, port, database name, username, password, and that the database server accepts connections.',
         ];
+    }
+
+    public static function isValidDatabaseHost(string $connection, string $host): bool
+    {
+        if ($connection === 'pgsql'
+            && str_starts_with($host, '/')
+            && preg_match('/\\A\\/[A-Za-z0-9._\\/-]+\\z/', $host)
+            && ! preg_match('~(?:^|/)\\.\\.(?:/|$)~', $host)
+            && is_dir($host)
+        ) {
+            return true;
+        }
+
+        return (bool) preg_match('/\\A(?:localhost|[A-Za-z0-9.-]+|\\[[0-9A-Fa-f:]+\\]|[0-9A-Fa-f:]+)\\z/', $host)
+            && ! str_contains($host, '..');
     }
 
     /**
