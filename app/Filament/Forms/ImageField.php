@@ -33,7 +33,8 @@ class ImageField
                 '4:3',
             ])
             ->maxSize(8192)
-            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'])
+            ->rules(['dimensions:max_width=5000,max_height=5000'])
+            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
             ->disk('uploads')
             ->directory($directory)
             ->visibility('public')
@@ -83,6 +84,7 @@ class ImageField
             ->maxFiles($max)
             ->imageEditor()
             ->maxSize(8192)
+            ->rules(['dimensions:max_width=5000,max_height=5000'])
             ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
             ->disk('uploads')
             ->directory($directory)

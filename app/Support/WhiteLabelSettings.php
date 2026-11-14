@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\SiteSetting;
+use App\Support\PublicHttpUrl;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -114,22 +115,57 @@ class WhiteLabelSettings
     public static function importRemoteImage(string $url, string $kind = 'logo'): ?string
     {
         $url = trim($url);
-        if ($url === '' || ! filter_var($url, FILTER_VALIDATE_URL)) {
+        if ($url === '' || ! filter_var($url, FILTER_VALIDATE_URL) || ! PublicHttpUrl::isSafe($url)) {
             return null;
         }
 
         try {
-            $response = Http::timeout(15)->get($url);
+            $response = Http::timeout(8)
+                ->connectTimeout(4)
+                ->withOptions([
+                    'allow_redirects' => PublicHttpUrl::safeRedirectOptions(),
+                    'stream' => true,
+                ])
+                ->get($url);
+
+            $stream = $response->toPsrResponse()->getBody();
             if (! $response->successful()) {
+                $stream->close();
+
                 return null;
             }
-            $body = $response->body();
-            $ext = pathinfo(parse_url($url, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION) ?: 'png';
-            $ext = strtolower(preg_replace('/[^a-z0-9]/', '', $ext) ?: 'png');
-            if (! in_array($ext, ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'ico'], true)) {
-                $ext = 'png';
+
+            // Branding imports are raster-only and bounded to prevent SSRF
+            // response bodies from exhausting PHP memory or writing active SVG.
+            $body = $stream->read((8 * 1024 * 1024) + 1);
+            $stream->close();
+            if (strlen($body) > 8 * 1024 * 1024) {
+                return null;
             }
-            $name = 'branding/'.Str::slug($kind).'-'.Str::random(8).'.'.$ext;
+
+            $info = @getimagesizefromstring($body);
+            $mime = is_array($info) ? strtolower((string) ($info['mime'] ?? '')) : '';
+            $extensions = [
+                'image/png' => 'png',
+                'image/jpeg' => 'jpg',
+                'image/gif' => 'gif',
+                'image/webp' => 'webp',
+                'image/x-icon' => 'ico',
+                'image/vnd.microsoft.icon' => 'ico',
+            ];
+
+            if (! is_array($info)
+                || ! isset($extensions[$mime])
+                || ($info[0] ?? 0) < 1
+                || ($info[1] ?? 0) < 1
+                || $info[0] > 5000
+                || $info[1] > 5000
+                || ($info[0] * $info[1]) > 25000000
+            ) {
+                return null;
+            }
+
+            $name = 'branding/'.Str::slug($kind).'-'.Str::random(8).'.'.$extensions[$mime];
             Storage::disk('uploads')->put($name, $body);
 
             return $name;

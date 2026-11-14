@@ -25,7 +25,7 @@ class GettingStartedPage extends Page
 
     public static function canAccess(): bool
     {
-        return auth()->check();
+        return auth()->user()?->canManageSystem() ?? false;
     }
 
     /**

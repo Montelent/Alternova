@@ -15,6 +15,7 @@ use Filament\Pages\Page;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
+use App\Support\CsvSafe;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CatalogImportExportPage extends Page implements HasForms
@@ -104,6 +105,7 @@ class CatalogImportExportPage extends Page implements HasForms
 
     public function exportCsv(): StreamedResponse
     {
+        abort_unless(static::canAccess(), 403);
         $filename = 'alternatives-'.now()->format('Y-m-d-His').'.csv';
 
         return response()->streamDownload(function () {
@@ -120,7 +122,7 @@ class CatalogImportExportPage extends Page implements HasForms
                 ->chunk(100, function ($rows) use ($out) {
                     foreach ($rows as $alt) {
                         $plain = trim(preg_replace('/\s+/', ' ', strip_tags((string) $alt->description)) ?? '');
-                        fputcsv($out, [
+                        fputcsv($out, CsvSafe::row([
                             $alt->name,
                             $alt->slug,
                             mb_substr($plain, 0, 2000),
@@ -131,7 +133,7 @@ class CatalogImportExportPage extends Page implements HasForms
                             $alt->self_host_difficulty,
                             $alt->is_published ? 1 : 0,
                             $alt->proprietaryTools->pluck('slug')->filter()->implode(','),
-                        ]);
+                        ]));
                     }
                 });
 
@@ -141,6 +143,7 @@ class CatalogImportExportPage extends Page implements HasForms
 
     public function exportToolsCsv(): StreamedResponse
     {
+        abort_unless(static::canAccess(), 403);
         $filename = 'proprietary-tools-'.now()->format('Y-m-d-His').'.csv';
 
         return response()->streamDownload(function () {
@@ -157,7 +160,7 @@ class CatalogImportExportPage extends Page implements HasForms
                         $features = implode('|', $features);
                     }
                     $plain = trim(preg_replace('/\s+/', ' ', strip_tags((string) $tool->description)) ?? '');
-                    fputcsv($out, [
+                    fputcsv($out, CsvSafe::row([
                         $tool->name,
                         $tool->slug,
                         $tool->website_url,
@@ -165,7 +168,7 @@ class CatalogImportExportPage extends Page implements HasForms
                         $tool->target_audience,
                         $features,
                         $tool->is_published ? 1 : 0,
-                    ]);
+                    ]));
                 }
             });
 
@@ -175,16 +178,19 @@ class CatalogImportExportPage extends Page implements HasForms
 
     public function importCsv(): void
     {
+        abort_unless(static::canAccess(), 403);
         $this->runImport('csv_file', 'alternatives');
     }
 
     public function importToolsCsv(): void
     {
+        abort_unless(static::canAccess(), 403);
         $this->runImport('tools_csv_file', 'tools');
     }
 
     protected function runImport(string $field, string $type): void
     {
+        abort_unless(static::canAccess(), 403);
         $this->importReport = '';
         $state = $this->form->getState();
         $path = $state[$field] ?? null;

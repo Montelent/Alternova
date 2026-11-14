@@ -29,31 +29,23 @@
             }
         } catch (e) {}
     </script>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        brand: {
-                            50: '{{ $__wlPalette['50'] ?? '#eef2ff' }}',
-                            100: '{{ $__wlPalette['100'] ?? '#e0e7ff' }}',
-                            200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8',
-                            500: '{{ $__wlPalette['500'] ?? '#6366f1' }}',
-                            600: '{{ $__wlPalette['600'] ?? '#4f46e5' }}',
-                            700: '{{ $__wlPalette['700'] ?? '#4338ca' }}',
-                            800: '#3730a3', 900: '#312e81', 950: '#1e1b4b',
-                        }
-                    },
-                    fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
-                }
-            }
-        }
-    </script>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     @livewireStyles
     <style>
+        :root {
+            --brand-50: {{ $__wlPalette['50'] ?? '#eef2ff' }};
+            --brand-100: {{ $__wlPalette['100'] ?? '#e0e7ff' }};
+            --brand-200: #c7d2fe;
+            --brand-300: #a5b4fc;
+            --brand-400: #818cf8;
+            --brand-500: {{ $__wlPalette['500'] ?? '#6366f1' }};
+            --brand-600: {{ $__wlPalette['600'] ?? '#4f46e5' }};
+            --brand-700: {{ $__wlPalette['700'] ?? '#4338ca' }};
+            --brand-800: #3730a3;
+            --brand-900: #312e81;
+            --brand-950: #1e1b4b;
+        }
         [x-cloak]{display:none!important}
         .dark input:not([type=checkbox]):not([type=radio]), .dark select, .dark textarea { color-scheme: dark; }
         .prose img { max-width: 100%; height: auto; }

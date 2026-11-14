@@ -126,6 +126,8 @@ class AdSettings extends Page implements HasForms
 
     public function save(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $state = $this->form->getState();
 
         $payload = [

@@ -74,23 +74,9 @@ class EnsureSessionIsConfigured
 
     protected function requestLooksHttps(Request $request): bool
     {
-        if ($request->isSecure()) {
-            return true;
-        }
-
-        $proto = strtolower((string) $request->headers->get('X-Forwarded-Proto', ''));
-        if ($proto === 'https' || str_starts_with($proto, 'https,')) {
-            return true;
-        }
-
-        if ($request->headers->get('X-Forwarded-Ssl') === 'on') {
-            return true;
-        }
-
-        if (str_starts_with(strtolower((string) config('app.url')), 'https://')) {
-            return true;
-        }
-
-        return false;
+        // Request::isSecure() honors forwarded headers only from TRUSTED_PROXIES.
+        // APP_URL remains a safe fallback for TLS-terminating reverse proxies.
+        return $request->isSecure()
+            || str_starts_with(strtolower((string) config('app.url')), 'https://');
     }
 }

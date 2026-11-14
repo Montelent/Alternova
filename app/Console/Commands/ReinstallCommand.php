@@ -19,16 +19,19 @@ class ReinstallCommand extends Command
             return self::SUCCESS;
         }
 
-        Installer::unlock();
+        $token = Installer::unlock();
 
         // Clear cached config so next boot reads .env fresh
         if (file_exists(base_path('bootstrap/cache/config.php'))) {
             @unlink(base_path('bootstrap/cache/config.php'));
         }
 
-        $this->info('Installer unlocked.');
-        $this->line('Visit: ' . rtrim(config('app.url', ''), '/') . '/install');
-        $this->comment('Tip: enter your MySQL credentials again on step 2. Existing tables are kept unless you drop them manually.');
+        $this->info('Installer access token created.');
+        $baseUrl = rtrim((string) config('app.url', ''), '/');
+        $installUrl = ($baseUrl !== '' ? $baseUrl : 'https://your-configured-domain')
+            .'/install?reinstall_token='.rawurlencode($token);
+        $this->line('Open this private URL: '.$installUrl);
+        $this->comment('The installer is not publicly accessible without this token. Existing tables are kept unless you drop them manually.');
 
         return self::SUCCESS;
     }

@@ -5,10 +5,12 @@ namespace App\Livewire;
 use App\Models\ContactMessage;
 use App\Services\SupportTicketService;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class SupportTicketShow extends Component
 {
+    #[Locked]
     public ContactMessage $ticket;
 
     public string $replyBody = '';
@@ -23,7 +25,10 @@ class SupportTicketShow extends Component
             ->where('public_id', $publicId)
             ->firstOrFail();
 
-        $token = request()->query('token');
+        $queryToken = request()->query('token');
+        $tokenFromQuery = is_string($queryToken) && $queryToken !== '';
+        $token = $tokenFromQuery ? $queryToken : session('support_ticket_token_'.$ticket->id);
+
         $user = Auth::user();
 
         if (! $ticket->canBeViewedBy($user, is_string($token) ? $token : null)) {
@@ -33,6 +38,14 @@ class SupportTicketShow extends Component
         // Store token in session so later visits without query still work
         if (is_string($token) && $token !== '') {
             session(['support_ticket_token_'.$ticket->id => $token]);
+
+            // Only strip a token that was present in the incoming query string.
+            // A token restored from the session must not trigger another redirect.
+            if ($tokenFromQuery) {
+                $this->redirect(route('support.show', ['publicId' => $ticket->public_id]), navigate: false);
+
+                return;
+            }
         }
 
         $this->ticket = $ticket->load(['publicReplies']);

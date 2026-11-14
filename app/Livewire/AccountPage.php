@@ -25,6 +25,8 @@ class AccountPage extends Component
 
     public string $email = '';
 
+    public string $profile_current_password = '';
+
     public string $current_password = '';
 
     public string $password = '';
@@ -57,25 +59,52 @@ class AccountPage extends Component
 
     public function updateProfile(): void
     {
+        abort_unless(Auth::check(), 401);
         $this->profileMessage = '';
         /** @var User $user */
         $user = Auth::user();
+        $newEmail = strtolower(trim($this->email));
+        $emailChanged = $newEmail !== strtolower((string) $user->email);
 
-        $this->validate([
+        // This app does not yet implement signed email-verification links.
+        // Never let a privileged account change its verified login identity
+        // while retaining the old email_verified_at timestamp.
+        if ($emailChanged && in_array($user->role, [User::ROLE_ADMIN, User::ROLE_EDITOR], true)) {
+            $this->addError('email', 'For security, administrator and editor email changes must be handled by another administrator until email re-verification is available.');
+
+            return;
+        }
+
+        $rules = [
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:190', Rule::unique('users', 'email')->ignore($user->id)],
-        ]);
+        ];
 
-        $user->forceFill([
+        if ($emailChanged) {
+            $rules['profile_current_password'] = ['required', 'current_password'];
+        }
+
+        $this->validate($rules);
+
+        $attributes = [
             'name' => trim($this->name),
-            'email' => strtolower(trim($this->email)),
-        ])->save();
+            'email' => $newEmail,
+        ];
 
+        if ($emailChanged) {
+            $attributes['email_verified_at'] = null;
+        }
+
+        $user->forceFill($attributes)->save();
+
+        $this->email = $newEmail;
+        $this->reset('profile_current_password');
         $this->profileMessage = 'Profile saved.';
     }
 
     public function updatePassword(): void
     {
+        abort_unless(Auth::check(), 401);
         $this->passwordMessage = '';
         /** @var User $user */
         $user = Auth::user();
@@ -92,6 +121,7 @@ class AccountPage extends Component
 
     public function createApiKey(): void
     {
+        abort_unless(Auth::check(), 401);
         $this->apiKeyMessage = '';
         $this->newPlainKey = null;
 
@@ -125,6 +155,7 @@ class AccountPage extends Component
 
     public function revokeApiKey(int $id): void
     {
+        abort_unless(Auth::check(), 401);
         if (! $this->apiKeysReady()) {
             return;
         }
@@ -139,12 +170,16 @@ class AccountPage extends Component
 
     public function removeWatch(int $alternativeId): void
     {
+        abort_unless(Auth::check(), 401);
         app(WatchlistService::class)->unwatch($alternativeId);
     }
 
     public function removeFavorite(int $alternativeId): void
     {
-        $alt = OpenSourceAlternative::query()->find($alternativeId);
+        abort_unless(Auth::check(), 401);
+        $alt = OpenSourceAlternative::query()
+            ->where('is_published', true)
+            ->find($alternativeId);
         if ($alt) {
             app(FavoriteService::class)->toggle($alt);
         }
@@ -152,6 +187,7 @@ class AccountPage extends Component
 
     public function removeDomain(int $id): void
     {
+        abort_unless(Auth::check(), 401);
         SavedDomain::query()->where('user_id', Auth::id())->where('id', $id)->delete();
     }
 
@@ -216,13 +252,16 @@ class AccountPage extends Component
                 return collect();
             }
 
-            $email = Auth::user()->email;
+            $user = Auth::user();
 
             return ContactMessage::query()
-                ->where(function ($q) use ($email) {
-                    $q->where('user_id', Auth::id());
-                    if ($email) {
-                        $q->orWhere('email', $email);
+                ->where(function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
+
+                    // Guest tickets may be associated by email only after the
+                    // account has proved control of that mailbox.
+                    if ($user->email_verified_at !== null && $user->email) {
+                        $q->orWhere('email', $user->email);
                     }
                 })
                 ->orderByDesc('updated_at')

@@ -25,6 +25,12 @@
                     <input type="email" wire:model="email"
                         class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none">
                     @error('email') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    @if(strtolower(trim($email)) !== strtolower($user->email))
+                        <label class="block text-sm font-medium mt-3 mb-1">Current password (required to change email)</label>
+                        <input type="password" wire:model="profile_current_password" autocomplete="current-password"
+                            class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                        @error('profile_current_password') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    @endif
                 </div>
                 <button type="submit" class="rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold px-4 py-2 text-sm transition">
                     Save profile

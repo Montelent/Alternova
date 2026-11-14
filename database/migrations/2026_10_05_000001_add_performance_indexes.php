@@ -107,23 +107,16 @@ return new class extends Migration
     protected function indexExists(string $table, string $name): bool
     {
         try {
-            $sm = Schema::getConnection()->getDoctrineSchemaManager();
-            $indexes = $sm->listTableIndexes($table);
-
-            return isset($indexes[$name]);
-        } catch (\Throwable) {
-            // Doctrine may be unavailable on newer Laravel — try information_schema
-            try {
-                $db = Schema::getConnection()->getDatabaseName();
-                $row = Schema::getConnection()->selectOne(
-                    'SELECT COUNT(*) AS c FROM information_schema.statistics WHERE table_schema = ? AND table_name = ? AND index_name = ?',
-                    [$db, $table, $name]
-                );
-
-                return ((int) ($row->c ?? 0)) > 0;
-            } catch (\Throwable) {
-                return false;
+            foreach (Schema::getIndexes($table) as $index) {
+                if (($index['name'] ?? null) === $name) {
+                    return true;
+                }
             }
+        } catch (\Throwable) {
+            // If schema metadata cannot be read, let the migration attempt the
+            // index creation and surface a real database error if it fails.
         }
+
+        return false;
     }
 };

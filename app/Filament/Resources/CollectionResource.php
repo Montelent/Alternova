@@ -70,6 +70,7 @@ class CollectionResource extends Resource
                 Forms\Components\FileUpload::make('cover_path')
                     ->label('Cover image (upload)')
                     ->image()
+                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
                     ->imageEditor()
                     ->directory('covers')
                     ->visibility('public')

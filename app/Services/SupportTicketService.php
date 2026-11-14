@@ -37,7 +37,11 @@ class SupportTicketService
      */
     public function createTicket(array $data, ?User $user = null): ContactMessage
     {
-        $user = $user ?: Auth::user();
+        $authenticatedUser = Auth::user();
+        if ($user && (! $authenticatedUser || (int) $user->id !== (int) $authenticatedUser->id)) {
+            abort(403);
+        }
+        $user = $authenticatedUser;
 
         $payload = [
             'name' => $data['name'],
@@ -60,14 +64,7 @@ class SupportTicketService
         $this->notifyUser($ticket, 'created', $data['message'], config('app.name', 'Support'));
 
         try {
-            $admins = User::query()
-                ->when(Schema::hasColumn('users', 'role'), fn ($q) => $q->whereIn('role', ['admin', 'editor']))
-                ->limit(20)
-                ->get();
-
-            if ($admins->isEmpty()) {
-                $admins = User::query()->orderBy('id')->limit(3)->get();
-            }
+            $admins = $this->adminRecipients(20);
 
             foreach ($admins as $admin) {
                 if (! $admin->email || strcasecmp((string) $admin->email, $ticket->email) === 0) {
@@ -104,11 +101,22 @@ class SupportTicketService
 
     public function replyAsStaff(ContactMessage $ticket, string $body, ?User $staff = null, bool $internal = false): ?ContactMessageReply
     {
+        $authenticatedStaff = Auth::user();
+        $staff = $staff ?: $authenticatedStaff;
+
+        // Never trust a caller-supplied staff model as proof of authorization.
+        abort_unless(
+            $authenticatedStaff?->canManageSystem()
+                && $staff?->isAdmin()
+                && (int) $staff->id === (int) $authenticatedStaff->id,
+            403
+        );
+
+        $staff = $authenticatedStaff;
+
         if (! $this->repliesReady()) {
             return null;
         }
-
-        $staff = $staff ?: Auth::user();
         $body = trim($body);
         if ($body === '') {
             return null;
@@ -144,6 +152,13 @@ class SupportTicketService
 
     public function replyAsUser(ContactMessage $ticket, string $body, User $user): ?ContactMessageReply
     {
+        $authenticatedUser = Auth::user();
+        abort_unless(
+            $authenticatedUser && (int) $authenticatedUser->id === (int) $user->id,
+            403
+        );
+        $user = $authenticatedUser;
+
         if (! $this->repliesReady() || ! $ticket->canBeRepliedBy($user)) {
             return null;
         }
@@ -184,6 +199,8 @@ class SupportTicketService
 
     public function close(ContactMessage $ticket): void
     {
+        abort_unless(Auth::user()?->canManageSystem() ?? false, 403);
+
         $updates = ['status' => 'archived'];
         if (Schema::hasColumn('contact_messages', 'ticket_status')) {
             $updates['ticket_status'] = 'closed';
@@ -205,7 +222,12 @@ class SupportTicketService
 
         $user = $ticket->user;
         if (! $user && $ticket->email) {
-            $user = User::query()->where('email', $ticket->email)->first();
+            // Do not attach a guest ticket or its bearer URL to an account
+            // unless that account has verified control of the matching mailbox.
+            $user = User::query()
+                ->where('email', $ticket->email)
+                ->whereNotNull('email_verified_at')
+                ->first();
         }
 
         if ($user) {
@@ -231,17 +253,29 @@ class SupportTicketService
         }
     }
 
+    /**
+     * Only active, verified administrators may receive support-ticket content.
+     * Editors and arbitrary fallback users do not have access to ticket records.
+     */
+    protected function adminRecipients(int $limit)
+    {
+        if (! Schema::hasColumn('users', 'role') || ! Schema::hasColumn('users', 'email_verified_at')) {
+            return collect();
+        }
+
+        return User::query()
+            ->where('role', User::ROLE_ADMIN)
+            ->whereNotNull('email_verified_at')
+            ->limit($limit)
+            ->get()
+            ->filter(fn (User $admin) => $admin->isActive())
+            ->values();
+    }
+
     protected function notifyAdminsOfUserReply(ContactMessage $ticket, string $body, User $user): void
     {
         try {
-            $admins = User::query()
-                ->when(Schema::hasColumn('users', 'role'), fn ($q) => $q->whereIn('role', ['admin', 'editor']))
-                ->limit(15)
-                ->get();
-
-            if ($admins->isEmpty()) {
-                $admins = User::query()->orderBy('id')->limit(3)->get();
-            }
+            $admins = $this->adminRecipients(15);
 
             foreach ($admins as $admin) {
                 if ((int) $admin->id === (int) $user->id) {

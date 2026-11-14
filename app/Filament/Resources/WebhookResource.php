@@ -11,6 +11,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -26,8 +27,47 @@ class WebhookResource extends Resource
 
     protected static ?int $navigationSort = 20;
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->canManageSystem() ?? false;
+    }
+
+    public static function canViewAny(): bool
+    {
+        return static::canAccess();
+    }
+
+    public static function canView(Model $record): bool
+    {
+        return static::canAccess();
+    }
+
+    public static function canCreate(): bool
+    {
+        return static::canAccess();
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return static::canAccess();
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return static::canAccess();
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return static::canAccess();
+    }
+
     public static function shouldRegisterNavigation(): bool
     {
+        if (! (auth()->user()?->canManageSystem() ?? false)) {
+            return false;
+        }
+
         try {
             return Schema::hasTable('webhooks');
         } catch (\Throwable) {
@@ -48,8 +88,10 @@ class WebhookResource extends Resource
                 ->helperText('POST JSON. Signature header X-Alternova-Signature: sha256=… when secret is set.'),
             Forms\Components\TextInput::make('secret')
                 ->password()
-                ->revealable()
-                ->helperText('Optional HMAC secret. Leave blank for unsigned payloads.')
+                ->maxLength(120)
+                ->formatStateUsing(fn () => null)
+                ->dehydrated(fn (?string $state): bool => filled($state))
+                ->helperText('Optional HMAC secret. Leave blank to keep the current secret; enter a new value to rotate it.')
                 ->columnSpanFull(),
             Forms\Components\CheckboxList::make('events')
                 ->options(Webhook::eventOptions())
@@ -76,28 +118,28 @@ class WebhookResource extends Resource
                     ->label('Send test')
                     ->icon('heroicon-o-paper-airplane')
                     ->action(function (Webhook $record) {
-                        $dispatcher = app(WebhookDispatcher::class);
-                        $wasActive = $record->is_active;
-                        $record->forceFill(['is_active' => true])->save();
-                        // Temporarily only this hook: dispatch with a ping event that this hook may not listen to
-                        // Force-deliver via temporary listen
-                        $events = $record->events ?? [];
-                        $record->forceFill(['events' => array_values(array_unique(array_merge($events, ['ping'])))])->save();
-                        $dispatcher->dispatch('ping', [
+                        abort_unless(static::canAccess(), 403);
+
+                        // Send directly to this record. Do not temporarily mutate
+                        // active/events state: queued dispatch would run after the
+                        // state had already been restored and silently skip the test.
+                        $delivery = app(WebhookDispatcher::class)->deliver($record, 'ping', [
                             'message' => 'Alternova webhook test',
                             'webhook' => $record->name,
                             'id' => Str::uuid()->toString(),
                         ]);
-                        $record->forceFill([
-                            'events' => $events,
-                            'is_active' => $wasActive,
-                        ])->save();
 
-                        Notification::make()
-                            ->title('Test payload sent')
-                            ->body($record->fresh()->last_error ?: 'Check success/fail counters.')
-                            ->{$record->fresh()->last_error ? 'warning' : 'success'}()
-                            ->send();
+                        $notification = Notification::make()
+                            ->title($delivery->success ? 'Test payload delivered' : 'Test delivery failed')
+                            ->body($delivery->error ?: ('HTTP '.($delivery->status_code ?? 'unknown')));
+
+                        if ($delivery->success) {
+                            $notification->success();
+                        } else {
+                            $notification->warning();
+                        }
+
+                        $notification->send();
                     }),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),

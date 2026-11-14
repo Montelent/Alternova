@@ -15,7 +15,9 @@ class FavoritesPage extends Component
 
     public function remove(int $id): void
     {
-        $alt = \App\Models\OpenSourceAlternative::query()->find($id);
+        $alt = \App\Models\OpenSourceAlternative::query()
+            ->where('is_published', true)
+            ->find($id);
         if ($alt) {
             app(FavoriteService::class)->toggle($alt);
         }

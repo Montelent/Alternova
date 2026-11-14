@@ -11,6 +11,7 @@ use App\Services\DemoDataSeeder;
 use App\Services\JsonCatalogRestorer;
 use App\Services\LinkHealthService;
 use App\Support\Installer;
+use App\Support\CsvSafe;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Concerns\InteractsWithForms;
@@ -90,6 +91,8 @@ class SystemTools extends Page implements HasForms
 
     public function runMigrations(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         try {
             Artisan::call('migrate', ['--force' => true]);
             $this->lastOutput = Artisan::output();
@@ -102,6 +105,8 @@ class SystemTools extends Page implements HasForms
 
     public function repairSeoSchema(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $added = [];
 
         try {
@@ -208,6 +213,8 @@ class SystemTools extends Page implements HasForms
 
     public function sendWeeklyDigest(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         try {
             Artisan::call('alternova:send-digest', ['--days' => 7]);
             $this->lastOutput = Artisan::output();
@@ -224,6 +231,8 @@ class SystemTools extends Page implements HasForms
 
     public function sendWeeklyDigestDryRun(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         try {
             Artisan::call('alternova:send-digest', ['--days' => 7, '--dry-run' => true]);
             $this->lastOutput = Artisan::output();
@@ -240,6 +249,8 @@ class SystemTools extends Page implements HasForms
 
     public function expireSponsored(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         try {
             Artisan::call('alternova:expire-sponsored');
             $this->lastOutput = Artisan::output();
@@ -252,6 +263,8 @@ class SystemTools extends Page implements HasForms
 
     public function runScheduledSync(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         try {
             Artisan::call('alternova:sync-metrics', ['--limit' => 25]);
             $this->lastOutput = Artisan::output();
@@ -264,6 +277,8 @@ class SystemTools extends Page implements HasForms
 
     public function runScheduledLinkCheck(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         try {
             Artisan::call('alternova:check-links', ['--limit' => 40]);
             $this->lastOutput = Artisan::output();
@@ -276,6 +291,8 @@ class SystemTools extends Page implements HasForms
 
     public function syncAllMetrics(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $alts = OpenSourceAlternative::query()
             ->whereNotNull('repo_url')
             ->where('repo_url', 'like', '%github.com%')
@@ -303,6 +320,8 @@ class SystemTools extends Page implements HasForms
 
     public function checkAllLinks(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $service = app(LinkHealthService::class);
         $alts = OpenSourceAlternative::query()->get();
         $broken = 0;
@@ -322,6 +341,8 @@ class SystemTools extends Page implements HasForms
 
     public function seedDemoData(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $result = app(DemoDataSeeder::class)->seed(force: false);
         $this->lastOutput = $result['message'];
         Notification::make()->title('Demo data')->body($result['message'])->success()->send();
@@ -329,6 +350,8 @@ class SystemTools extends Page implements HasForms
 
     public function seedDemoDataForce(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $result = app(DemoDataSeeder::class)->seed(force: true);
         $this->lastOutput = $result['message'];
         Notification::make()->title('Demo data (force)')->body($result['message'])->success()->send();
@@ -336,6 +359,8 @@ class SystemTools extends Page implements HasForms
 
     public function importCsv(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $csv = (string) ($this->form->getState()['csv'] ?? '');
         $result = app(AlternativeCsvImporter::class)->importFromString($csv);
         $this->lastOutput = "Imported {$result['imported']}, skipped {$result['skipped']}.\n".implode("\n", $result['errors']);
@@ -344,6 +369,8 @@ class SystemTools extends Page implements HasForms
 
     public function restoreJsonBackup(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $raw = (string) ($this->form->getState()['restore_json'] ?? '');
         $overwrite = (bool) ($this->form->getState()['overwrite_settings'] ?? false);
 
@@ -366,6 +393,8 @@ class SystemTools extends Page implements HasForms
 
     public function exportCatalog(): StreamedResponse
     {
+        abort_unless(static::canAccess(), 403);
+
         $rows = OpenSourceAlternative::query()
             ->with('proprietaryTool')
             ->orderBy('name')
@@ -378,7 +407,7 @@ class SystemTools extends Page implements HasForms
                 'language', 'difficulty', 'health', 'votes', 'published', 'featured',
             ]);
             foreach ($rows as $r) {
-                fputcsv($h, [
+                fputcsv($h, CsvSafe::row([
                     $r->name,
                     $r->slug,
                     $r->proprietaryTool?->name,
@@ -391,7 +420,7 @@ class SystemTools extends Page implements HasForms
                     $r->votes_count,
                     $r->is_published ? 1 : 0,
                     $r->is_featured ? 1 : 0,
-                ]);
+                ]));
             }
             fclose($h);
         }, 'alternova-catalog-'.date('Y-m-d').'.csv', [
@@ -401,6 +430,8 @@ class SystemTools extends Page implements HasForms
 
     public function exportJsonBackup(): StreamedResponse
     {
+        abort_unless(static::canAccess(), 403);
+
         $payload = [
             'exported_at' => now()->toIso8601String(),
             'app' => config('app.name'),
@@ -443,6 +474,8 @@ class SystemTools extends Page implements HasForms
 
     public function toggleMaintenance(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $next = ! SiteSetting::getBool('maintenance_mode', false);
         SiteSetting::set('maintenance_mode', $next);
         SiteSetting::set(
@@ -463,6 +496,8 @@ class SystemTools extends Page implements HasForms
 
     public function clearCaches(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         try {
             Artisan::call('config:clear');
             Artisan::call('route:clear');
@@ -487,8 +522,11 @@ class SystemTools extends Page implements HasForms
 
     public function unlockInstaller(): void
     {
-        Installer::unlock();
-        $this->lastOutput = 'Installer unlocked. Visit /install to run the wizard again.';
-        Notification::make()->title('Installer unlocked')->warning()->body($this->lastOutput)->send();
+        abort_unless(static::canAccess(), 403);
+
+        $token = Installer::unlock();
+        $url = url('/install').'?reinstall_token='.rawurlencode($token);
+        $this->lastOutput = 'Installer access is now protected by a private one-time URL. Open this URL in the browser: '.$url;
+        Notification::make()->title('Installer access token created')->warning()->body($this->lastOutput)->persistent()->send();
     }
 }

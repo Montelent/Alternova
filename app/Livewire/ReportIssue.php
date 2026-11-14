@@ -3,12 +3,15 @@
 namespace App\Livewire;
 
 use App\Models\IssueReport;
+use App\Models\OpenSourceAlternative;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class ReportIssue extends Component
 {
+    #[Locked]
     public ?int $alternativeId = null;
 
     public string $type = 'wrong_info';
@@ -40,6 +43,15 @@ class ReportIssue extends Component
             'message' => 'required|string|min:10|max:2000',
             'email' => 'nullable|email|max:190',
         ]);
+
+        if ($this->alternativeId !== null
+            && ! OpenSourceAlternative::query()
+                ->whereKey($this->alternativeId)
+                ->where('is_published', true)
+                ->exists()
+        ) {
+            abort(404);
+        }
 
         try {
             if (! Schema::hasTable('issue_reports')) {

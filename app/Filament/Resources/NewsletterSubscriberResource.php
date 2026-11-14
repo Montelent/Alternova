@@ -10,6 +10,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Schema;
+use App\Support\CsvSafe;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class NewsletterSubscriberResource extends Resource
@@ -35,12 +36,12 @@ class NewsletterSubscriberResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return static::tableReady();
+        return static::tableReady() && (auth()->user()?->canManageSystem() ?? false);
     }
 
     public static function canAccess(): bool
     {
-        return static::tableReady();
+        return static::tableReady() && (auth()->user()?->canManageSystem() ?? false);
     }
 
     public static function form(Form $form): Form
@@ -80,18 +81,19 @@ class NewsletterSubscriberResource extends Resource
                     ->label('Export CSV')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->action(function (): StreamedResponse {
+                        abort_unless(auth()->user()?->canManageSystem() ?? false, 403);
                         $rows = NewsletterSubscriber::query()->orderBy('email')->get();
 
                         return response()->streamDownload(function () use ($rows) {
                             $h = fopen('php://output', 'w');
                             fputcsv($h, ['email', 'status', 'source', 'subscribed_at']);
                             foreach ($rows as $r) {
-                                fputcsv($h, [
+                                fputcsv($h, CsvSafe::row([
                                     $r->email,
                                     $r->status,
                                     $r->source,
                                     optional($r->subscribed_at)->toDateTimeString(),
-                                ]);
+                                ]));
                             }
                             fclose($h);
                         }, 'newsletter-'.date('Y-m-d').'.csv', ['Content-Type' => 'text/csv']);
@@ -99,7 +101,8 @@ class NewsletterSubscriberResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->before(fn () => abort_unless(auth()->user()?->canManageSystem() ?? false, 403)),
                 ]),
             ]);
     }

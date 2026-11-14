@@ -39,7 +39,8 @@ class NewsletterSubscriber extends Model
         try {
             $this->forceFill(['unsubscribe_token' => $token])->save();
         } catch (\Throwable) {
-            // column may not exist yet
+            // If the token column is unavailable, do not fall back to email-based authorization.
+            return '';
         }
 
         return $token;
@@ -49,10 +50,8 @@ class NewsletterSubscriber extends Model
     {
         $token = $this->ensureUnsubscribeToken();
 
-        if ($token) {
-            return route('newsletter.unsubscribe', ['token' => $token]);
-        }
-
-        return route('newsletter.unsubscribe', ['email' => $this->email]);
+        return $token !== ''
+            ? route('newsletter.unsubscribe', ['token' => $token])
+            : '';
     }
 }

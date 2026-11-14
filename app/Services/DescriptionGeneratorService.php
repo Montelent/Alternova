@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Support\GitHubUrl;
+use App\Support\PublicHttpUrl;
 use App\Support\IntegrationsSettings;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -159,13 +160,35 @@ class DescriptionGeneratorService
      */
     public function fromWebsite(string $websiteUrl, string $name = ''): array
     {
+        if (! PublicHttpUrl::isSafe($websiteUrl)) {
+            return [
+                'description' => $this->composeProprietaryFallback($name),
+                'success' => false,
+                'message' => 'The website URL must resolve to a public HTTP or HTTPS address.',
+            ];
+        }
+
         try {
             $response = Http::timeout(6)
                 ->connectTimeout(3)
+                ->withOptions(array_merge(
+                    [
+                        'allow_redirects' => PublicHttpUrl::safeRedirectOptions(),
+                        'stream' => true,
+                    ],
+                    // Pin the exact public DNS answers used by the safety check;
+                    // otherwise the HTTP client could resolve a private address
+                    // after validation (DNS rebinding).
+                    PublicHttpUrl::safeRequestOptions($websiteUrl)
+                ))
                 ->withHeaders(['User-Agent' => 'Alternova-DescriptionBot/1.0'])
                 ->get($websiteUrl);
 
+            $stream = $response->toPsrResponse()->getBody();
+
             if (! $response->successful()) {
+                $stream->close();
+
                 return [
                     'description' => $this->composeProprietaryFallback($name),
                     'success' => false,
@@ -173,7 +196,10 @@ class DescriptionGeneratorService
                 ];
             }
 
-            $html = $response->body();
+            // Only the document head is needed for meta extraction. Read a
+            // small bounded prefix and close the remote stream immediately.
+            $html = $stream->read(262144);
+            $stream->close();
             $meta = $this->extractMetaDescription($html);
 
             if ($meta) {
@@ -198,7 +224,7 @@ class DescriptionGeneratorService
             return [
                 'description' => $this->composeProprietaryFallback($name),
                 'success' => false,
-                'message' => 'Fetch failed: '.$e->getMessage(),
+                'message' => 'The website could not be fetched. Check that the public URL is reachable and try again.',
             ];
         }
     }

@@ -20,6 +20,12 @@ use Illuminate\Support\Str;
 
 class CollectionSubmissionResource extends Resource
 {
+
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->canManageSystem() ?? false;
+    }
+
     protected static ?string $model = CollectionSubmission::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-inbox-stack';
@@ -32,6 +38,10 @@ class CollectionSubmissionResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
+        if (! (auth()->user()?->canManageSystem() ?? false)) {
+            return false;
+        }
+
         try {
             return Schema::hasTable('collection_submissions');
         } catch (\Throwable) {
@@ -110,6 +120,8 @@ class CollectionSubmissionResource extends Resource
                     ->visible(fn (CollectionSubmission $record) => $record->status === 'pending')
                     ->requiresConfirmation()
                     ->action(function (CollectionSubmission $record) {
+                        abort_unless(auth()->user()?->canManageSystem() ?? false, 403);
+
                         $record->update([
                             'status' => 'rejected',
                             'reviewed_by' => Auth::id(),
@@ -120,12 +132,15 @@ class CollectionSubmissionResource extends Resource
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\DeleteBulkAction::make(),
+                Tables\Actions\DeleteBulkAction::make()
+                    ->before(fn () => abort_unless(auth()->user()?->canManageSystem() ?? false, 403)),
             ]);
     }
 
     public static function approveAndCreate(CollectionSubmission $record): void
     {
+        abort_unless(auth()->user()?->canManageSystem() ?? false, 403);
+
         if (! Schema::hasTable('collections')) {
             Notification::make()->title('Collections table missing')->danger()->send();
 

@@ -15,6 +15,12 @@ use Illuminate\Support\Facades\Schema;
 
 class ContactMessageResource extends Resource
 {
+
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->canManageSystem() ?? false;
+    }
+
     protected static ?string $model = ContactMessage::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-ticket';
@@ -133,7 +139,10 @@ class ContactMessageResource extends Resource
                 Tables\Actions\Action::make('markRead')
                     ->icon('heroicon-o-check')
                     ->visible(fn (ContactMessage $r) => $r->status === 'unread')
-                    ->action(fn (ContactMessage $r) => $r->markRead()),
+                    ->action(function (ContactMessage $record) {
+                        abort_unless(auth()->user()?->canManageSystem() ?? false, 403);
+                        $record->markRead();
+                    }),
                 Tables\Actions\Action::make('reply')
                     ->icon('heroicon-o-chat-bubble-left-right')
                     ->form([
@@ -168,6 +177,7 @@ class ContactMessageResource extends Resource
                     }),
                 Tables\Actions\ViewAction::make()
                     ->after(function (ContactMessage $record) {
+                        abort_unless(auth()->user()?->canManageSystem() ?? false, 403);
                         if ($record->status === 'unread') {
                             $record->markRead();
                         }
@@ -178,8 +188,12 @@ class ContactMessageResource extends Resource
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\BulkAction::make('markRead')
-                        ->action(fn ($records) => $records->each->markRead()),
-                    Tables\Actions\DeleteBulkAction::make(),
+                        ->action(function ($records) {
+                            abort_unless(auth()->user()?->canManageSystem() ?? false, 403);
+                            $records->each->markRead();
+                        }),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->before(fn () => abort_unless(auth()->user()?->canManageSystem() ?? false, 403)),
                 ]),
             ]);
     }
@@ -195,10 +209,14 @@ class ContactMessageResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
+        if (! (auth()->user()?->canManageSystem() ?? false)) {
+            return false;
+        }
+
         try {
             return Schema::hasTable('contact_messages');
         } catch (\Throwable) {
-            return true;
+            return false;
         }
     }
 }

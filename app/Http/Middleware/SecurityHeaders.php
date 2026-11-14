@@ -33,7 +33,24 @@ class SecurityHeaders
         }
 
         $response->headers->set('X-Content-Type-Options', 'nosniff');
-        $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+        $sensitiveTokenPage = $request->is(
+            'support/*',
+            'submission-status/*',
+            'collection-submission-status/*',
+            'newsletter/unsubscribe/*',
+            'install',
+            'install/*'
+        );
+        $response->headers->set(
+            'Referrer-Policy',
+            $sensitiveTokenPage ? 'no-referrer' : 'strict-origin-when-cross-origin'
+        );
+
+        if ($sensitiveTokenPage) {
+            $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+            $response->headers->set('Pragma', 'no-cache');
+        }
 
         // Modern browsers ignore X-XSS-Protection; 0 avoids legacy filter issues
         $response->headers->set('X-XSS-Protection', '0');
@@ -54,22 +71,28 @@ class SecurityHeaders
         if ($isSecure) {
             $response->headers->set(
                 'Strict-Transport-Security',
-                'max-age=31536000; includeSubDomains; preload'
+                'max-age=31536000'
             );
         }
 
-        // Pragmatic CSP: allow self + TinyMCE CDN + data/blob images used by admin uploads
+        // The standalone installer and embed currently use Tailwind's runtime
+        // CDN build and do not load the Vite application bundle.
+        $standaloneTailwind = $request->is('install', 'install/*', 'embed/tool/*');
         $frameAncestors = $isEmbed ? '*' : "'self'";
+        $scriptSources = "'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net";
+        if ($standaloneTailwind) {
+            $scriptSources .= ' https://cdn.tailwindcss.com';
+        }
         $csp = [
             "default-src 'self'",
             "base-uri 'self'",
             "form-action 'self'",
             "object-src 'none'",
             "frame-ancestors {$frameAncestors}",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdn.tailwindcss.com",
-            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.tailwindcss.com",
+            "script-src {$scriptSources}",
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com https://cdn.tailwindcss.com",
             "img-src 'self' data: blob: https:",
-            "font-src 'self' data: https://cdn.jsdelivr.net",
+            "font-src 'self' data: https://cdn.jsdelivr.net https://fonts.gstatic.com",
             "connect-src 'self'",
             "media-src 'self' data: blob:",
             "worker-src 'self' blob:",

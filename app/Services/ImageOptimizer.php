@@ -36,6 +36,21 @@ class ImageOptimizer
             }
 
             $absolute = $storage->path($path);
+            $imageInfo = @getimagesize($absolute);
+
+            if (! is_array($imageInfo)
+                || ! in_array($imageInfo['mime'] ?? '', ['image/jpeg', 'image/png', 'image/webp'], true)
+                || ($imageInfo[0] ?? 0) < 1
+                || ($imageInfo[1] ?? 0) < 1
+                || $imageInfo[0] > 5000
+                || $imageInfo[1] > 5000
+                || ($imageInfo[0] * $imageInfo[1]) > 25000000
+            ) {
+                Log::warning('Skipped image optimization for invalid or oversized raster image.', ['path' => $path]);
+
+                return $path;
+            }
+
             $binary = @file_get_contents($absolute);
             if ($binary === false || $binary === '') {
                 return $path;

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\HtmlSanitizer;
 use App\Models\Concerns\HasAutoSortOrder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -84,5 +85,14 @@ class Page extends Model
     public function seoDescription(): string
     {
         return app(\App\Services\SeoManager::class)->cmsPageDescription($this);
+    }
+    public function getBodyHtmlAttribute($value): ?string
+    {
+        return $value === null ? null : HtmlSanitizer::clean((string) $value);
+    }
+
+    public function setBodyHtmlAttribute($value): void
+    {
+        $this->attributes['body_html'] = $value === null ? null : HtmlSanitizer::clean((string) $value);
     }
 }

@@ -43,28 +43,7 @@ class HomepageContentPage extends Page implements HasForms
 
     public static function canAccess(): bool
     {
-        $user = auth()->user();
-        if (! $user) {
-            return false;
-        }
-
-        if (method_exists($user, 'canManageSystem') && $user->canManageSystem()) {
-            return true;
-        }
-
-        if (method_exists($user, 'isAdmin') && $user->isAdmin()) {
-            return true;
-        }
-
-        if (method_exists($user, 'isEditor') && $user->isEditor()) {
-            return true;
-        }
-
-        if (! isset($user->role) || $user->role === null || $user->role === '') {
-            return true;
-        }
-
-        return false;
+        return auth()->user()?->canManageSystem() ?? false;
     }
 
     /** @return array<string, mixed> */
@@ -268,6 +247,8 @@ class HomepageContentPage extends Page implements HasForms
 
     public function save(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $data = $this->form->getState();
 
         $faqs = [];

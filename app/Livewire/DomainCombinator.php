@@ -10,6 +10,8 @@ use App\Services\SeoManager;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
+use App\Support\CsvSafe;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -35,14 +37,19 @@ class DomainCombinator extends Component
 
     public int $minBrandability = 40;
 
+    #[Locked]
     public array $results = [];
 
+    #[Locked]
     public bool $isGenerating = false;
 
+    #[Locked]
     public bool $isChecking = false;
 
+    #[Locked]
     public array $saved = [];
 
+    #[Locked]
     public string $errorMessage = '';
 
     public function mount(): void
@@ -96,6 +103,21 @@ class DomainCombinator extends Component
 
     public function toggleSave(string $domain, int $score = 0, string $status = ''): void
     {
+        $domain = strtolower(trim($domain));
+        $allowedTlds = ['com', 'net', 'org', 'io', 'dev', 'app', 'co', 'ai', 'xyz', 'me'];
+        $tld = strtolower(substr(strrchr($domain, '.') ?: '', 1));
+        if (strlen($domain) > 253
+            || ! in_array($tld, $allowedTlds, true)
+            || ! preg_match('/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])$/i', $domain)
+        ) {
+            $this->errorMessage = 'Invalid domain name.';
+
+            return;
+        }
+
+        $score = max(0, min(100, $score));
+        $status = in_array($status, ['available', 'taken', 'unknown', 'pending'], true) ? $status : 'unknown';
+
         try {
             $sid = $this->sessionKey();
             $uid = Auth::id();
@@ -125,7 +147,8 @@ class DomainCombinator extends Component
 
             $this->loadSaved();
         } catch (\Throwable $e) {
-            $this->errorMessage = 'Could not save domain: '.$e->getMessage();
+            Log::warning('Saved domain update failed: '.$e->getMessage());
+            $this->errorMessage = 'Could not save this domain right now.';
         }
     }
 
@@ -155,7 +178,7 @@ class DomainCombinator extends Component
 
     public function addKeyword(): void
     {
-        $kw = strtolower(trim(preg_replace('/[^a-z0-9\s-]/i', '', $this->keywordInput) ?? ''));
+        $kw = strtolower(trim(preg_replace('/[^a-z0-9\s-]/i', '', substr($this->keywordInput, 0, 128)) ?? ''));
         $kw = str_replace([' ', '-'], '', $kw);
         if ($kw !== '' && ! in_array($kw, $this->keywords, true) && count($this->keywords) < 8) {
             $this->keywords[] = $kw;
@@ -170,7 +193,7 @@ class DomainCombinator extends Component
 
     public function addPrefix(): void
     {
-        $p = strtolower(trim(preg_replace('/[^a-z0-9]/i', '', $this->prefixInput) ?? ''));
+        $p = strtolower(trim(preg_replace('/[^a-z0-9]/i', '', substr($this->prefixInput, 0, 128)) ?? ''));
         if ($p !== '' && ! in_array($p, $this->prefixes, true) && count($this->prefixes) < 12) {
             $this->prefixes[] = $p;
         }
@@ -184,7 +207,7 @@ class DomainCombinator extends Component
 
     public function addSuffix(): void
     {
-        $s = strtolower(trim(preg_replace('/[^a-z0-9]/i', '', $this->suffixInput) ?? ''));
+        $s = strtolower(trim(preg_replace('/[^a-z0-9]/i', '', substr($this->suffixInput, 0, 128)) ?? ''));
         if ($s !== '' && ! in_array($s, $this->suffixes, true) && count($this->suffixes) < 12) {
             $this->suffixes[] = $s;
         }
@@ -213,6 +236,35 @@ class DomainCombinator extends Component
                 return;
             }
             RateLimiter::hit($key, 3600);
+
+            // Livewire public properties are client-controlled. Re-apply the
+            // UI limits server-side before doing combinatorial work.
+            $cleanList = static function (array $values, int $maxItems, int $maxLength): array {
+                $clean = [];
+                foreach (array_slice($values, 0, $maxItems) as $value) {
+                    if (! is_string($value)) {
+                        continue;
+                    }
+                    $value = substr(strtolower(preg_replace('/[^a-z0-9]/i', '', $value) ?? ''), 0, $maxLength);
+                    if ($value !== '') {
+                        $clean[] = $value;
+                    }
+                }
+
+                return array_values(array_unique($clean));
+            };
+
+            $this->keywords = $cleanList($this->keywords, 8, 32);
+            $this->prefixes = $cleanList($this->prefixes, 12, 16);
+            $this->suffixes = $cleanList($this->suffixes, 12, 16);
+            $allowedTlds = ['com', 'net', 'org', 'io', 'dev', 'app', 'co', 'ai', 'xyz', 'me'];
+            $requestedTlds = array_filter($this->selectedTlds, 'is_string');
+            $this->selectedTlds = array_values(array_unique(array_intersect(
+                $allowedTlds,
+                array_map(fn ($tld) => strtolower(ltrim($tld, '.')), $requestedTlds)
+            )));
+            $this->maxLength = max(4, min(30, (int) $this->maxLength));
+            $this->minBrandability = max(0, min(100, (int) $this->minBrandability));
 
             // Auto-add typed keyword if user forgot to click Add
             if ($this->keywordInput !== '') {
@@ -282,7 +334,7 @@ class DomainCombinator extends Component
             $this->isChecking = true;
         } catch (\Throwable $e) {
             Log::warning('Domain generate failed: '.$e->getMessage());
-            $this->errorMessage = 'Generation failed: '.$e->getMessage();
+            $this->errorMessage = 'Generation failed. Please check your inputs and try again.';
             $this->results = [];
             $this->isChecking = false;
         }
@@ -295,6 +347,15 @@ class DomainCombinator extends Component
 
             return;
         }
+
+        $checkKey = 'domain-check:'.(request()->ip() ?: 'unknown');
+        if (RateLimiter::tooManyAttempts($checkKey, 30)) {
+            $this->errorMessage = 'Availability checks are temporarily rate-limited. Please wait a minute.';
+            $this->isChecking = false;
+
+            return;
+        }
+        RateLimiter::hit($checkKey, 60);
 
         $pending = collect($this->results)
             ->where('status', 'pending')
@@ -360,7 +421,7 @@ class DomainCombinator extends Component
             $handle = fopen('php://output', 'w');
             fputcsv($handle, ['domain', 'brandability_score']);
             foreach ($available as $item) {
-                fputcsv($handle, [$item['domain'], $item['score']]);
+                fputcsv($handle, CsvSafe::row([$item['domain'], $item['score']]));
             }
             fclose($handle);
         }, 'available-domains.csv', [

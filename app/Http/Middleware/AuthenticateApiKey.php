@@ -7,6 +7,8 @@ use App\Models\User;
 use App\Support\ApiSettings;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -23,13 +25,48 @@ class AuthenticateApiKey
         }
 
         $plain = $this->extractKey($request);
+        $authBucket = 'api-auth:'.$request->ip();
+        $authLimit = 10;
+
+        // Authentication failures are rejected before api.throttle runs, so
+        // rate-limit missing/invalid credentials here to prevent key guessing.
+        if (($plain !== null || ApiSettings::requireKey())
+            && RateLimiter::tooManyAttempts($authBucket, $authLimit)
+        ) {
+            $retry = RateLimiter::availableIn($authBucket);
+
+            return response()->json([
+                'error' => 'Too many API authentication attempts. Retry later.',
+                'retry_after' => $retry,
+            ], 429)->withHeaders(['Retry-After' => (string) $retry]);
+        }
 
         if ($plain === null) {
             if (ApiSettings::requireKey()) {
+                RateLimiter::hit($authBucket, 60);
+
                 return response()->json([
                     'error' => 'API key required. Send Authorization: Bearer YOUR_KEY or X-Api-Key.',
                     'code' => 'api_key_required',
                 ], 401);
+            }
+
+            // The global API switch may permit anonymous access, but an
+            // authenticated account that is disabled or has lost API access
+            // must not bypass those controls merely by omitting its key.
+            $sessionUser = $request->user();
+            if ($sessionUser instanceof User && ! $sessionUser->isActive()) {
+                return response()->json([
+                    'error' => 'This user account is deactivated.',
+                    'code' => 'user_inactive',
+                ], 403);
+            }
+
+            if ($sessionUser instanceof User && ! $sessionUser->hasApiAccess()) {
+                return response()->json([
+                    'error' => 'API access is disabled for this user.',
+                    'code' => 'api_user_disabled',
+                ], 403);
             }
 
             return $next($request);
@@ -45,6 +82,8 @@ class AuthenticateApiKey
 
             $key = ApiKey::findByPlainKey($plain);
             if (! $key) {
+                RateLimiter::hit($authBucket, 60);
+
                 return response()->json([
                     'error' => 'Invalid or revoked API key.',
                     'code' => 'api_key_invalid',
@@ -53,22 +92,36 @@ class AuthenticateApiKey
 
             $user = $key->relationLoaded('user') ? $key->user : $key->user()->first();
 
-            if ($user instanceof User) {
-                if (! $user->isActive()) {
-                    return response()->json([
-                        'error' => 'This user account is deactivated.',
-                        'code' => 'user_inactive',
-                    ], 403);
-                }
-
-                if (! $user->hasApiAccess()) {
-                    return response()->json([
-                        'error' => 'API access is disabled for this user.',
-                        'code' => 'api_user_disabled',
-                    ], 403);
-                }
+            // Every issued key belongs to a real account. Never let an orphaned
+            // or legacy ownerless key bypass per-user account/API restrictions.
+            if (! $user instanceof User) {
+                return response()->json([
+                    'error' => 'The account associated with this API key is unavailable.',
+                    'code' => 'api_key_owner_unavailable',
+                ], 403);
             }
 
+            // Make the API-key owner the authenticated request principal so
+            // downstream controllers and services cannot accidentally fall
+            // back to a different browser-session user (or treat this as a guest).
+            $request->setUserResolver(static fn () => $user);
+            Auth::setUser($user);
+
+            if (! $user->isActive()) {
+                return response()->json([
+                    'error' => 'This user account is deactivated.',
+                    'code' => 'user_inactive',
+                ], 403);
+            }
+
+            if (! $user->hasApiAccess()) {
+                return response()->json([
+                    'error' => 'API access is disabled for this user.',
+                    'code' => 'api_user_disabled',
+                ], 403);
+            }
+
+            RateLimiter::clear($authBucket);
             $key->markUsed();
             $request->attributes->set('api_key', $key);
             $request->attributes->set('api_key_user_id', $key->user_id);
@@ -86,6 +139,10 @@ class AuthenticateApiKey
         return $next($request);
     }
 
+    /**
+     * Accept credentials only in headers. Query-string secrets leak into browser
+     * history, reverse-proxy/access logs, analytics, and referrer data.
+     */
     protected function extractKey(Request $request): ?string
     {
         $header = $request->header('Authorization');
@@ -94,15 +151,7 @@ class AuthenticateApiKey
         }
 
         $xKey = $request->header('X-Api-Key');
-        if (is_string($xKey) && $xKey !== '') {
-            return $xKey;
-        }
 
-        $query = $request->query('api_key');
-        if (is_string($query) && $query !== '') {
-            return $query;
-        }
-
-        return null;
+        return is_string($xKey) && $xKey !== '' ? $xKey : null;
     }
 }

@@ -10,6 +10,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 
@@ -32,6 +33,31 @@ class UserResource extends Resource
     public static function canAccess(): bool
     {
         return auth()->user()?->canManageUsers() ?? false;
+    }
+
+    public static function canViewAny(): bool
+    {
+        return static::canAccess();
+    }
+
+    public static function canCreate(): bool
+    {
+        return static::canAccess();
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return static::canAccess();
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return static::canAccess() && (int) $record->getKey() !== (int) auth()->id();
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return static::canAccess();
     }
 
     public static function form(Form $form): Form
@@ -120,6 +146,7 @@ class UserResource extends Resource
                     ->visible(fn (User $record) => Schema::hasColumn('users', 'api_enabled')
                         && ! ($record->api_enabled ?? true))
                     ->action(function (User $record) {
+                        abort_unless(auth()->user()?->canManageUsers() ?? false, 403);
                         $record->forceFill(['api_enabled' => true])->save();
                         Notification::make()->title('API enabled for '.$record->name)->success()->send();
                     }),
@@ -130,6 +157,7 @@ class UserResource extends Resource
                     ->visible(fn (User $record) => Schema::hasColumn('users', 'api_enabled')
                         && ($record->api_enabled ?? true))
                     ->action(function (User $record) {
+                        abort_unless(auth()->user()?->canManageUsers() ?? false, 403);
                         $record->forceFill(['api_enabled' => false])->save();
                         Notification::make()->title('API disabled for '.$record->name)->success()->send();
                     }),
@@ -138,7 +166,11 @@ class UserResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->before(function ($records) {
+                            abort_unless(auth()->user()?->canManageUsers() ?? false, 403);
+                            abort_if($records->contains(fn (User $record) => (int) $record->id === (int) auth()->id()), 403);
+                        }),
                 ]),
             ]);
     }

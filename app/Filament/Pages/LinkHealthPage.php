@@ -26,7 +26,12 @@ class LinkHealthPage extends Page
 
     public static function canAccess(): bool
     {
-        return auth()->check();
+        return auth()->user()?->canManageSystem() ?? false;
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canAccess();
     }
 
     public function brokenAlternatives()
@@ -65,6 +70,8 @@ class LinkHealthPage extends Page
 
     public function recheck(int $id): void
     {
+        abort_unless(auth()->user()?->canManageSystem() ?? false, 403);
+
         $alt = OpenSourceAlternative::query()->find($id);
         if (! $alt) {
             return;
@@ -82,6 +89,8 @@ class LinkHealthPage extends Page
 
     public function recheckAllBroken(): void
     {
+        abort_unless(auth()->user()?->canManageSystem() ?? false, 403);
+
         $items = $this->brokenAlternatives();
         $ok = 0;
         foreach ($items as $alt) {

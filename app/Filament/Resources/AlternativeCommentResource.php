@@ -14,6 +14,12 @@ use Illuminate\Support\Facades\Schema;
 
 class AlternativeCommentResource extends Resource
 {
+
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->canManageSystem() ?? false;
+    }
+
     protected static ?string $model = AlternativeComment::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-chat-bubble-left-right';
@@ -35,7 +41,7 @@ class AlternativeCommentResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return static::tableReady();
+        return static::tableReady() && (auth()->user()?->canManageSystem() ?? false);
     }
 
     public static function getNavigationBadge(): ?string
@@ -104,6 +110,7 @@ class AlternativeCommentResource extends Resource
                     ->color('success')
                     ->visible(fn (AlternativeComment $r) => ! $r->is_approved || $r->is_hidden)
                     ->action(function (AlternativeComment $record) {
+                        abort_unless(auth()->user()?->canManageSystem() ?? false, 403);
                         $wasPending = ! $record->is_approved;
                         $record->approve();
                         if ($wasPending && $record->parent_id) {
@@ -120,6 +127,7 @@ class AlternativeCommentResource extends Resource
                     ->visible(fn (AlternativeComment $r) => ! $r->is_hidden)
                     ->requiresConfirmation()
                     ->action(function (AlternativeComment $record) {
+                        abort_unless(auth()->user()?->canManageSystem() ?? false, 403);
                         $record->hide();
                         Notification::make()->title('Comment hidden')->success()->send();
                     }),
@@ -132,6 +140,7 @@ class AlternativeCommentResource extends Resource
                         ->icon('heroicon-o-check')
                         ->color('success')
                         ->action(function ($records) {
+                            abort_unless(auth()->user()?->canManageSystem() ?? false, 403);
                             foreach ($records as $r) {
                                 $wasPending = ! $r->is_approved;
                                 $r->approve();
@@ -149,12 +158,14 @@ class AlternativeCommentResource extends Resource
                         ->icon('heroicon-o-eye-slash')
                         ->color('warning')
                         ->action(function ($records) {
+                            abort_unless(auth()->user()?->canManageSystem() ?? false, 403);
                             foreach ($records as $r) {
                                 $r->hide();
                             }
                             Notification::make()->title('Comments hidden')->success()->send();
                         }),
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->before(fn () => abort_unless(auth()->user()?->canManageSystem() ?? false, 403)),
                 ]),
             ]);
     }

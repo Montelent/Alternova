@@ -69,36 +69,33 @@ class User extends Authenticatable implements FilamentUser, CanResetPasswordCont
 
     public function canAccessPanel(Panel $panel): bool
     {
-        if (! $this->isActive()) {
-            return false;
-        }
-
-        if (($this->role ?? '') === self::ROLE_MEMBER) {
-            return false;
-        }
-
-        return in_array($this->role, [self::ROLE_ADMIN, self::ROLE_EDITOR], true)
-            || $this->role === null;
+        // Public registrations are unverified and must never inherit admin
+        // access from a database default or a legacy null role.
+        return $this->isActive()
+            && $this->email_verified_at !== null
+            && in_array($this->role, [self::ROLE_ADMIN, self::ROLE_EDITOR], true);
     }
 
     public function isActive(): bool
     {
-        // Default true if column missing / null (legacy installs)
-        return ($this->is_active ?? true) === true;
+        // Missing or null status must never grant access. Fresh installations
+        // receive the database default; incomplete/legacy schemas fail closed.
+        return ($this->is_active ?? false) === true;
     }
 
     /**
      * Whether this account may use the public API (keys still must be valid).
-     * Defaults to true when the column is missing (pre-migration installs).
+     * Fails closed when the column is missing or the schema cannot be read.
      */
     public function hasApiAccess(): bool
     {
         try {
             if (! Schema::hasColumn('users', 'api_enabled')) {
-                return true;
+                return false;
             }
         } catch (\Throwable) {
-            return true;
+            // A database/schema failure must never grant API access by default.
+            return false;
         }
 
         return ($this->api_enabled ?? true) === true;
@@ -106,12 +103,16 @@ class User extends Authenticatable implements FilamentUser, CanResetPasswordCont
 
     public function isAdmin(): bool
     {
-        return ($this->role ?? self::ROLE_ADMIN) === self::ROLE_ADMIN;
+        return $this->isActive()
+            && $this->email_verified_at !== null
+            && $this->role === self::ROLE_ADMIN;
     }
 
     public function isEditor(): bool
     {
-        return ($this->role ?? '') === self::ROLE_EDITOR;
+        return $this->isActive()
+            && $this->email_verified_at !== null
+            && $this->role === self::ROLE_EDITOR;
     }
 
     public function isMember(): bool

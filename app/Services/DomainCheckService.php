@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\PublicHttpUrl;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -16,6 +17,16 @@ class DomainCheckService
     public function check(string $domain): array
     {
         $domain = strtolower(trim($domain));
+
+        if (! $this->isValidPublicDomain($domain)) {
+            return [
+                'domain' => substr($domain, 0, 253),
+                'available' => null,
+                'status' => 'invalid',
+                'checked_at' => now()->toIso8601String(),
+            ];
+        }
+
         $cacheKey = 'domain_check:v3:'.$domain;
 
         return Cache::remember($cacheKey, now()->addHours(24), function () use ($domain) {
@@ -40,10 +51,19 @@ class DomainCheckService
                 ];
             }
 
+            if ($rdap === false) {
+                return [
+                    'domain' => $domain,
+                    'available' => true,
+                    'status' => 'available',
+                    'checked_at' => now()->toIso8601String(),
+                ];
+            }
+
             return [
                 'domain' => $domain,
-                'available' => true,
-                'status' => 'available',
+                'available' => null,
+                'status' => 'unknown',
                 'checked_at' => now()->toIso8601String(),
             ];
         });
@@ -56,7 +76,7 @@ class DomainCheckService
     public function checkMany(array $domains): array
     {
         $out = [];
-        foreach ($domains as $domain) {
+        foreach (array_slice($domains, 0, 10) as $domain) {
             try {
                 $out[$domain] = $this->check($domain);
             } catch (\Throwable $e) {
@@ -87,6 +107,20 @@ class DomainCheckService
         ];
     }
 
+    protected function isValidPublicDomain(string $domain): bool
+    {
+        if (strlen($domain) > 253
+            || ! preg_match('/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])$/i', $domain)
+        ) {
+            return false;
+        }
+
+        $reservedTlds = ['local', 'internal', 'localhost', 'test', 'example', 'invalid', 'onion', 'home', 'lan'];
+        $tld = strtolower(substr(strrchr($domain, '.') ?: '', 1));
+
+        return $tld !== '' && ! in_array($tld, $reservedTlds, true);
+    }
+
     protected function hasDnsRecords(string $domain): bool
     {
         try {
@@ -97,7 +131,7 @@ class DomainCheckService
 
             // Only A/NS — skip slow multi-type scans
             if (function_exists('dns_get_record')) {
-                $a = @dns_get_record($domain, DNS_A);
+                $a = @dns_get_record($domain, DNS_A | DNS_AAAA);
                 if (! empty($a)) {
                     return true;
                 }
@@ -128,18 +162,29 @@ class DomainCheckService
         }
 
         try {
-            $url = rtrim($base, '/').'/domain/'.$domain;
+            $url = rtrim($base, '/').'/domain/'.rawurlencode($domain);
             $response = Http::timeout(1.8)
                 ->connectTimeout(1.2)
+                ->withOptions(array_merge(
+                    // RDAP endpoints are fixed, trusted providers. Do not follow
+                    // redirects: each hop would need its own DNS validation and
+                    // CURLOPT_RESOLVE pin before any connection is attempted.
+                    ['allow_redirects' => false, 'stream' => true],
+                    PublicHttpUrl::safeRequestOptions($url)
+                ))
                 ->withHeaders(['Accept' => 'application/rdap+json, application/json'])
                 ->get($url);
 
+            $stream = $response->toPsrResponse()->getBody();
             if ($response->status() === 404) {
+                $stream->close();
+
                 return false;
             }
 
             if ($response->successful()) {
-                $body = $response->json();
+                $body = json_decode($stream->read(65536), true);
+                $stream->close();
                 if (is_array($body) && (
                     isset($body['objectClassName'])
                     || isset($body['ldhName'])
@@ -147,6 +192,8 @@ class DomainCheckService
                 )) {
                     return true;
                 }
+            } else {
+                $stream->close();
             }
         } catch (\Throwable $e) {
             Log::debug('RDAP check failed for '.$domain.': '.$e->getMessage());

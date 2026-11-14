@@ -2,14 +2,15 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\CanonicalUrl;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Canonical host + scheme from APP_URL (chosen during install / .env).
+ * Canonical scheme from APP_URL; permit additional explicitly allow-listed domains.
  *
- * - www vs non-www: the host inside APP_URL is the only public host (301)
+ * - APP_URL is the fallback host; explicitly allow-listed hosts remain active
  * - http → https when APP_URL uses https
  * - Safe methods only (never 301 POST — Livewire / CSRF)
  * - Skips installer, health check, and local/dev preferred hosts
@@ -18,15 +19,9 @@ class ForcePreferredUrl
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if ($this->envBool('FORCE_PREFERRED_URL', true) === false) {
-            return $next($request);
-        }
+        $forcePreferredUrl = $this->envBool('FORCE_PREFERRED_URL', true);
 
         if ($request->is('install', 'install/*', 'up')) {
-            return $next($request);
-        }
-
-        if (! $request->isMethodSafe()) {
             return $next($request);
         }
 
@@ -45,36 +40,52 @@ class ForcePreferredUrl
 
         $currentHost = strtolower($request->getHost());
         if (str_contains($currentHost, ':')) {
-            [$h, $port] = explode(':', $currentHost, 2);
+            [$host, $port] = explode(':', $currentHost, 2);
             if (in_array($port, ['80', '443'], true)) {
-                $currentHost = $h;
+                $currentHost = $host;
             }
         }
         if (str_contains($preferredHost, ':')) {
-            [$h, $port] = explode(':', $preferredHost, 2);
+            [$host, $port] = explode(':', $preferredHost, 2);
             if (in_array($port, ['80', '443'], true)) {
-                $preferredHost = $h;
+                $preferredHost = $host;
             }
         }
 
+        $currentHostAllowed = CanonicalUrl::isTrustedHost($currentHost);
         $currentIsHttps = $this->requestIsHttps($request);
-        $currentScheme = $currentIsHttps ? 'https' : 'http';
+        $schemeMismatch = $preferredScheme === 'https' && ! $currentIsHttps;
+        $safeMethod = $request->isMethodSafe();
 
-        $hostMismatch = ! hash_equals($preferredHost, $currentHost);
-        $schemeMismatch = $preferredScheme === 'https' && $currentScheme !== 'https';
+        if (! $currentHostAllowed) {
+            // Redirect only safe requests. Never process state-changing requests
+            // under an untrusted Host header, even when redirects are disabled.
+            if ($forcePreferredUrl && $safeMethod) {
+                $uri = $request->getRequestUri();
+                if ($uri === '' || $uri[0] !== '/') {
+                    $uri = '/'.$uri;
+                }
 
-        if (! $hostMismatch && ! $schemeMismatch) {
-            return $next($request);
+                return redirect()->to($preferredScheme.'://'.$preferredHost.$uri, 301);
+            }
+
+            abort(400, 'Unrecognized request host.');
         }
 
-        $uri = $request->getRequestUri();
-        if ($uri === '' || $uri[0] !== '/') {
-            $uri = '/'.$uri;
+        if ($forcePreferredUrl && $schemeMismatch) {
+            if (! $safeMethod) {
+                abort(400, 'HTTPS is required for state-changing requests.');
+            }
+
+            $uri = $request->getRequestUri();
+            if ($uri === '' || $uri[0] !== '/') {
+                $uri = '/'.$uri;
+            }
+
+            return redirect()->to($preferredScheme.'://'.$currentHost.$uri, 301);
         }
 
-        $target = $preferredScheme.'://'.$preferredHost.$uri;
-
-        return redirect()->to($target, 301);
+        return $next($request);
     }
 
     protected function envBool(string $key, bool $default): bool
@@ -97,24 +108,8 @@ class ForcePreferredUrl
 
     protected function requestIsHttps(Request $request): bool
     {
-        if ($request->isSecure()) {
-            return true;
-        }
-
-        $proto = strtolower((string) $request->headers->get('X-Forwarded-Proto', ''));
-        if ($proto === 'https' || str_starts_with($proto, 'https,')) {
-            return true;
-        }
-
-        if ($request->headers->get('X-Forwarded-Ssl') === 'on') {
-            return true;
-        }
-
-        if ((string) $request->server('HTTPS') === 'on'
-            || strtolower((string) $request->server('HTTP_X_FORWARDED_PROTO')) === 'https') {
-            return true;
-        }
-
-        return false;
+        // Laravel only honors forwarded scheme headers from proxies explicitly
+        // configured in TRUSTED_PROXIES. Never trust raw client-supplied headers.
+        return $request->isSecure();
     }
 }

@@ -7,10 +7,12 @@ use App\Models\OpenSourceAlternative;
 use App\Services\ProsConsService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class ProsConsSection extends Component
 {
+    #[Locked]
     public int $alternativeId;
 
     public string $type = 'pro';
@@ -26,6 +28,11 @@ class ProsConsSection extends Component
     public function mount(int $alternativeId): void
     {
         $this->alternativeId = $alternativeId;
+        abort_unless(
+            OpenSourceAlternative::query()->whereKey($alternativeId)->where('is_published', true)->exists(),
+            404
+        );
+
         if (Auth::check()) {
             $this->authorName = (string) (Auth::user()->name ?? '');
         }
@@ -53,7 +60,7 @@ class ProsConsSection extends Component
             'authorName' => 'nullable|string|max:80',
         ]);
 
-        $alt = OpenSourceAlternative::query()->find($this->alternativeId);
+        $alt = OpenSourceAlternative::query()->whereKey($this->alternativeId)->where('is_published', true)->first();
         if (! $alt) {
             $this->message = 'Alternative not found.';
 
@@ -87,8 +94,16 @@ class ProsConsSection extends Component
         }
         RateLimiter::hit($key, 3600);
 
+        $alternativeIsPublished = OpenSourceAlternative::query()
+            ->whereKey($this->alternativeId)
+            ->where('is_published', true)
+            ->exists();
+
         $item = AlternativeProsCon::query()->find($id);
-        if (! $item || (int) $item->open_source_alternative_id !== $this->alternativeId) {
+        if (! $alternativeIsPublished
+            || ! $item
+            || (int) $item->open_source_alternative_id !== $this->alternativeId
+        ) {
             return;
         }
 
@@ -101,7 +116,7 @@ class ProsConsSection extends Component
     public function render()
     {
         $service = app(ProsConsService::class);
-        $alt = OpenSourceAlternative::query()->find($this->alternativeId);
+        $alt = OpenSourceAlternative::query()->whereKey($this->alternativeId)->where('is_published', true)->first();
         $lists = $alt ? $service->listsFor($alt) : ['pros' => collect(), 'cons' => collect()];
 
         $voterKey = $service->voterKey(session()->getId(), request()->ip());

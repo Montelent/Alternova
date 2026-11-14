@@ -6,20 +6,25 @@ Production-ready Laravel 11 product: Open Source Alternative Finder + Domain Nam
 
 ## Requirements
 
-- PHP 8.2+
+- PHP 8.2+ with the cURL extension enabled
 - MySQL or PostgreSQL
 - Composer
+- Node.js 20+ and npm (for the production asset build)
 - Writable `storage/` and `bootstrap/cache/`
 
 ## Install (any domain / host)
 
 1. Upload or clone the project into the web root your host assigns (often `public_html` or `httpdocs`).
 2. Point the domain document root at that folder (this package is designed so `index.php` lives at the app root).
-3. Run:
+3. Install PHP dependencies and build the production frontend assets before serving the application:
 
 ```bash
 composer install --no-dev --optimize-autoloader
+npm ci
+npm run build
 ```
+
+   The build creates `public/build/manifest.json`, which Laravel requires for pages using the main application layout. Keep the generated `public/build/` directory when uploading the application; it is intentionally not committed to source control. If your hosting plan has no Node.js, run the npm commands locally or in CI and upload the resulting `public/build/` directory with the application.
 
 4. Open `https://YOUR-DOMAIN/install` and complete the wizard (creates `.env`, APP_KEY, migrations, admin user, locks the installer).
 
@@ -42,3 +47,7 @@ Paths, `APP_URL`, PHP binary for cron, and sitemap URLs are detected from **this
 ## License
 
 MIT (see repository license file if present).
+
+## Production security
+
+For Nginx deployments, install the upload execution-deny rules before serving user media. See [the production deployment security checklist](docs/production-deployment-security.md) and [Nginx upload security snippet](docs/nginx-upload-security.conf). Apache hosts use the repository's .htaccess protections.

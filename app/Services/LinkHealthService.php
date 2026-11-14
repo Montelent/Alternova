@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\OpenSourceAlternative;
+use App\Support\PublicHttpUrl;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -29,26 +30,34 @@ class LinkHealthService
 
     public function isReachable(string $url): bool
     {
+        if (! PublicHttpUrl::isSafe($url)) {
+            return false;
+        }
+
         try {
+            // HEAD avoids downloading arbitrary remote response bodies. Do not
+            // fall back to GET: an untrusted host could return an unbounded file.
             $response = Http::timeout(4)
                 ->connectTimeout(3)
                 ->withHeaders(['User-Agent' => 'Alternova-LinkChecker/1.0'])
-                ->withOptions(['allow_redirects' => true])
+                ->withOptions(array_merge(
+                    ['allow_redirects' => false, 'stream' => true],
+                    PublicHttpUrl::safeRequestOptions($url)
+                ))
                 ->head($url);
 
-            if ($response->successful() || in_array($response->status(), [401, 403, 405], true)) {
-                return true;
-            }
+            $status = $response->status();
+            $response->toPsrResponse()->getBody()->close();
 
-            // Some hosts block HEAD — try GET once with short timeout
-            $get = Http::timeout(4)
-                ->connectTimeout(3)
-                ->withHeaders(['User-Agent' => 'Alternova-LinkChecker/1.0'])
-                ->get($url);
-
-            return $get->successful() || in_array($get->status(), [401, 403], true);
+            return $response->successful() || ($status >= 300 && $status < 400)
+                || in_array($status, [401, 403, 405], true);
         } catch (\Throwable $e) {
-            Log::debug('Link check failed for '.$url.': '.$e->getMessage());
+            // Client exceptions may contain query-string credentials.
+            // Log only the host and exception class, never the full URL/message.
+            Log::debug('Link check failed.', [
+                'host' => parse_url($url, PHP_URL_HOST),
+                'exception' => get_class($e),
+            ]);
 
             return false;
         }

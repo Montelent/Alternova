@@ -25,6 +25,10 @@ class WatchlistService
 
     public function isWatching(OpenSourceAlternative $alt, ?User $user = null): bool
     {
+        if (! $alt->is_published) {
+            return false;
+        }
+
         $user = $user ?: Auth::user();
         if (! $user || ! $this->ready()) {
             return false;
@@ -38,6 +42,10 @@ class WatchlistService
 
     public function toggle(OpenSourceAlternative $alt, ?User $user = null): bool
     {
+        if (! $alt->is_published) {
+            return false;
+        }
+
         $user = $user ?: Auth::user();
         if (! $user || ! $this->ready()) {
             return false;
@@ -75,6 +83,7 @@ class WatchlistService
         }
 
         return OpenSourceAlternative::query()
+            ->where('is_published', true)
             ->whereIn('id', WatchedAlternative::query()
                 ->where('user_id', $user->id)
                 ->pluck('open_source_alternative_id'))
@@ -98,7 +107,7 @@ class WatchlistService
 
     public function notifyHealthDrop(OpenSourceAlternative $alt, float $previousScore, float $newScore, float $threshold = 5.0): void
     {
-        if (! $this->ready()) {
+        if (! $this->ready() || ! $alt->is_published) {
             return;
         }
 

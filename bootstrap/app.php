@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\AuthenticateApiKey;
 use App\Http\Middleware\CheckMaintenanceMode;
+use App\Http\Middleware\EnsureActiveUser;
 use App\Http\Middleware\EnsureNotInstalled;
 use App\Http\Middleware\EnsureSessionIsConfigured;
 use App\Http\Middleware\ForceHttps;
@@ -10,6 +11,7 @@ use App\Http\Middleware\PreventDemoWrites;
 use App\Http\Middleware\RedirectIfNotInstalled;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\ThrottleApi;
+use App\Http\Middleware\TrustConfiguredProxies;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -28,27 +30,23 @@ return Application::configure(basePath: dirname(__DIR__))
             'api.throttle' => ThrottleApi::class,
         ]);
 
-        $middleware->trustProxies(at: '*');
+        // Read the proxy allowlist in request middleware after config is loaded;
+        // bootstrap closures also run during Composer's artisan package discovery.
+        $middleware->prepend(TrustConfiguredProxies::class);
 
-        /*
-         | Livewire POSTs to /livewire/update. On multi-process shared hosting (Hostinger),
-         | file session locks + concurrent Livewire requests often produce false CSRF 419s.
-         | Livewire still validates component checksums (APP_KEY). Keep CSRF on all other routes.
-         */
-        $middleware->validateCsrfTokens(except: [
-            'livewire/update',
-            'livewire/*',
-        ]);
-
+        // Keep Laravel's normal CSRF protection enabled for every state-changing
+        // endpoint, including Livewire. Livewire component checksums are not a
+        // substitute for CSRF validation.
         $middleware->web(prepend: [
             EnsureSessionIsConfigured::class,
         ]);
 
         $middleware->web(append: [
-            ForcePreferredUrl::class, // host (www/non-www) + HTTPS from APP_URL
+            ForcePreferredUrl::class, // validated allowed hosts + HTTPS from trusted request metadata
             RedirectIfNotInstalled::class,
             CheckMaintenanceMode::class,
             SecurityHeaders::class,
+            EnsureActiveUser::class,
             PreventDemoWrites::class,
         ]);
     })

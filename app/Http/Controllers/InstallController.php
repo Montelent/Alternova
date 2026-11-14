@@ -6,8 +6,8 @@ use App\Models\User;
 use App\Support\Installer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules\Password;
 
 class InstallController extends Controller
@@ -16,6 +16,14 @@ class InstallController extends Controller
     {
         if (Installer::isInstalled()) {
             abort(403, 'Application is already installed.');
+        }
+
+        // Keep the private reopen token out of the browser address bar after
+        // the middleware has validated it and stored it in this session.
+        if ($request->query->has('reinstall_token')
+            && $request->session()->boolean('installer_reopen_authorized')
+        ) {
+            return redirect()->route('install.index');
         }
 
         Installer::ensureStorageDirectories();
@@ -34,7 +42,7 @@ class InstallController extends Controller
             'migrateOutput' => $request->session()->get('migrate_output'),
             'old' => $request->session()->get('install_input', [
                 'app_name' => 'Alternova',
-                'app_url' => rtrim($request->getSchemeAndHttpHost(), '/'),
+                'app_url' => rtrim(Installer::detectAppUrl(), '/'),
                 'db_connection' => 'mysql',
                 'db_host' => '127.0.0.1',
                 'db_port' => '3306',
@@ -112,13 +120,28 @@ class InstallController extends Controller
     {
         $data = $request->validate([
             'app_name' => ['required', 'string', 'max:255'],
-            'app_url' => ['required', 'url'],
+            'app_url' => ['required', 'url', 'regex:/\\Ahttps?:\\/\\//i', 'max:2048'],
             'db_connection' => ['required', 'in:pgsql,mysql'],
-            'db_host' => ['required', 'string'],
-            'db_port' => ['required', 'string'],
-            'db_database' => ['required', 'string'],
-            'db_username' => ['required', 'string'],
-            'db_password' => ['nullable', 'string'],
+            'db_host' => [
+                'required',
+                'string',
+                'max:253',
+                function (string $attribute, mixed $value, \Closure $fail) use ($request): void {
+                    $host = (string) $value;
+                    $validHost = preg_match('/\\A(?:localhost|[A-Za-z0-9.-]+|\\[[0-9A-Fa-f:]+\\]|[0-9A-Fa-f:]+)\\z/', $host) === 1;
+                    $validPostgresSocket = $request->input('db_connection') === 'pgsql'
+                        && preg_match('#\\A/(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9._/-]+\\z#', $host) === 1
+                        && ! str_contains($host, '//');
+
+                    if (! $validHost && ! $validPostgresSocket) {
+                        $fail('The database host must be a valid hostname, IP address, or PostgreSQL socket directory.');
+                    }
+                },
+            ],
+            'db_port' => ['required', 'integer', 'min:1', 'max:65535'],
+            'db_database' => ['required', 'string', 'max:128', 'regex:/\\A[A-Za-z0-9_.-]+\\z/'],
+            'db_username' => ['required', 'string', 'max:128'],
+            'db_password' => ['nullable', 'string', 'max:255'],
             'action' => ['nullable', 'string'],
         ]);
 
@@ -175,7 +198,8 @@ class InstallController extends Controller
             $request->session()->flash('db_test_success', true);
             $request->session()->flash('db_test_message', 'Connection successful. Environment saved.');
         } catch (\Throwable $e) {
-            $request->session()->flash('install_error', 'Failed to write .env: ' . $e->getMessage());
+            Log::error('Installer failed to write the environment file.', ['error' => $e->getMessage()]);
+            $request->session()->flash('install_error', 'Failed to save the environment configuration. Check the server logs.');
         }
 
         return redirect()->route('install.index');
@@ -197,18 +221,21 @@ class InstallController extends Controller
             ]);
 
             $result = Installer::runArtisan('migrate', ['--force' => true]);
-            $request->session()->flash('migrate_output', $result['output'] ?: '(no output)');
 
             if (! $result['success']) {
-                $request->session()->flash('install_error', 'Migration failed. Check the output below.');
+                Log::error('Installer migrations failed.', ['output' => $result['output']]);
+                $request->session()->flash('migrate_output', 'Migration failed. Check the server logs.');
+                $request->session()->flash('install_error', 'Migration failed. Check the server logs.');
 
                 return redirect()->route('install.index');
             }
 
+            $request->session()->flash('migrate_output', $result['output'] ?: '(no output)');
             $request->session()->put('install_step', 4);
         } catch (\Throwable $e) {
-            $request->session()->flash('install_error', 'Migration error: ' . $e->getMessage());
-            $request->session()->flash('migrate_output', $e->getMessage());
+            Log::error('Installer migration threw an exception.', ['error' => $e->getMessage()]);
+            $request->session()->flash('install_error', 'Migration failed. Check the server logs.');
+            $request->session()->flash('migrate_output', 'Migration failed. Check the server logs.');
         }
 
         return redirect()->route('install.index');
@@ -241,26 +268,29 @@ class InstallController extends Controller
                 return redirect()->route('install.index');
             }
 
-            $existing = User::query()->where('email', $data['admin_email'])->first();
-            if ($existing) {
-                $existing->update([
-                    'name' => $data['admin_name'],
-                    'password' => Hash::make($data['admin_password']),
-                ]);
-            } else {
-                User::create([
-                    'name' => $data['admin_name'],
-                    'email' => $data['admin_email'],
-                    'password' => Hash::make($data['admin_password']),
-                    'email_verified_at' => now(),
-                ]);
+            if (User::query()->where('email', $data['admin_email'])->exists()) {
+                $request->session()->flash(
+                    'install_error',
+                    'That email address already exists. Choose a different email; the installer never changes an existing account.'
+                );
+
+                return redirect()->route('install.index');
             }
+
+            User::create([
+                'name' => $data['admin_name'],
+                'email' => $data['admin_email'],
+                'password' => $data['admin_password'],
+                'role' => User::ROLE_ADMIN,
+                'email_verified_at' => now(),
+            ]);
 
             Installer::lock();
             $request->session()->put('install_step', 5);
             $request->session()->forget(['install_error', 'install_input']);
         } catch (\Throwable $e) {
-            $request->session()->flash('install_error', 'Failed to create admin: ' . $e->getMessage());
+            Log::error('Installer failed to create the initial administrator.', ['error' => $e->getMessage()]);
+            $request->session()->flash('install_error', 'Failed to create the administrator account. Check the server logs.');
         }
 
         return redirect()->route('install.index');

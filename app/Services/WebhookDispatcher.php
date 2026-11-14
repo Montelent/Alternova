@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Webhook;
 use App\Models\WebhookDelivery;
+use App\Support\PublicHttpUrl;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -119,21 +120,40 @@ class WebhookDispatcher
         $error = null;
 
         try {
-            $response = Http::timeout(6)
-                ->connectTimeout(3)
-                ->withHeaders($headers)
-                ->withBody($json ?: '{}', 'application/json')
-                ->post($hook->url);
+            if (! PublicHttpUrl::isSafe((string) $hook->url)) {
+                $error = 'Webhook URL must resolve to a public HTTP or HTTPS address.';
+            } else {
+                $response = Http::timeout(6)
+                    ->connectTimeout(3)
+                    ->withOptions(array_merge(
+                        ['allow_redirects' => false, 'stream' => true],
+                        PublicHttpUrl::safeRequestOptions((string) $hook->url)
+                    ))
+                    ->withHeaders($headers)
+                    ->withBody($json ?: '{}', 'application/json')
+                    ->post($hook->url);
 
-            $status = $response->status();
-            $responseBody = Str::limit($response->body(), 2000, '');
-            $success = $response->successful();
+                $status = $response->status();
+                $success = $response->successful();
 
-            if (! $success) {
-                $error = 'HTTP '.$status;
+                // Delivery status is enough for diagnostics. Never buffer an
+                // arbitrary webhook response body into PHP memory or storage.
+                $response->toPsrResponse()->getBody()->close();
+
+                if (! $success) {
+                    $error = 'HTTP '.$status;
+                }
             }
         } catch (\Throwable $e) {
-            $error = $e->getMessage();
+            // HTTP-client exceptions can include the full endpoint URL,
+            // including query-string credentials. Persist only the exception
+            // class and a safe host identifier, never the raw message.
+            $error = 'Outbound request failed ('.get_class($e).').';
+            Log::warning('Webhook delivery failed.', [
+                'webhook_id' => $hook->id,
+                'host' => parse_url((string) $hook->url, PHP_URL_HOST),
+                'exception' => get_class($e),
+            ]);
         }
 
         try {

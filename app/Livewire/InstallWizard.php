@@ -5,11 +5,13 @@ namespace App\Livewire;
 use App\Livewire\Concerns\NormalizesInstallUrl;
 use App\Models\User;
 use App\Support\Installer;
+use App\Support\InstallerConfigurationFingerprint;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules\Password;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 #[Layout('layouts.install')]
@@ -17,7 +19,11 @@ class InstallWizard extends Component
 {
     use NormalizesInstallUrl;
 
+    #[Locked]
     public int $step = 1;
+
+    #[Locked]
+    public ?string $validatedConfigurationFingerprint = null;
 
     public array $requirements = [];
 
@@ -59,20 +65,19 @@ class InstallWizard extends Component
 
     public function mount(): void
     {
-        if (Installer::isInstalled()) {
-            abort(403, 'Application is already installed.');
-        }
+        $this->ensureInstallerOpen();
 
-        $this->app_url = $this->normalizeAppUrl(request()->getSchemeAndHttpHost());
+        $this->app_url = $this->normalizeAppUrl(Installer::detectAppUrl());
         Installer::ensureStorageDirectories();
         Installer::ensureEnvFile();
         Installer::ensureInstallSafeDrivers();
-        Installer::ensureAppKey();
+        $this->ensureApplicationKey();
         $this->refreshRequirements();
     }
 
     public function refreshRequirements(): void
     {
+        $this->ensureInstallerOpen();
         Installer::ensureStorageDirectories();
         $this->requirements = Installer::requirements();
         $this->requirementsMet = Installer::allRequirementsMet();
@@ -80,18 +85,20 @@ class InstallWizard extends Component
 
     public function updatedDbConnection(string $value): void
     {
+        $this->ensureInstallerOpen();
         $this->db_port = $value === 'mysql' ? '3306' : '5432';
     }
 
     public function testDatabase(): void
     {
+        $this->ensureInstallerOpen();
         $this->validate([
             'db_connection' => ['required', 'in:pgsql,mysql'],
-            'db_host' => ['required', 'string'],
-            'db_port' => ['required', 'string'],
-            'db_database' => ['required', 'string'],
-            'db_username' => ['required', 'string'],
-            'db_password' => ['nullable', 'string'],
+            'db_host' => ['required', 'string', 'max:253', 'regex:/\\A(?:localhost|[A-Za-z0-9.-]+|\\[[0-9A-Fa-f:]+\\]|[0-9A-Fa-f:]+)\\z/'],
+            'db_port' => ['required', 'integer', 'min:1', 'max:65535'],
+            'db_database' => ['required', 'string', 'max:128', 'regex:/\\A[A-Za-z0-9_.-]+\\z/'],
+            'db_username' => ['required', 'string', 'max:128'],
+            'db_password' => ['nullable', 'string', 'max:255'],
         ]);
 
         $result = Installer::testDatabaseConnection(
@@ -109,6 +116,7 @@ class InstallWizard extends Component
 
     public function nextStep(): void
     {
+        $this->ensureInstallerOpen();
         $this->errorMessage = null;
 
         if ($this->step === 1) {
@@ -127,7 +135,7 @@ class InstallWizard extends Component
                 return;
             }
 
-            Installer::ensureAppKey();
+            $this->ensureApplicationKey();
             $this->step = 2;
 
             return;
@@ -152,6 +160,7 @@ class InstallWizard extends Component
 
     public function previousStep(): void
     {
+        $this->ensureInstallerOpen();
         if ($this->step > 1 && $this->step < 5) {
             $this->step--;
             $this->errorMessage = null;
@@ -161,17 +170,19 @@ class InstallWizard extends Component
 
     protected function saveEnvironmentAndContinue(): void
     {
+        $this->ensureInstallerOpen();
+
         $this->app_url = $this->normalizeAppUrl($this->app_url);
 
         $this->validate([
             'app_name' => ['required', 'string', 'max:255'],
-            'app_url' => ['required', 'url'],
+            'app_url' => ['required', 'url', 'regex:/\\Ahttps?:\\/\\//i', 'max:2048'],
             'db_connection' => ['required', 'in:pgsql,mysql'],
-            'db_host' => ['required', 'string'],
-            'db_port' => ['required', 'string'],
-            'db_database' => ['required', 'string'],
-            'db_username' => ['required', 'string'],
-            'db_password' => ['nullable', 'string'],
+            'db_host' => ['required', 'string', 'max:253', 'regex:/\\A(?:localhost|[A-Za-z0-9.-]+|\\[[0-9A-Fa-f:]+\\]|[0-9A-Fa-f:]+)\\z/'],
+            'db_port' => ['required', 'integer', 'min:1', 'max:65535'],
+            'db_database' => ['required', 'string', 'max:128', 'regex:/\\A[A-Za-z0-9_.-]+\\z/'],
+            'db_username' => ['required', 'string', 'max:128'],
+            'db_password' => ['nullable', 'string', 'max:255'],
         ]);
 
         $test = Installer::testDatabaseConnection(
@@ -193,7 +204,7 @@ class InstallWizard extends Component
 
         try {
             Installer::ensureEnvFile();
-            Installer::ensureAppKey();
+            $this->ensureApplicationKey();
 
             Installer::writeEnv([
                 'APP_NAME' => $this->app_name,
@@ -239,16 +250,24 @@ class InstallWizard extends Component
                 "database.connections.{$this->db_connection}.password" => $this->db_password,
             ]);
 
+            $this->validatedConfigurationFingerprint = $this->configurationFingerprint();
             $this->dbTestSuccess = true;
             $this->dbTestMessage = 'Connection successful. Environment saved.';
             $this->step = 3;
         } catch (\Throwable $e) {
-            $this->errorMessage = 'Failed to write .env: '.$e->getMessage();
+            Log::error('Livewire installer failed to write the environment file.', ['error' => $e->getMessage()]);
+            $this->errorMessage = 'Failed to save the environment configuration. Check the server logs.';
         }
     }
 
     protected function runMigrationsAndContinue(): void
     {
+        $this->ensureInstallerOpen();
+
+        if (! $this->ensureValidatedConfiguration()) {
+            return;
+        }
+
         $this->app_url = $this->normalizeAppUrl($this->app_url);
 
         try {
@@ -263,8 +282,19 @@ class InstallWizard extends Component
                 "database.connections.{$this->db_connection}.password" => $this->db_password,
             ]);
 
-            Artisan::call('migrate', ['--force' => true]);
-            $this->migrateOutput = Artisan::output();
+            $exitCode = Artisan::call('migrate', ['--force' => true]);
+            $output = Artisan::output();
+
+            if ($exitCode !== 0) {
+                Log::error('Livewire installer migrations failed.', ['output' => $output]);
+                $this->migrateSuccess = false;
+                $this->migrateOutput = 'Migration failed. Check the server logs.';
+                $this->errorMessage = 'Migration failed. Check the server logs.';
+
+                return;
+            }
+
+            $this->migrateOutput = $output;
             $this->migrateSuccess = true;
 
             Installer::writeEnv([
@@ -283,14 +313,21 @@ class InstallWizard extends Component
 
             $this->step = 4;
         } catch (\Throwable $e) {
+            Log::error('Livewire installer migration threw an exception.', ['error' => $e->getMessage()]);
             $this->migrateSuccess = false;
-            $this->migrateOutput = $e->getMessage();
-            $this->errorMessage = 'Migration failed: '.$e->getMessage();
+            $this->migrateOutput = 'Migration failed. Check the server logs.';
+            $this->errorMessage = 'Migration failed. Check the server logs.';
         }
     }
 
     protected function createAdminAndFinish(): void
     {
+        $this->ensureInstallerOpen();
+
+        if (! $this->ensureValidatedConfiguration()) {
+            return;
+        }
+
         $this->app_url = $this->normalizeAppUrl($this->app_url);
 
         $this->validate([
@@ -315,21 +352,22 @@ class InstallWizard extends Component
                 return;
             }
 
-            $existing = User::query()->where('email', $this->admin_email)->first();
+            if (User::query()->where('email', $this->admin_email)->exists()) {
+                $this->addError(
+                    'admin_email',
+                    'That email address already exists. Choose a different email; the installer never changes an existing account.'
+                );
 
-            if ($existing) {
-                $existing->update([
-                    'name' => $this->admin_name,
-                    'password' => Hash::make($this->admin_password),
-                ]);
-            } else {
-                User::create([
-                    'name' => $this->admin_name,
-                    'email' => $this->admin_email,
-                    'password' => Hash::make($this->admin_password),
-                    'email_verified_at' => now(),
-                ]);
+                return;
             }
+
+            User::create([
+                'name' => $this->admin_name,
+                'email' => $this->admin_email,
+                'password' => $this->admin_password,
+                'role' => User::ROLE_ADMIN,
+                'email_verified_at' => now(),
+            ]);
 
             Installer::applyRecommendedEnv();
             Installer::writeEnv([
@@ -346,7 +384,52 @@ class InstallWizard extends Component
             Installer::lock();
             $this->step = 5;
         } catch (\Throwable $e) {
-            $this->errorMessage = 'Failed to create admin user: '.$e->getMessage();
+            Log::error('Livewire installer failed to create the initial administrator.', ['error' => $e->getMessage()]);
+            $this->errorMessage = 'Failed to create the administrator account. Check the server logs.';
+        }
+    }
+
+    protected function ensureApplicationKey(): void
+    {
+        $key = Installer::ensureAppKey();
+        config(['app.key' => $key]);
+    }
+
+    protected function configurationFingerprint(): string
+    {
+        return InstallerConfigurationFingerprint::make([
+            'app_name' => $this->app_name,
+            'app_url' => $this->app_url,
+            'db_connection' => $this->db_connection,
+            'db_host' => $this->db_host,
+            'db_port' => $this->db_port,
+            'db_database' => $this->db_database,
+            'db_username' => $this->db_username,
+            'db_password' => $this->db_password,
+        ], (string) config('app.key'));
+    }
+
+    protected function ensureValidatedConfiguration(): bool
+    {
+        $current = $this->configurationFingerprint();
+
+        if (! is_string($this->validatedConfigurationFingerprint)
+            || ! hash_equals($this->validatedConfigurationFingerprint, $current)
+        ) {
+            $this->errorMessage = 'The site or database configuration changed after validation. Return to step 2 and test and save it again.';
+            $this->dbTestSuccess = false;
+            $this->step = 2;
+
+            return false;
+        }
+
+        return true;
+    }
+
+    protected function ensureInstallerOpen(): void
+    {
+        if (Installer::isInstalled()) {
+            abort(403, 'Application is already installed.');
         }
     }
 

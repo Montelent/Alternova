@@ -8,10 +8,17 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
 
 class ApiKeyResource extends Resource
 {
+
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->canManageSystem() ?? false;
+    }
+
     protected static ?string $model = ApiKey::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-key';
@@ -33,10 +40,35 @@ class ApiKeyResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return static::tableReady();
+        return static::tableReady() && (auth()->user()?->canManageSystem() ?? false);
+    }
+
+    public static function canViewAny(): bool
+    {
+        return static::canAccess();
+    }
+
+    public static function canView(Model $record): bool
+    {
+        return static::canAccess();
     }
 
     public static function canCreate(): bool
+    {
+        return false;
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return false;
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return false;
+    }
+
+    public static function canDeleteAny(): bool
     {
         return false;
     }
@@ -74,6 +106,7 @@ class ApiKeyResource extends Resource
                     ->requiresConfirmation()
                     ->visible(fn (ApiKey $record) => $record->isActive())
                     ->action(function (ApiKey $record) {
+                        abort_unless(static::canAccess(), 403);
                         $record->revoke();
                         Notification::make()->title('API key revoked')->success()->send();
                     }),
@@ -84,6 +117,7 @@ class ApiKeyResource extends Resource
                     ->requiresConfirmation()
                     ->visible(fn (ApiKey $record) => ! $record->isActive())
                     ->action(function (ApiKey $record) {
+                        abort_unless(static::canAccess(), 403);
                         $record->forceFill(['revoked_at' => null])->save();
                         Notification::make()->title('API key reactivated')->success()->send();
                     }),
@@ -96,6 +130,7 @@ class ApiKeyResource extends Resource
                         ->color('danger')
                         ->requiresConfirmation()
                         ->action(function ($records) {
+                            abort_unless(static::canAccess(), 403);
                             foreach ($records as $record) {
                                 if ($record->isActive()) {
                                     $record->revoke();

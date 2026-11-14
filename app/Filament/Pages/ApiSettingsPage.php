@@ -100,6 +100,8 @@ class ApiSettingsPage extends Page implements HasForms
 
     public function save(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $state = $this->form->getState();
 
         ApiSettings::setGloballyEnabled(! empty($state['api_globally_enabled']));

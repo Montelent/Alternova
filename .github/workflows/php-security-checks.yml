@@ -1,0 +1,210 @@
+name: PHP security checks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - security/production-hardening-2026-11
+
+permissions:
+  contents: read
+
+jobs:
+  php-lint:
+    name: PHP syntax and Composer manifest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+
+      - name: Lint application PHP files
+        run: |
+          find app bootstrap config database routes tests -type f -name '*.php' -print0 \
+            | xargs -0 -n1 php -l
+
+      - name: Validate Composer manifest
+        run: composer validate --no-check-publish
+
+  dependency-audit:
+    name: Dependency audit and frontend build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+
+      - name: Audit Composer dependencies
+        run: composer audit --locked
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Audit npm dependencies
+        run: npm audit --audit-level=moderate
+
+      - name: Install npm dependencies
+        run: npm ci --no-audit
+
+      - name: Build production frontend assets
+        run: npm run build
+
+
+  database-integration:
+    name: Laravel migrations and feature tests (${{ matrix.database }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - database: mysql
+            image: mysql:8.0
+            port: 3306
+            connection: mysql
+            username: root
+            password: root
+            health_cmd: mysqladmin ping -h 127.0.0.1 -uroot -proot
+          - database: postgresql
+            image: postgres:16
+            port: 5432
+            connection: pgsql
+            username: alternova
+            password: alternova-test
+            health_cmd: pg_isready -U alternova -d alternova_test
+    services:
+      database:
+        image: ${{ matrix.image }}
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: alternova_test
+          POSTGRES_USER: alternova
+          POSTGRES_PASSWORD: alternova-test
+          POSTGRES_DB: alternova_test
+        ports:
+          - ${{ matrix.port }}:${{ matrix.port }}
+        options: >-
+          --health-cmd "${{ matrix.health_cmd }}"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      APP_ENV: testing
+      APP_DEBUG: true
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      APP_URL: http://localhost
+      DB_CONNECTION: ${{ matrix.connection }}
+      DB_HOST: 127.0.0.1
+      DB_PORT: ${{ matrix.port }}
+      DB_DATABASE: alternova_test
+      DB_USERNAME: ${{ matrix.username }}
+      DB_PASSWORD: ${{ matrix.password }}
+      CACHE_STORE: array
+      MAIL_MAILER: array
+      QUEUE_CONNECTION: sync
+      SESSION_DRIVER: array
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, dom, xml, curl, fileinfo, pdo_mysql, pdo_pgsql, gd, zip, intl
+          coverage: none
+
+      - name: Prepare the Laravel test environment
+        run: cp .env.example .env
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Run a clean migration against the database service
+        run: php artisan migrate:fresh --force
+
+      - name: Verify recent security migrations roll back cleanly
+        run: php artisan migrate:rollback --step=3 --force
+
+      - name: Re-apply migrations after rollback
+        run: php artisan migrate --force
+
+      - name: Run Laravel feature tests
+        run: php artisan test --testsuite=Feature
+
+  unit-tests:
+    name: Security helper unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, dom, xml, curl, fileinfo, pdo_sqlite, sqlite3
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --no-scripts --no-plugins --prefer-dist --no-progress --no-interaction
+
+      - name: Run security helper unit tests
+        run: vendor/bin/phpunit tests/Unit
+
+  nginx-upload-security:
+    name: Nginx upload execution protection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Install Nginx and curl
+        run: sudo apt-get update && sudo apt-get install -y nginx curl
+
+      - name: Validate and exercise upload location rules
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="/tmp/alternova-nginx-root"
+          prefix="/tmp/alternova-nginx-prefix"
+          mkdir -p "$root/uploads" "$root/storage" "$prefix"
+          printf '<?php echo "EXECUTED"; ?>' > "$root/uploads/attack.php"
+          printf '<?php echo "EXECUTED"; ?>' > "$root/storage/attack.php"
+          printf 'hidden' > "$root/uploads/.secret"
+          printf 'normal image payload' > "$root/uploads/image.png"
+          cat > /tmp/alternova-nginx.conf <<EOF
+          pid /tmp/alternova-nginx.pid;
+          error_log /tmp/alternova-nginx-error.log;
+          events {}
+          http {
+            server {
+              listen 127.0.0.1:8080;
+              access_log /tmp/alternova-nginx-access.log;
+              root $root;
+              include $GITHUB_WORKSPACE/docs/nginx-upload-security.conf;
+              location ~ \.php$ { return 418; }
+            }
+          }
+          EOF
+          nginx -t -c /tmp/alternova-nginx.conf -p "$prefix"
+          nginx -c /tmp/alternova-nginx.conf -p "$prefix"
+          trap 'nginx -s stop -c /tmp/alternova-nginx.conf -p "$prefix" >/dev/null 2>&1 || true' EXIT
+          for path in uploads/attack.php storage/attack.php uploads/.secret; do
+            status="$(curl --retry 10 --retry-connrefused --retry-delay 1 -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:8080/$path")"
+            test "$status" = "404"
+          done
+          status="$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/uploads/image.png)"
+          test "$status" = "200"

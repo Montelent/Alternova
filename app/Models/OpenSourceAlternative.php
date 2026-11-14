@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Services\HealthHistoryService;
 use App\Services\SeoManager;
 use App\Services\WebhookDispatcher;
+use App\Support\HtmlSanitizer;
 use App\Support\MediaUrl;
 use App\Support\QueryCache;
 use Illuminate\Database\Eloquent\Builder;
@@ -309,4 +310,24 @@ class OpenSourceAlternative extends Model
     {
         return app(HealthHistoryService::class)->recalculate($this);
     }
+    public function getDescriptionAttribute($value): ?string
+    {
+        return $value === null ? null : HtmlSanitizer::clean((string) $value);
+    }
+
+    public function setDescriptionAttribute($value): void
+    {
+        $this->attributes['description'] = $value === null ? null : HtmlSanitizer::clean((string) $value);
+    }
+
+    public function getChangelogAttribute($value): ?string
+    {
+        return $value === null ? null : HtmlSanitizer::clean((string) $value);
+    }
+
+    public function setChangelogAttribute($value): void
+    {
+        $this->attributes['changelog'] = $value === null ? null : HtmlSanitizer::clean((string) $value);
+    }
+
 }

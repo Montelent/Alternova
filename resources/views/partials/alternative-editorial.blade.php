@@ -11,7 +11,7 @@
         @endif
     </p>
     <div class="mt-5 space-y-4 text-[15px] sm:text-base text-slate-700 dark:text-slate-300 leading-relaxed max-w-none">
-        {!! $editorial['guide_html'] !!}
+        {!! \App\Support\HtmlSanitizer::clean($editorial['guide_html']) !!}
     </div>
 
     @if(!empty($editorial['faq']) && count($editorial['faq']))

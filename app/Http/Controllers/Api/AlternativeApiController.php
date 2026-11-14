@@ -7,17 +7,36 @@ use App\Models\OpenSourceAlternative;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Validator;
 
 class AlternativeApiController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $q = $request->string('q')->trim()->toString();
-        $license = $request->string('license')->trim()->toString();
-        $category = $request->string('category')->trim()->toString();
-        $sort = $request->string('sort', 'health')->toString();
-        $perPage = min(50, max(1, (int) $request->input('per_page', 20)));
-        $pageNum = max(1, (int) $request->input('page', 1));
+        $validator = Validator::make($request->all(), [
+            'q' => ['nullable', 'string', 'max:120'],
+            'license' => ['nullable', 'string', 'max:80'],
+            'category' => ['nullable', 'string', 'max:80'],
+            'sort' => ['nullable', 'string', 'in:health,stars,votes,name,newest'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'page' => ['nullable', 'integer', 'min:1', 'max:1000'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'The given data was invalid.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $filters = $validator->validated();
+
+        $q = trim((string) ($filters['q'] ?? ''));
+        $license = trim((string) ($filters['license'] ?? ''));
+        $category = trim((string) ($filters['category'] ?? ''));
+        $sort = (string) ($filters['sort'] ?? 'health');
+        $perPage = (int) ($filters['per_page'] ?? 20);
+        $pageNum = (int) ($filters['page'] ?? 1);
 
         $cacheKey = 'api.alts.v1.'.md5(json_encode([
             $q, $license, $category, $sort, $perPage, $pageNum,
@@ -129,7 +148,6 @@ class AlternativeApiController extends Controller
             $data['pros'] = $alt->pros;
             $data['cons'] = $alt->cons;
             $data['docker_compose'] = $alt->docker_compose_blueprint;
-            $data['editor_note'] = $alt->editor_note;
         }
 
         return $data;

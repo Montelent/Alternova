@@ -3,11 +3,21 @@
 namespace App\Support;
 
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class Installer
 {
     public const LOCK_FILE = 'installed';
+
+    /**
+     * Explicit marker written only by an authenticated administrator or CLI
+     * reinstall command. A missing lock file alone must never reopen setup.
+     */
+    public const REOPEN_FILE = 'installer-reopened';
 
     /**
      * Every .env key Alternova needs for shared-hosting production.
@@ -75,7 +85,24 @@ class Installer
 
     public static function isInstalled(): bool
     {
-        return File::exists(self::lockPath());
+        if (File::exists(self::lockPath())) {
+            return true;
+        }
+
+        // Reopening requires the private token created by the privileged
+        // admin action or CLI command. The token is stored as a hash only.
+        if (File::exists(storage_path('app/'.self::REOPEN_FILE))) {
+            return ! self::hasValidReopenToken();
+        }
+
+        // Recover safely if storage was restored without the lock file.
+        // An existing user table with at least one account is an installed app.
+        try {
+            return Schema::hasTable('users') && DB::table('users')->exists();
+        } catch (\Throwable) {
+            // Database may not be configured yet on a genuine first install.
+            return false;
+        }
     }
 
     public static function lock(): void
@@ -85,12 +112,112 @@ class Installer
             'installed_at' => now()->toIso8601String(),
             'version' => '1.0.0',
         ], JSON_PRETTY_PRINT));
+
+        File::delete(storage_path('app/'.self::REOPEN_FILE));
     }
 
-    public static function unlock(): void
+    public static function unlock(): string
     {
         if (File::exists(self::lockPath())) {
             File::delete(self::lockPath());
+        }
+
+        File::ensureDirectoryExists(storage_path('app'));
+
+        $token = Str::random(64);
+        File::put(storage_path('app/'.self::REOPEN_FILE), json_encode([
+            'token_hash' => hash('sha256', $token),
+            'unlocked_at' => now()->toIso8601String(),
+            'expires_at' => now()->addMinutes(30)->toIso8601String(),
+        ], JSON_PRETTY_PRINT));
+
+        return $token;
+    }
+
+    protected static function hasValidReopenToken(): bool
+    {
+        $request = request();
+
+        if (! $request->hasSession()) {
+            return false;
+        }
+
+        $path = storage_path('app/'.self::REOPEN_FILE);
+        $handle = @fopen($path, 'c+');
+
+        if ($handle === false) {
+            return false;
+        }
+
+        try {
+            // Serialize token exchange so the one-time URL cannot authorize
+            // multiple independent browser sessions during a race.
+            if (! flock($handle, LOCK_EX)) {
+                return false;
+            }
+
+            rewind($handle);
+            $payload = json_decode((string) stream_get_contents($handle), true);
+            if (! is_array($payload)) {
+                return false;
+            }
+
+            $expiresAt = is_string($payload['expires_at'] ?? null)
+                ? strtotime($payload['expires_at'])
+                : false;
+
+            if ($expiresAt === false || $expiresAt < time()) {
+                return false;
+            }
+
+            $sessionHash = hash('sha256', $request->session()->getId());
+            $authorizedSessionHash = $payload['session_id_hash'] ?? null;
+
+            // After exchange, only the original browser session remains
+            // authorized; the URL token hash has already been consumed.
+            if (is_string($authorizedSessionHash)
+                && $authorizedSessionHash !== ''
+                && hash_equals($authorizedSessionHash, $sessionHash)
+            ) {
+                $request->session()->put('installer_reopen_authorized', true);
+
+                return true;
+            }
+
+            $expectedHash = $payload['token_hash'] ?? null;
+            $providedToken = $request->query('reinstall_token');
+
+            if (! is_string($expectedHash)
+                || $expectedHash === ''
+                || ! is_string($providedToken)
+                || $providedToken === ''
+                || ! hash_equals($expectedHash, hash('sha256', $providedToken))
+            ) {
+                return false;
+            }
+
+            // Consume the bearer URL token immediately and bind the short-lived
+            // authorization to this session only.
+            $payload['token_hash'] = null;
+            $payload['session_id_hash'] = $sessionHash;
+            $payload['exchanged_at'] = now()->toIso8601String();
+
+            rewind($handle);
+            if (! ftruncate($handle, 0)
+                || fwrite($handle, json_encode($payload, JSON_PRETTY_PRINT)) === false
+            ) {
+                return false;
+            }
+            fflush($handle);
+
+            $request->session()->put('installer_reopen_authorized', true);
+
+            return true;
+        } catch (\Throwable) {
+            return false;
+        } finally {
+            flock($handle, LOCK_UN);
+            fclose($handle);
         }
     }
 
@@ -107,6 +234,8 @@ class Installer
             'APP_KEY' => '',
             'APP_DEBUG' => 'false',
             'APP_URL' => 'http://localhost',
+            'APP_ALLOWED_HOSTS' => '',
+            'TRUSTED_PROXIES' => '',
             'LOG_CHANNEL' => 'stack',
             'LOG_LEVEL' => 'error',
             'DB_CONNECTION' => 'mysql',
@@ -149,6 +278,8 @@ class Installer
             'APP_KEY='.$values['APP_KEY'],
             'APP_DEBUG='.$values['APP_DEBUG'],
             'APP_URL='.$values['APP_URL'],
+            'APP_ALLOWED_HOSTS='.self::envValue($values['APP_ALLOWED_HOSTS']),
+            'TRUSTED_PROXIES='.self::envValue($values['TRUSTED_PROXIES']),
             '',
             'LOG_CHANNEL='.$values['LOG_CHANNEL'],
             'LOG_LEVEL='.$values['LOG_LEVEL'],
@@ -232,16 +363,85 @@ class Installer
 
     public static function detectAppUrl(): string
     {
-        if (! empty($_SERVER['HTTP_HOST'])) {
-            $scheme = (! empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-                || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
-                ? 'https'
-                : 'http';
+        $parseHost = static function (?string $value): ?string {
+            $value = trim((string) $value);
 
-            return $scheme.'://'.$_SERVER['HTTP_HOST'];
+            if ($value === '' || ! preg_match('/\\A(?:[A-Za-z0-9.-]+|\\[[0-9A-Fa-f:]+\\])(?::[0-9]{1,5})?\\z/', $value)) {
+                return null;
+            }
+
+            $host = parse_url('http://'.$value, PHP_URL_HOST);
+
+            if (! is_string($host) || $host === '') {
+                return null;
+            }
+
+            $host = strtolower(trim($host, '[]'));
+
+            if ($host !== 'localhost'
+                && ! filter_var($host, FILTER_VALIDATE_IP)
+                && ! filter_var($host, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME)
+            ) {
+                return null;
+            }
+
+            return $host;
+        };
+
+        // SERVER_NAME is not a trust boundary: Apache can derive it from the
+        // client Host header. Only APP_URL and the explicit host allow-list
+        // may authorize a request host for generated installer URLs.
+        $configuredHost = $parseHost(parse_url((string) config('app.url'), PHP_URL_HOST) ?: null);
+        $requestHost = $parseHost($_SERVER['HTTP_HOST'] ?? null);
+        $allowedHosts = array_values(array_filter(array_map(
+            $parseHost,
+            (array) config('alternova.allowed_hosts', [])
+        )));
+
+        if ($configuredHost !== null) {
+            $allowedHosts[] = $configuredHost;
         }
 
-        return 'http://localhost';
+        $host = $requestHost !== null && in_array($requestHost, $allowedHosts, true)
+            ? $requestHost
+            : $configuredHost;
+
+        if ($host === null) {
+            return 'http://localhost';
+        }
+
+        // request()->isSecure() honors forwarded headers only from proxies
+        // explicitly trusted in bootstrap/app.php. Never trust the raw
+        // X-Forwarded-Proto header here.
+        $secure = ! empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off';
+        try {
+            if (app()->bound('request') && request()->isSecure()) {
+                $secure = true;
+            }
+        } catch (\Throwable) {
+            // Console / early boot: fall back to the direct HTTPS server flag.
+        }
+
+        $scheme = $secure ? 'https' : 'http';
+        $port = null;
+        $rawHost = trim((string) ($_SERVER['HTTP_HOST'] ?? ''));
+
+        if ($requestHost === $host && $rawHost !== '') {
+            $candidatePort = parse_url('http://'.$rawHost, PHP_URL_PORT);
+            $serverPort = filter_var($_SERVER['SERVER_PORT'] ?? null, FILTER_VALIDATE_INT);
+
+            // A port supplied only through Host is attacker-controlled too.
+            // Preserve it only when it matches the port the web server actually
+            // received the request on (direct local/dev installs included).
+            if (is_int($candidatePort) && is_int($serverPort) && $candidatePort === $serverPort) {
+                $port = $candidatePort;
+            }
+        }
+
+        $defaultPort = $secure ? 443 : 80;
+        $portSuffix = is_int($port) && $port !== $defaultPort ? ':'.$port : '';
+
+        return $scheme.'://'.$host.$portSuffix;
     }
 
     /**
@@ -439,6 +639,11 @@ class Installer
                     ? 'pdo_mysql'
                     : (extension_loaded('pdo_pgsql') ? 'pdo_pgsql' : 'missing'),
             ],
+            'curl' => [
+                'label' => 'PHP cURL (required for DNS-pinned outbound requests)',
+                'ok' => extension_loaded('curl'),
+                'value' => extension_loaded('curl') ? 'enabled' : 'missing',
+            ],
             'openssl' => [
                 'label' => 'OpenSSL',
                 'ok' => extension_loaded('openssl'),
@@ -518,6 +723,16 @@ class Installer
         string $username,
         string $password
     ): array {
+        // Prevent DSN parameter injection: these values are interpolated into
+        // PDO connection strings and must contain only host/name/port tokens.
+        $validHost = self::isValidDatabaseHost($connection, $host);
+        $validDatabase = preg_match('/\\A[A-Za-z0-9_.-]+\\z/', $database);
+        $validPort = ctype_digit($port) && (int) $port >= 1 && (int) $port <= 65535;
+
+        if (! $validHost || ! $validDatabase || ! $validPort) {
+            return ['success' => false, 'message' => 'Invalid database host, port, or database name.'];
+        }
+
         $last = 'Connection failed.';
 
         foreach (self::databaseDsnCandidates($connection, $host, $port, $database) as $candidate) {
@@ -536,15 +751,43 @@ class Installer
 
                 return ['success' => true, 'message' => $message, 'socket' => $candidate['socket'] ?? null];
             } catch (\Throwable $e) {
+                Log::warning('Installer database connection failed.', [
+                    'connection' => $connection,
+                    'host' => $host,
+                    'port' => $port,
+                    'database' => $database,
+                    'error' => $e->getMessage(),
+                ]);
                 $last = $e->getMessage();
             }
         }
 
         if (str_contains($last, 'Operation not permitted') || str_contains($last, '[2002]')) {
-            $last .= ' Hostinger blocks TCP to MySQL. Use host localhost (not 127.0.0.1). The installer now also tries the Unix socket.';
+            return [
+                'success' => false,
+                'message' => 'The database host refused the connection. On shared hosting, try the provider-supplied hostname or localhost.',
+            ];
         }
 
-        return ['success' => false, 'message' => $last];
+        return [
+            'success' => false,
+            'message' => 'Unable to connect to the database. Verify the host, port, database name, username, password, and that the database server accepts connections.',
+        ];
+    }
+
+    public static function isValidDatabaseHost(string $connection, string $host): bool
+    {
+        if ($connection === 'pgsql'
+            && str_starts_with($host, '/')
+            && preg_match('/\\A\\/[A-Za-z0-9._\\/-]+\\z/', $host)
+            && ! preg_match('~(?:^|/)\\.\\.(?:/|$)~', $host)
+            && is_dir($host)
+        ) {
+            return true;
+        }
+
+        return (bool) preg_match('/\\A(?:localhost|[A-Za-z0-9.-]+|\\[[0-9A-Fa-f:]+\\]|[0-9A-Fa-f:]+)\\z/', $host)
+            && ! str_contains($host, '..');
     }
 
     /**

@@ -23,6 +23,27 @@ use Illuminate\Support\Str;
 
 class AlternativeSubmissionResource extends Resource
 {
+    /**
+     * Submission records contain private submitter data and approving them
+     * publishes catalog content. Editors must not access this resource.
+     */
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->canManageSystem() ?? false;
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        if (! (auth()->user()?->canManageSystem() ?? false)) {
+            return false;
+        }
+
+        try {
+            return Schema::hasTable('alternative_submissions');
+        } catch (\Throwable) {
+            return false;
+        }
+    }
     protected static ?string $model = AlternativeSubmission::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-inbox-arrow-down';
@@ -123,6 +144,7 @@ class AlternativeSubmissionResource extends Resource
                     ->visible(fn (AlternativeSubmission $record) => $record->status === 'pending')
                     ->requiresConfirmation()
                     ->action(function (AlternativeSubmission $record) {
+                        abort_unless(auth()->user()?->canManageSystem() ?? false, 403);
                         $record->update([
                             'status' => 'rejected',
                             'reviewed_by' => auth()->id(),
@@ -165,6 +187,7 @@ class AlternativeSubmissionResource extends Resource
                         ->color('danger')
                         ->requiresConfirmation()
                         ->action(function (Collection $records) {
+                            abort_unless(auth()->user()?->canManageSystem() ?? false, 403);
                             foreach ($records as $record) {
                                 if ($record->status !== 'pending') {
                                     continue;
@@ -179,13 +202,16 @@ class AlternativeSubmissionResource extends Resource
                             Notification::make()->title('Selected submissions rejected')->success()->send();
                         })
                         ->deselectRecordsAfterCompletion(),
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->before(fn () => abort_unless(auth()->user()?->canManageSystem() ?? false, 403)),
                 ]),
             ]);
     }
 
     public static function approveSubmission(AlternativeSubmission $record, bool $quiet = false): void
     {
+        abort_unless(auth()->user()?->canManageSystem() ?? false, 403);
+
         $prop = ProprietaryTool::query()->firstOrCreate(
             ['slug' => Str::slug($record->proprietary_name)],
             [

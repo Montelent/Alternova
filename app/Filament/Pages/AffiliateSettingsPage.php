@@ -85,6 +85,8 @@ class AffiliateSettingsPage extends Page implements HasForms
 
     public function save(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $state = $this->form->getState();
         SiteSetting::set('affiliate_namecheap', trim((string) ($state['affiliate_namecheap'] ?? '')));
         SiteSetting::set('affiliate_porkbun', trim((string) ($state['affiliate_porkbun'] ?? '')));
