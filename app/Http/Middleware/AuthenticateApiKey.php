@@ -53,6 +53,15 @@ class AuthenticateApiKey
 
             $user = $key->relationLoaded('user') ? $key->user : $key->user()->first();
 
+            // Every issued key belongs to a real account. Never let an orphaned
+            // or legacy ownerless key bypass per-user account/API restrictions.
+            if (! $user instanceof User) {
+                return response()->json([
+                    'error' => 'The account associated with this API key is unavailable.',
+                    'code' => 'api_key_owner_unavailable',
+                ], 403);
+            }
+
             if ($user instanceof User) {
                 if (! $user->isActive()) {
                     return response()->json([
