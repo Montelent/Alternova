@@ -24,6 +24,16 @@ return new class extends Migration
             ->orderBy('id')
             ->chunkById(100, function ($webhooks): void {
                 foreach ($webhooks as $webhook) {
+                    // A migration can be retried after a partial DDL/data failure.
+                    // Do not encrypt a value that already has a valid Laravel payload.
+                    try {
+                        Crypt::decryptString((string) $webhook->secret);
+
+                        continue;
+                    } catch (\Throwable) {
+                        // Plaintext legacy value: encrypt it below.
+                    }
+
                     DB::table('webhooks')
                         ->where('id', $webhook->id)
                         ->update(['secret' => Crypt::encryptString((string) $webhook->secret)]);
@@ -43,9 +53,16 @@ return new class extends Migration
             ->orderBy('id')
             ->chunkById(100, function ($webhooks): void {
                 foreach ($webhooks as $webhook) {
+                    try {
+                        $plain = Crypt::decryptString((string) $webhook->secret);
+                    } catch (\Throwable) {
+                        // Already-plaintext values can occur after a partial rollback.
+                        continue;
+                    }
+
                     DB::table('webhooks')
                         ->where('id', $webhook->id)
-                        ->update(['secret' => Crypt::decryptString((string) $webhook->secret)]);
+                        ->update(['secret' => $plain]);
                 }
             });
 
