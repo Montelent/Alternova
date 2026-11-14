@@ -16,7 +16,7 @@ class PublishedContentBoundaryTest extends TestCase
 
         $this->expectException(HttpException::class);
 
-        app(FavoriteService::class)->toggle($alternative);
+        (new FavoriteService())->toggle($alternative);
     }
 
     public function test_unpublished_alternative_is_never_reported_as_favorited(): void
