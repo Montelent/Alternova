@@ -62,6 +62,79 @@ jobs:
       - name: Build production frontend assets
         run: npm run build
 
+
+  database-integration:
+    name: Laravel migrations and feature tests (${{ matrix.database }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - database: mysql
+            image: mysql:8.0
+            port: 3306
+            connection: mysql
+            username: root
+            password: root
+            health_cmd: mysqladmin ping -h 127.0.0.1 -uroot -proot
+          - database: postgresql
+            image: postgres:16
+            port: 5432
+            connection: pgsql
+            username: alternova
+            password: alternova-test
+            health_cmd: pg_isready -U alternova -d alternova_test
+    services:
+      database:
+        image: ${{ matrix.image }}
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: alternova_test
+          POSTGRES_USER: alternova
+          POSTGRES_PASSWORD: alternova-test
+          POSTGRES_DB: alternova_test
+        ports:
+          - ${{ matrix.port }}:${{ matrix.port }}
+        options: >-
+          --health-cmd "${{ matrix.health_cmd }}"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      APP_ENV: testing
+      APP_DEBUG: true
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      APP_URL: http://localhost
+      DB_CONNECTION: ${{ matrix.connection }}
+      DB_HOST: 127.0.0.1
+      DB_PORT: ${{ matrix.port }}
+      DB_DATABASE: alternova_test
+      DB_USERNAME: ${{ matrix.username }}
+      DB_PASSWORD: ${{ matrix.password }}
+      CACHE_STORE: array
+      MAIL_MAILER: array
+      QUEUE_CONNECTION: sync
+      SESSION_DRIVER: array
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, dom, xml, curl, fileinfo, pdo_mysql, pdo_pgsql, gd, zip, intl
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Run a clean migration against the database service
+        run: php artisan migrate:fresh --force
+
+      - name: Run Laravel feature tests
+        run: php artisan test --testsuite=Feature
+
   unit-tests:
     name: Security helper unit tests
     runs-on: ubuntu-latest
