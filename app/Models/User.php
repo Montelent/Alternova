@@ -78,19 +78,20 @@ class User extends Authenticatable implements FilamentUser, CanResetPasswordCont
 
     public function isActive(): bool
     {
-        // Default true if column missing / null (legacy installs)
-        return ($this->is_active ?? true) === true;
+        // Missing or null status must never grant access. Fresh installations
+        // receive the database default; incomplete/legacy schemas fail closed.
+        return ($this->is_active ?? false) === true;
     }
 
     /**
      * Whether this account may use the public API (keys still must be valid).
-     * Defaults to true when the column is missing (pre-migration installs).
+     * Fails closed when the column is missing or the schema cannot be read.
      */
     public function hasApiAccess(): bool
     {
         try {
             if (! Schema::hasColumn('users', 'api_enabled')) {
-                return true;
+                return false;
             }
         } catch (\Throwable) {
             // A database/schema failure must never grant API access by default.
