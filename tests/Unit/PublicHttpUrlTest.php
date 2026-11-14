@@ -57,13 +57,19 @@ class PublicHttpUrlTest extends TestCase
     public function test_https_redirects_cannot_downgrade_to_http(): void
     {
         $options = PublicHttpUrl::safeRedirectOptions();
-        $this->expectException(\RuntimeException::class);
+        self::assertSame(0, $options['max']);
 
-        ($options['on_redirect'])(
-            new Request('GET', 'https://8.8.8.8'),
-            new Response(302),
-            new Uri('http://8.8.8.8')
-        );
+        $this->expectException(\\RuntimeException::class);
+        ($options['on_redirect'])();
+    }
+
+    public function test_automatic_redirects_are_rejected_even_for_public_targets(): void
+    {
+        $options = PublicHttpUrl::safeRedirectOptions();
+        self::assertSame(0, $options['max']);
+
+        $this->expectException(\\RuntimeException::class);
+        ($options['on_redirect'])();
     }
 
     public function test_credentials_and_unsupported_hosts_are_rejected(): void
