@@ -132,7 +132,8 @@ class CollectionSubmissionResource extends Resource
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\DeleteBulkAction::make(),
+                Tables\Actions\DeleteBulkAction::make()
+                    ->before(fn () => abort_unless(auth()->user()?->canManageSystem() ?? false, 403)),
             ]);
     }
 
