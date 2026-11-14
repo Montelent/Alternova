@@ -12,7 +12,8 @@ use Livewire\Component;
 
 class ProsConsSection extends Component
 {
-    #[Locked]\n    public int $alternativeId;
+    #[Locked]
+    public int $alternativeId;
 
     public string $type = 'pro';
 
