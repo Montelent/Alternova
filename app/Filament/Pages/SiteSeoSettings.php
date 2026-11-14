@@ -201,6 +201,8 @@ HTML)),
 
     public function save(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $s = $this->form->getState();
 
         SiteSetting::setMany([
