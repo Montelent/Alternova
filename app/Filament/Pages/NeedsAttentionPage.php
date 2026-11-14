@@ -288,6 +288,8 @@ class NeedsAttentionPage extends Page
 
     public function publishDraft(int $id): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $alt = OpenSourceAlternative::query()->find($id);
         if (! $alt) {
             return;
@@ -298,6 +300,8 @@ class NeedsAttentionPage extends Page
 
     public function syncOne(int $id): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $alt = OpenSourceAlternative::query()->find($id);
         if (! $alt) {
             return;
@@ -314,6 +318,8 @@ class NeedsAttentionPage extends Page
 
     public function recheckOne(int $id): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $alt = OpenSourceAlternative::query()->find($id);
         if (! $alt) {
             return;
@@ -328,6 +334,8 @@ class NeedsAttentionPage extends Page
 
     public function syncAllZeroHealth(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $items = $this->zeroHealth();
         $ok = 0;
         $fail = 0;
