@@ -52,6 +52,29 @@ class UserAuthorizationTest extends TestCase
         self::assertFalse($user->hasApiAccess());
     }
 
+    public function test_api_access_fails_closed_when_schema_column_is_missing(): void
+    {
+        $schema = \\Mockery::mock();
+        $schema->shouldReceive('hasColumn')
+            ->once()
+            ->with('users', 'api_enabled')
+            ->andReturn(false);
+        Schema::swap($schema);
+
+        self::assertFalse((new User())->hasApiAccess());
+    }
+
+    public function test_missing_active_flag_does_not_grant_active_status(): void
+    {
+        self::assertFalse((new User())->isActive());
+    }
+
+    protected function tearDown(): void
+    {
+        Facade::clearResolvedInstance('db.schema');
+        parent::tearDown();
+    }
+
     private function makeUser(?string $role, bool $active, bool $verified): User
     {
         return new class($role, $active, $verified) extends User
