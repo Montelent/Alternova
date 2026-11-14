@@ -15,7 +15,10 @@ class CanonicalUrl
     {
         $configuredUrl = rtrim((string) config('app.url'), '/');
 
-        if (app()->runningInConsole()) {
+        // CLI callers that do not supply an HTTP request use APP_URL. Accept an
+        // explicit request even under the test runner so host allow-list behavior
+        // can be verified without relying on process SAPI detection.
+        if (app()->runningInConsole() && $request === null) {
             return $configuredUrl;
         }
 
