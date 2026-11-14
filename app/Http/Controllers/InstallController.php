@@ -21,7 +21,7 @@ class InstallController extends Controller
         // Keep the private reopen token out of the browser address bar after
         // the middleware has validated it and stored it in this session.
         if ($request->query->has('reinstall_token')
-            && $request->session()->has('installer_reopen_token')
+            && $request->session()->boolean('installer_reopen_authorized')
         ) {
             return redirect()->route('install.index');
         }
