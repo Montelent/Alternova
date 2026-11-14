@@ -14,11 +14,8 @@ class ContactMessageAuthorizationTest extends TestCase
             'email' => 'owner@example.com',
             'ticket_status' => 'open',
         ]);
-        $user = new User([
-            'id' => 42,
-            'email' => 'owner@example.com',
-            'email_verified_at' => null,
-        ]);
+
+        $user = $this->makeUser('owner@example.com', false);
 
         self::assertFalse($ticket->canBeViewedBy($user));
         self::assertFalse($ticket->canBeRepliedBy($user));
@@ -30,11 +27,8 @@ class ContactMessageAuthorizationTest extends TestCase
             'email' => 'owner@example.com',
             'ticket_status' => 'open',
         ]);
-        $user = new User([
-            'id' => 42,
-            'email' => 'OWNER@example.com',
-            'email_verified_at' => new \DateTimeImmutable(),
-        ]);
+
+        $user = $this->makeUser('OWNER@example.com', true);
 
         self::assertTrue($ticket->canBeViewedBy($user));
         self::assertTrue($ticket->canBeRepliedBy($user));
@@ -58,11 +52,8 @@ class ContactMessageAuthorizationTest extends TestCase
             'user_id' => 42,
             'ticket_status' => 'open',
         ]);
-        $user = new User([
-            'email' => 'new-address@example.com',
-            'email_verified_at' => null,
-        ]);
-        $user->setAttribute('id', 42);
+
+        $user = $this->makeUser('new-address@example.com', false, 42);
 
         self::assertTrue($ticket->canBeViewedBy($user));
         self::assertTrue($ticket->canBeRepliedBy($user));
@@ -74,13 +65,32 @@ class ContactMessageAuthorizationTest extends TestCase
             'email' => 'owner@example.com',
             'ticket_status' => 'closed',
         ]);
-        $user = new User([
-            'id' => 42,
-            'email' => 'owner@example.com',
-            'email_verified_at' => new \DateTimeImmutable(),
-        ]);
+
+        $user = $this->makeUser('owner@example.com', true);
 
         self::assertTrue($ticket->canBeViewedBy($user));
         self::assertFalse($ticket->canBeRepliedBy($user));
+    }
+
+    private function makeUser(string $email, bool $verified, int $id = 42): User
+    {
+        return new class($email, $verified, $id) extends User
+        {
+            public function __construct(
+                private string $testEmail,
+                private bool $testVerified,
+                private int $testId,
+            ) {}
+
+            public function getAttribute($key)
+            {
+                return match ($key) {
+                    'id' => $this->testId,
+                    'email' => $this->testEmail,
+                    'email_verified_at' => $this->testVerified ? 'verified' : null,
+                    default => parent::getAttribute($key),
+                };
+            }
+        };
     }
 }
