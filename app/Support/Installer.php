@@ -136,44 +136,88 @@ class Installer
 
     protected static function hasValidReopenToken(): bool
     {
-        try {
-            $payload = json_decode(File::get(storage_path('app/'.self::REOPEN_FILE)), true);
-            $expectedHash = is_array($payload) ? ($payload['token_hash'] ?? null) : null;
-            $expiresAt = is_array($payload) && is_string($payload['expires_at'] ?? null)
-                ? strtotime($payload['expires_at'])
-                : false;
+        $request = request();
 
-            if (! is_string($expectedHash)
-                || $expectedHash === ''
-                || $expiresAt === false
-                || $expiresAt < time()
-            ) {
+        if (! $request->hasSession()) {
+            return false;
+        }
+
+        $path = storage_path('app/'.self::REOPEN_FILE);
+        $handle = @fopen($path, 'c+');
+
+        if ($handle === false) {
+            return false;
+        }
+
+        try {
+            // Serialize token exchange so the one-time URL cannot authorize
+            // multiple independent browser sessions during a race.
+            if (! flock($handle, LOCK_EX)) {
                 return false;
             }
 
-            $request = request();
-            $providedToken = $request->query('reinstall_token');
-
-            if (! is_string($providedToken) || $providedToken === '') {
-                $providedToken = $request->hasSession()
-                    ? $request->session()->get('installer_reopen_token')
-                    : null;
+            rewind($handle);
+            $payload = json_decode((string) stream_get_contents($handle), true);
+            if (! is_array($payload)) {
+                return false;
             }
 
-            if (! is_string($providedToken)
+            $expiresAt = is_string($payload['expires_at'] ?? null)
+                ? strtotime($payload['expires_at'])
+                : false;
+
+            if ($expiresAt === false || $expiresAt < time()) {
+                return false;
+            }
+
+            $sessionHash = hash('sha256', $request->session()->getId());
+            $authorizedSessionHash = $payload['session_id_hash'] ?? null;
+
+            // After exchange, only the original browser session remains
+            // authorized; the URL token hash has already been consumed.
+            if (is_string($authorizedSessionHash)
+                && $authorizedSessionHash !== ''
+                && hash_equals($authorizedSessionHash, $sessionHash)
+            ) {
+                $request->session()->put('installer_reopen_authorized', true);
+
+                return true;
+            }
+
+            $expectedHash = $payload['token_hash'] ?? null;
+            $providedToken = $request->query('reinstall_token');
+
+            if (! is_string($expectedHash)
+                || $expectedHash === ''
+                || ! is_string($providedToken)
                 || $providedToken === ''
                 || ! hash_equals($expectedHash, hash('sha256', $providedToken))
             ) {
                 return false;
             }
 
-            if ($request->hasSession()) {
-                $request->session()->put('installer_reopen_token', $providedToken);
+            // Consume the bearer URL token immediately and bind the short-lived
+            // authorization to this session only.
+            $payload['token_hash'] = null;
+            $payload['session_id_hash'] = $sessionHash;
+            $payload['exchanged_at'] = now()->toIso8601String();
+
+            rewind($handle);
+            if (! ftruncate($handle, 0)
+                || fwrite($handle, json_encode($payload, JSON_PRETTY_PRINT)) === false
+            ) {
+                return false;
             }
+            fflush($handle);
+
+            $request->session()->put('installer_reopen_authorized', true);
 
             return true;
         } catch (\Throwable) {
             return false;
+        } finally {
+            flock($handle, LOCK_UN);
+            fclose($handle);
         }
     }
 
