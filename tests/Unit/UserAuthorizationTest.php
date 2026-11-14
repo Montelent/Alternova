@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Models\User;
+use Illuminate\Support\Facades\Schema;
 use PHPUnit\Framework\TestCase;
 
 class UserAuthorizationTest extends TestCase
@@ -42,7 +43,7 @@ class UserAuthorizationTest extends TestCase
         Schema::shouldReceive('hasColumn')
             ->once()
             ->with('users', 'api_enabled')
-            ->andThrow(new \\RuntimeException('Database unavailable'));
+            ->andThrow(new \RuntimeException('Database unavailable'));
 
         $user = new User();
 
