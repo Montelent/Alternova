@@ -8,6 +8,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
 
 class ApiKeyResource extends Resource
@@ -47,7 +48,7 @@ class ApiKeyResource extends Resource
         return static::canAccess();
     }
 
-    public static function canView(\\Illuminate\\Database\\Eloquent\\Model $record): bool
+    public static function canView(Model $record): bool
     {
         return static::canAccess();
     }
@@ -57,12 +58,12 @@ class ApiKeyResource extends Resource
         return false;
     }
 
-    public static function canEdit(\\Illuminate\\Database\\Eloquent\\Model $record): bool
+    public static function canEdit(Model $record): bool
     {
         return false;
     }
 
-    public static function canDelete(\\Illuminate\\Database\\Eloquent\\Model $record): bool
+    public static function canDelete(Model $record): bool
     {
         return false;
     }
