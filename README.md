@@ -47,3 +47,7 @@ Paths, `APP_URL`, PHP binary for cron, and sitemap URLs are detected from **this
 ## License
 
 MIT (see repository license file if present).
+
+## Production security
+
+For Nginx deployments, install the upload execution-deny rules before serving user media. See [the production deployment security checklist](docs/production-deployment-security.md) and [Nginx upload security snippet](docs/nginx-upload-security.conf). Apache hosts use the repository's .htaccess protections.
