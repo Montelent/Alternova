@@ -32,6 +32,8 @@ class FavoriteService
 
     public function toggle(OpenSourceAlternative $alternative): array
     {
+        abort_unless($alternative->is_published, 404);
+
         $existing = $this->findExisting($alternative);
 
         if ($existing) {
@@ -56,7 +58,7 @@ class FavoriteService
 
     public function has(OpenSourceAlternative $alternative): bool
     {
-        return $this->findExisting($alternative) !== null;
+        return (bool) $alternative->is_published && $this->findExisting($alternative) !== null;
     }
 
     protected function findExisting(OpenSourceAlternative $alternative): ?FavoriteAlternative
@@ -79,6 +81,7 @@ class FavoriteService
     public function list(): Collection
     {
         $q = FavoriteAlternative::query()
+            ->whereHas('alternative', fn ($query) => $query->where('is_published', true))
             ->with(['alternative.proprietaryTool', 'alternative.repoMetric']);
 
         if ($this->hasUserColumn() && $this->userId()) {
