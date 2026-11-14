@@ -1,9 +1,9 @@
 <?php
 
-namespace Tests\\Unit;
+namespace Tests\Unit;
 
-use App\\Models\\User;
-use PHPUnit\\Framework\\TestCase;
+use App\Models\User;
+use PHPUnit\Framework\TestCase;
 
 class UserAuthorizationTest extends TestCase
 {
