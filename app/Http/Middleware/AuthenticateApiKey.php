@@ -8,6 +8,7 @@ use App\Support\ApiSettings;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -24,9 +25,26 @@ class AuthenticateApiKey
         }
 
         $plain = $this->extractKey($request);
+        $authBucket = 'api-auth:'.$request->ip();
+        $authLimit = 10;
+
+        // Authentication failures are rejected before api.throttle runs, so
+        // rate-limit missing/invalid credentials here to prevent key guessing.
+        if (($plain !== null || ApiSettings::requireKey())
+            && RateLimiter::tooManyAttempts($authBucket, $authLimit)
+        ) {
+            $retry = RateLimiter::availableIn($authBucket);
+
+            return response()->json([
+                'error' => 'Too many API authentication attempts. Retry later.',
+                'retry_after' => $retry,
+            ], 429)->withHeaders(['Retry-After' => (string) $retry]);
+        }
 
         if ($plain === null) {
             if (ApiSettings::requireKey()) {
+                RateLimiter::hit($authBucket, 60);
+
                 return response()->json([
                     'error' => 'API key required. Send Authorization: Bearer YOUR_KEY or X-Api-Key.',
                     'code' => 'api_key_required',
@@ -64,6 +82,8 @@ class AuthenticateApiKey
 
             $key = ApiKey::findByPlainKey($plain);
             if (! $key) {
+                RateLimiter::hit($authBucket, 60);
+
                 return response()->json([
                     'error' => 'Invalid or revoked API key.',
                     'code' => 'api_key_invalid',
@@ -101,6 +121,7 @@ class AuthenticateApiKey
                 ], 403);
             }
 
+            RateLimiter::clear($authBucket);
             $key->markUsed();
             $request->attributes->set('api_key', $key);
             $request->attributes->set('api_key_user_id', $key->user_id);
