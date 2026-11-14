@@ -130,6 +130,8 @@ class WhiteLabelPage extends Page implements HasForms
 
     public function save(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $data = $this->form->getState();
 
         $hex = trim((string) ($data['brand_primary'] ?? '#4f46e5'));
@@ -169,6 +171,8 @@ class WhiteLabelPage extends Page implements HasForms
 
     public function importLogoFromUrl(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $url = trim((string) ($this->data['brand_logo_url'] ?? ''));
         if ($url === '') {
             Notification::make()->title('Paste a logo URL first')->warning()->send();
@@ -190,6 +194,8 @@ class WhiteLabelPage extends Page implements HasForms
 
     public function importFaviconFromUrl(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $url = trim((string) ($this->data['brand_favicon_url'] ?? ''));
         if ($url === '') {
             Notification::make()->title('Paste a favicon URL first')->warning()->send();
