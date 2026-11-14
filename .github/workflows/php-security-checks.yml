@@ -132,6 +132,12 @@ jobs:
       - name: Run a clean migration against the database service
         run: php artisan migrate:fresh --force
 
+      - name: Verify recent security migrations roll back cleanly
+        run: php artisan migrate:rollback --step=3 --force
+
+      - name: Re-apply migrations after rollback
+        run: php artisan migrate --force
+
       - name: Run Laravel feature tests
         run: php artisan test --testsuite=Feature
 
