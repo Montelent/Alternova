@@ -120,6 +120,8 @@ class CronSettingsPage extends Page implements HasForms
 
     public function save(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $s = $this->form->getState();
 
         SiteSetting::setMany([
@@ -161,6 +163,8 @@ class CronSettingsPage extends Page implements HasForms
 
     public function runScheduleOnce(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         try {
             Artisan::call('schedule:run');
             $this->lastOutput = Artisan::output() ?: 'schedule:run completed (no due jobs right now is normal).';
@@ -174,6 +178,8 @@ class CronSettingsPage extends Page implements HasForms
 
     public function runMetricsNow(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $limit = max(1, min(200, (int) CronSettings::get('cron_metrics_limit', 25)));
         try {
             Artisan::call('alternova:sync-metrics', ['--limit' => $limit]);
@@ -187,6 +193,8 @@ class CronSettingsPage extends Page implements HasForms
 
     public function runLinksNow(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $limit = max(1, min(200, (int) CronSettings::get('cron_links_limit', 40)));
         try {
             Artisan::call('alternova:check-links', ['--limit' => $limit]);
