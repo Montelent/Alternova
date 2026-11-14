@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\ContactMessage;
 use App\Services\SupportTicketService;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class SupportTicketShow extends Component
