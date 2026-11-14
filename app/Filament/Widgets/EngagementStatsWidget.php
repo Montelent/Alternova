@@ -13,6 +13,11 @@ use Illuminate\Support\Facades\Schema;
 
 class EngagementStatsWidget extends BaseWidget
 {
+    public static function canView(): bool
+    {
+        return auth()->user()?->canManageSystem() ?? false;
+    }
+
     protected static ?int $sort = 2;
 
     protected function getStats(): array
