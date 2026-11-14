@@ -4,12 +4,14 @@ namespace Tests\Feature;
 
 use App\Models\SiteSetting;
 use App\Models\User;
+use App\Http\Middleware\TrustConfiguredProxies;
 use App\Models\Webhook;
 use App\Support\CanonicalUrl;
 use App\Support\Installer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\TestCase;
 
 class ProductionHardeningSmokeTest extends TestCase
