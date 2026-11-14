@@ -40,10 +40,12 @@ class UserAuthorizationTest extends TestCase
 
     public function test_api_access_fails_closed_when_schema_cannot_be_verified(): void
     {
-        Schema::shouldReceive('hasColumn')
+        $schema = \Mockery::mock();
+        $schema->shouldReceive('hasColumn')
             ->once()
             ->with('users', 'api_enabled')
             ->andThrow(new \RuntimeException('Database unavailable'));
+        Schema::swap($schema);
 
         $user = new User();
 
