@@ -85,10 +85,15 @@ class PublicHttpUrl
         }
 
         $port = (int) ($parts['port'] ?? (strtolower((string) ($parts['scheme'] ?? '')) === 'https' ? 443 : 80));
-        $address = $addresses[0];
-        $curlAddress = str_contains($address, ':') ? '['.$address.']' : $address;
+        // CURLOPT_RESOLVE accepts a comma-separated address list. Keeping every
+        // validated answer lets cURL fall back when one address family is
+        // unreachable, without performing a fresh, unvalidated DNS lookup.
+        $curlAddresses = array_map(
+            static fn (string $address): string => str_contains($address, ':') ? '['.$address.']' : $address,
+            $addresses
+        );
 
-        return ['curl' => [CURLOPT_RESOLVE => [$host.':'.$port.':'.$curlAddress]]];
+        return ['curl' => [CURLOPT_RESOLVE => [$host.':'.$port.':'.implode(',', $curlAddresses)]]];
     }
 
     /**
