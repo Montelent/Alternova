@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Livewire\CommentSection;
+use App\Livewire\InstallWizard;
 use App\Livewire\ProsConsSection;
 use App\Livewire\ReportIssue;
 use App\Livewire\SupportTicketShow;
@@ -19,6 +20,7 @@ class LivewireIdentityLockTest extends TestCase
             [ProsConsSection::class, 'alternativeId'],
             [ReportIssue::class, 'alternativeId'],
             [SupportTicketShow::class, 'ticket'],
+            [InstallWizard::class, 'step'],
         ] as [$component, $property]) {
             $reflection = new ReflectionProperty($component, $property);
 
