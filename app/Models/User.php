@@ -93,7 +93,8 @@ class User extends Authenticatable implements FilamentUser, CanResetPasswordCont
                 return true;
             }
         } catch (\Throwable) {
-            return true;
+            // A database/schema failure must never grant API access by default.
+            return false;
         }
 
         return ($this->api_enabled ?? true) === true;
