@@ -37,6 +37,18 @@ class UserAuthorizationTest extends TestCase
         self::assertFalse($disabled->canManageSystem());
     }
 
+    public function test_api_access_fails_closed_when_schema_cannot_be_verified(): void
+    {
+        Schema::shouldReceive('hasColumn')
+            ->once()
+            ->with('users', 'api_enabled')
+            ->andThrow(new \\RuntimeException('Database unavailable'));
+
+        $user = new User();
+
+        self::assertFalse($user->hasApiAccess());
+    }
+
     private function makeUser(?string $role, bool $active, bool $verified): User
     {
         return new class($role, $active, $verified) extends User
