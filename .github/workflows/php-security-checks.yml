@@ -26,7 +26,7 @@ jobs:
 
       - name: Lint application PHP files
         run: |
-          find app bootstrap config database routes -type f -name '*.php' -print0 \
+          find app bootstrap config database routes tests -type f -name '*.php' -print0 \
             | xargs -0 -n1 php -l
 
       - name: Validate Composer manifest
