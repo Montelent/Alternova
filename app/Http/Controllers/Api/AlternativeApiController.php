@@ -7,12 +7,13 @@ use App\Models\OpenSourceAlternative;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Validator;
 
 class AlternativeApiController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $filters = $request->validate([
+        $validator = Validator::make($request->all(), [
             'q' => ['nullable', 'string', 'max:120'],
             'license' => ['nullable', 'string', 'max:80'],
             'category' => ['nullable', 'string', 'max:80'],
@@ -20,6 +21,15 @@ class AlternativeApiController extends Controller
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
             'page' => ['nullable', 'integer', 'min:1', 'max:1000'],
         ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'The given data was invalid.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $filters = $validator->validated();
 
         $q = trim((string) ($filters['q'] ?? ''));
         $license = trim((string) ($filters['license'] ?? ''));
