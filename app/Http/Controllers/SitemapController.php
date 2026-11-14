@@ -10,6 +10,7 @@ use App\Models\ProprietaryTool;
 use App\Models\SiteSetting;
 use App\Support\CategoryCatalog;
 use App\Support\CanonicalUrl;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
