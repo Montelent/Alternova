@@ -23,11 +23,9 @@ class SupportTicketShow extends Component
             ->where('public_id', $publicId)
             ->firstOrFail();
 
-        $token = request()->query('token');
-
-        if (! is_string($token) || $token === '') {
-            $token = session('support_ticket_token_'.$ticket->id);
-        }
+        $queryToken = request()->query('token');
+        $tokenFromQuery = is_string($queryToken) && $queryToken !== '';
+        $token = $tokenFromQuery ? $queryToken : session('support_ticket_token_'.$ticket->id);
 
         $user = Auth::user();
 
@@ -39,11 +37,13 @@ class SupportTicketShow extends Component
         if (is_string($token) && $token !== '') {
             session(['support_ticket_token_'.$ticket->id => $token]);
 
-            // Remove the access token from the address bar and subsequent
-            // same-origin Referer headers after storing it in the session.
-            $this->redirect(route('support.show', ['publicId' => $ticket->public_id]), navigate: false);
+            // Only strip a token that was present in the incoming query string.
+            // A token restored from the session must not trigger another redirect.
+            if ($tokenFromQuery) {
+                $this->redirect(route('support.show', ['publicId' => $ticket->public_id]), navigate: false);
 
-            return;
+                return;
+            }
         }
 
         $this->ticket = $ticket->load(['publicReplies']);
