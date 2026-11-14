@@ -19,7 +19,7 @@ class PublicHttpUrl
             }
 
             $scheme = strtolower((string) ($parts['scheme'] ?? ''));
-            $host = strtolower(trim(rtrim((string) ($parts['host'] ?? ''), '[]')));
+            $host = strtolower(trim(rtrim((string) ($parts['host'] ?? ''), '[]'), '[]'));
 
             if (! in_array($scheme, ['http', 'https'], true)
                 || $host === ''
@@ -61,7 +61,7 @@ class PublicHttpUrl
             throw new \RuntimeException('Invalid outbound URL.');
         }
 
-        $host = strtolower(trim(rtrim((string) ($parts['host'] ?? ''), '[]')));
+        $host = strtolower(trim(rtrim((string) ($parts['host'] ?? ''), '[]'), '[]'));
         if ($host === '' || ! self::isSafe($url)) {
             throw new \RuntimeException('Outbound URL is not a public HTTP or HTTPS destination.');
         }
