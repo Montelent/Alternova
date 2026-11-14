@@ -47,11 +47,9 @@ return new class extends Migration
             });
 
         try {
-            try {
             Cache::forget('site_settings');
         } catch (\Throwable) {
-        }
-        } catch (\Throwable) {
+            // Cache may not be available during an early install or rollback.
         }
     }
 
@@ -88,7 +86,11 @@ return new class extends Migration
                 }
             });
 
-        Cache::forget('site_settings');
+        try {
+            Cache::forget('site_settings');
+        } catch (\Throwable) {
+            // The data rollback must not fail solely because cache is unavailable.
+        }
     }
 
     private function isSensitive(string $key): bool
