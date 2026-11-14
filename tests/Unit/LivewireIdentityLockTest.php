@@ -1,13 +1,13 @@
 <?php
 
-namespace Tests\\Unit;
+namespace Tests\Unit;
 
-use App\\Livewire\\CommentSection;
-use App\\Livewire\\ProsConsSection;
-use App\\Livewire\\ReportIssue;
-use App\\Livewire\\SupportTicketShow;
-use Livewire\\Attributes\\Locked;
-use PHPUnit\\Framework\\TestCase;
+use App\Livewire\CommentSection;
+use App\Livewire\ProsConsSection;
+use App\Livewire\ReportIssue;
+use App\Livewire\SupportTicketShow;
+use Livewire\Attributes\Locked;
+use PHPUnit\Framework\TestCase;
 use ReflectionProperty;
 
 class LivewireIdentityLockTest extends TestCase
