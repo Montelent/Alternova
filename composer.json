@@ -19,7 +19,7 @@
         "spatie/laravel-tags": "^4.6",
         "meilisearch/meilisearch-php": "^1.10",
         "http-interop/http-factory-guzzle": "^1.2",
-        "resend/resend-laravel": "^0.19",
+        "resend/resend-laravel": "^1.7",
         "ezyang/htmlpurifier": "^4.18"
     },
     "require-dev": {
