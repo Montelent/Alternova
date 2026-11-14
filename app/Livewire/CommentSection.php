@@ -11,7 +11,7 @@ use Livewire\Component;
 
 class CommentSection extends Component
 {
-    public int $alternativeId;
+    #[Locked]\n    public int $alternativeId;
 
     public string $author_name = '';
 
