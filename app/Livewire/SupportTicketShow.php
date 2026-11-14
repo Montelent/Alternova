@@ -10,7 +10,8 @@ use Livewire\Component;
 
 class SupportTicketShow extends Component
 {
-    #[Locked]\n    public ContactMessage $ticket;
+    #[Locked]
+    public ContactMessage $ticket;
 
     public string $replyBody = '';
 
