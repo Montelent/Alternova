@@ -160,3 +160,47 @@ jobs:
 
       - name: Run security helper unit tests
         run: vendor/bin/phpunit tests/Unit
+
+  nginx-upload-security:
+    name: Nginx upload execution protection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Install Nginx and curl
+        run: sudo apt-get update && sudo apt-get install -y nginx curl
+
+      - name: Validate and exercise upload location rules
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="/tmp/alternova-nginx-root"
+          prefix="/tmp/alternova-nginx-prefix"
+          mkdir -p "$root/uploads" "$root/storage" "$prefix"
+          printf '<?php echo "EXECUTED"; ?>' > "$root/uploads/attack.php"
+          printf '<?php echo "EXECUTED"; ?>' > "$root/storage/attack.php"
+          printf 'hidden' > "$root/uploads/.secret"
+          printf 'normal image payload' > "$root/uploads/image.png"
+          cat > /tmp/alternova-nginx.conf <<EOF
+          pid /tmp/alternova-nginx.pid;
+          error_log /tmp/alternova-nginx-error.log;
+          events {}
+          http {
+            server {
+              listen 127.0.0.1:8080;
+              root $root;
+              include $GITHUB_WORKSPACE/docs/nginx-upload-security.conf;
+              location ~ \.php$ { return 418; }
+            }
+          }
+          EOF
+          nginx -t -c /tmp/alternova-nginx.conf -p "$prefix"
+          nginx -c /tmp/alternova-nginx.conf -p "$prefix"
+          trap 'nginx -s stop -c /tmp/alternova-nginx.conf -p "$prefix" >/dev/null 2>&1 || true' EXIT
+          for path in uploads/attack.php storage/attack.php uploads/.secret; do
+            status="$(curl --retry 10 --retry-connrefused --retry-delay 1 -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:8080/$path")"
+            test "$status" = "404"
+          done
+          status="$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/uploads/image.png)"
+          test "$status" = "200"
