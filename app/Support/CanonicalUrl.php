@@ -19,7 +19,16 @@ class CanonicalUrl
         // explicit request even under the test runner so host allow-list behavior
         // can be verified without relying on process SAPI detection.
         if (app()->runningInConsole() && $request === null) {
-            return $configuredUrl;
+            $boundRequest = app()->bound('request') ? app('request') : null;
+
+            // PHPUnit serves HTTP requests from a console process. Use that
+            // request only when the router has matched a route; CLI commands
+            // continue to use APP_URL as their stable canonical origin.
+            if (! $boundRequest instanceof Request || $boundRequest->route() === null) {
+                return $configuredUrl;
+            }
+
+            $request = $boundRequest;
         }
 
         $request ??= request();
