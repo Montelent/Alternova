@@ -171,10 +171,16 @@ class DescriptionGeneratorService
         try {
             $response = Http::timeout(6)
                 ->connectTimeout(3)
-                ->withOptions([
-                    'allow_redirects' => PublicHttpUrl::safeRedirectOptions(),
-                    'stream' => true,
-                ])
+                ->withOptions(array_merge(
+                    [
+                        'allow_redirects' => PublicHttpUrl::safeRedirectOptions(),
+                        'stream' => true,
+                    ],
+                    // Pin the exact public DNS answers used by the safety check;
+                    // otherwise the HTTP client could resolve a private address
+                    // after validation (DNS rebinding).
+                    PublicHttpUrl::safeRequestOptions($websiteUrl)
+                ))
                 ->withHeaders(['User-Agent' => 'Alternova-DescriptionBot/1.0'])
                 ->get($websiteUrl);
 
