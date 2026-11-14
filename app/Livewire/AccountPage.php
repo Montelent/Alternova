@@ -59,6 +59,7 @@ class AccountPage extends Component
 
     public function updateProfile(): void
     {
+        abort_unless(Auth::check(), 401);
         $this->profileMessage = '';
         /** @var User $user */
         $user = Auth::user();
@@ -103,6 +104,7 @@ class AccountPage extends Component
 
     public function updatePassword(): void
     {
+        abort_unless(Auth::check(), 401);
         $this->passwordMessage = '';
         /** @var User $user */
         $user = Auth::user();
@@ -119,6 +121,7 @@ class AccountPage extends Component
 
     public function createApiKey(): void
     {
+        abort_unless(Auth::check(), 401);
         $this->apiKeyMessage = '';
         $this->newPlainKey = null;
 
@@ -152,6 +155,7 @@ class AccountPage extends Component
 
     public function revokeApiKey(int $id): void
     {
+        abort_unless(Auth::check(), 401);
         if (! $this->apiKeysReady()) {
             return;
         }
@@ -166,11 +170,13 @@ class AccountPage extends Component
 
     public function removeWatch(int $alternativeId): void
     {
+        abort_unless(Auth::check(), 401);
         app(WatchlistService::class)->unwatch($alternativeId);
     }
 
     public function removeFavorite(int $alternativeId): void
     {
+        abort_unless(Auth::check(), 401);
         $alt = OpenSourceAlternative::query()
             ->where('is_published', true)
             ->find($alternativeId);
@@ -181,6 +187,7 @@ class AccountPage extends Component
 
     public function removeDomain(int $id): void
     {
+        abort_unless(Auth::check(), 401);
         SavedDomain::query()->where('user_id', Auth::id())->where('id', $id)->delete();
     }
 
