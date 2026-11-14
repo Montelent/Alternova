@@ -45,10 +45,8 @@ class ProductionHardeningSmokeTest extends TestCase
 
     public function test_forwarded_https_header_is_ignored_from_an_untrusted_proxy(): void
     {
-        $response = $this->call('GET', '/robots.txt', [], [], [], [
-            'HTTP_HOST' => 'localhost',
-            'REMOTE_ADDR' => '192.0.2.10',
-            'HTTP_X_FORWARDED_PROTO' => 'https',
+        $response = $this->get('http://localhost/robots.txt', [
+            'X-Forwarded-Proto' => 'https',
         ]);
 
         $response->assertOk();
@@ -59,10 +57,8 @@ class ProductionHardeningSmokeTest extends TestCase
     {
         config(['alternova.trusted_proxies' => ['127.0.0.1']]);
 
-        $response = $this->call('GET', '/robots.txt', [], [], [], [
-            'HTTP_HOST' => 'localhost',
-            'REMOTE_ADDR' => '127.0.0.1',
-            'HTTP_X_FORWARDED_PROTO' => 'https',
+        $response = $this->get('http://localhost/robots.txt', [
+            'X-Forwarded-Proto' => 'https',
         ]);
 
         $response->assertOk();
@@ -76,11 +72,7 @@ class ProductionHardeningSmokeTest extends TestCase
             'alternova.allowed_hosts' => ['secondary.example.test'],
         ]);
 
-        $this->call('GET', '/robots.txt', [], [], [], [
-            'HTTP_HOST' => 'secondary.example.test',
-            'HTTPS' => 'on',
-            'REMOTE_ADDR' => '127.0.0.1',
-        ])
+        $this->get('https://secondary.example.test/robots.txt')
             ->assertOk()
             ->assertSee('Sitemap: https://secondary.example.test/sitemap.xml');
     }
