@@ -105,6 +105,7 @@ class SupportTicketService
     public function replyAsStaff(ContactMessage $ticket, string $body, ?User $staff = null, bool $internal = false): ?ContactMessageReply
     {
         $authenticatedStaff = Auth::user();
+        $staff = $staff ?: $authenticatedStaff;
 
         // Never trust a caller-supplied staff model as proof of authorization.
         abort_unless(
