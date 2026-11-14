@@ -101,6 +101,7 @@ class ContactMessage extends Model
 
     public function canBeViewedBy(?User $user, ?string $token = null): bool
     {
+        // A high-entropy ticket token is an independent bearer credential.
         if ($token && $this->access_token && hash_equals((string) $this->access_token, $token)) {
             return true;
         }
@@ -109,11 +110,13 @@ class ContactMessage extends Model
             return false;
         }
 
+        // Tickets explicitly attached to an account remain owned by that account.
         if ($this->user_id && (int) $this->user_id === (int) $user->id) {
             return true;
         }
 
-        return strcasecmp((string) $this->email, (string) $user->email) === 0;
+        // An email match is proof of ownership only after mailbox verification.
+        return $this->hasVerifiedMatchingEmail($user);
     }
 
     public function canBeRepliedBy(?User $user): bool
@@ -126,6 +129,14 @@ class ContactMessage extends Model
             return true;
         }
 
-        return strcasecmp((string) $this->email, (string) $user->email) === 0;
+        return $this->hasVerifiedMatchingEmail($user);
+    }
+
+    private function hasVerifiedMatchingEmail(User $user): bool
+    {
+        return $user->email_verified_at !== null
+            && is_string($user->email)
+            && $user->email !== ''
+            && strcasecmp((string) $this->email, $user->email) === 0;
     }
 }
