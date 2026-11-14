@@ -133,6 +133,34 @@ class ProductionHardeningSmokeTest extends TestCase
         self::assertSame('webhook-secret-value', $webhook->fresh()->secret);
     }
 
+    public function test_installer_does_not_trust_an_unverified_host_header_port(): void
+    {
+        config([
+            'app.url' => 'https://primary.example.test',
+            'alternova.allowed_hosts' => ['secondary.example.test'],
+        ]);
+
+        $originalServer = $_SERVER;
+
+        try {
+            $_SERVER['HTTP_HOST'] = 'secondary.example.test:9443';
+            $_SERVER['HTTPS'] = 'on';
+            $_SERVER['SERVER_PORT'] = '443';
+
+            $this->app->instance(
+                'request',
+                Request::create('https://secondary.example.test:9443/install')
+            );
+
+            self::assertSame(
+                'https://secondary.example.test',
+                Installer::detectAppUrl()
+            );
+        } finally {
+            $_SERVER = $originalServer;
+        }
+    }
+
     public function test_canonical_origin_uses_only_configured_or_allowlisted_hosts(): void
     {
         config([
