@@ -136,6 +136,8 @@ class CollectionSubmissionResource extends Resource
 
     public static function approveAndCreate(CollectionSubmission $record): void
     {
+        abort_unless(auth()->user()?->canManageSystem() ?? false, 403);
+
         if (! Schema::hasTable('collections')) {
             Notification::make()->title('Collections table missing')->danger()->send();
 
