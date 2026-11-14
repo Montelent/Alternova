@@ -14,6 +14,19 @@ class ProductionHardeningSmokeTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Installer::lock();
+    }
+
+    protected function tearDown(): void
+    {
+        File::delete(Installer::lockPath());
+        File::delete(storage_path('app/'.Installer::REOPEN_FILE));
+        parent::tearDown();
+    }
+
     public function test_public_robots_and_sitemap_endpoints_render_with_security_headers(): void
     {
         $this->get('/robots.txt')
