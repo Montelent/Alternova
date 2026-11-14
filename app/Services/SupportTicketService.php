@@ -37,7 +37,11 @@ class SupportTicketService
      */
     public function createTicket(array $data, ?User $user = null): ContactMessage
     {
-        $user = $user ?: Auth::user();
+        $authenticatedUser = Auth::user();
+        if ($user && (! $authenticatedUser || (int) $user->id !== (int) $authenticatedUser->id)) {
+            abort(403);
+        }
+        $user = $authenticatedUser;
 
         $payload = [
             'name' => $data['name'],
@@ -148,6 +152,13 @@ class SupportTicketService
 
     public function replyAsUser(ContactMessage $ticket, string $body, User $user): ?ContactMessageReply
     {
+        $authenticatedUser = Auth::user();
+        abort_unless(
+            $authenticatedUser && (int) $authenticatedUser->id === (int) $user->id,
+            403
+        );
+        $user = $authenticatedUser;
+
         if (! $this->repliesReady() || ! $ticket->canBeRepliedBy($user)) {
             return null;
         }
