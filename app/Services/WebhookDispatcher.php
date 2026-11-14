@@ -125,10 +125,10 @@ class WebhookDispatcher
             } else {
                 $response = Http::timeout(6)
                     ->connectTimeout(3)
-                    ->withOptions([
-                        'allow_redirects' => false,
-                        'stream' => true,
-                    ])
+                    ->withOptions(array_merge(
+                        ['allow_redirects' => false, 'stream' => true],
+                        PublicHttpUrl::safeRequestOptions((string) $hook->url)
+                    ))
                     ->withHeaders($headers)
                     ->withBody($json ?: '{}', 'application/json')
                     ->post($hook->url);
