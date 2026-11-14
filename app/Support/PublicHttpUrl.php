@@ -233,15 +233,13 @@ class PublicHttpUrl
      */
     public static function safeRedirectOptions(): array
     {
+        // A redirect target must be DNS-validated and pinned independently.
+        // Guzzle's automatic redirect handler cannot apply a new CURLOPT_RESOLVE
+        // entry for each hop, so this helper deliberately disables redirects.
         return [
-            'max' => 3,
-            'on_redirect' => static function ($request, $response, $uri): void {
-                $sourceScheme = strtolower($request->getUri()->getScheme());
-                $targetScheme = strtolower($uri->getScheme());
-
-                if (($sourceScheme === 'https' && $targetScheme !== 'https') || ! self::isSafe((string) $uri)) {
-                    throw new \RuntimeException('Blocked redirect to an unsafe or downgraded destination.');
-                }
+            'max' => 0,
+            'on_redirect' => static function (): void {
+                throw new \RuntimeException('Outbound redirects must be validated and DNS-pinned before following.');
             },
         ];
     }
