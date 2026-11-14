@@ -52,6 +52,8 @@ class DemoContentPage extends Page
 
     public function seedDemo(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         try {
             $result = app(DemoCatalogSeeder::class)->seed();
             $this->lastReport = sprintf(
