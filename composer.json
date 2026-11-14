@@ -12,7 +12,7 @@
     "require": {
         "php": "^8.2",
         "laravel/framework": "^11.0|^12.0",
-        "laravel/tinker": "^2.9",
+        "laravel/tinker": "^3.1",
         "laravel/scout": "^10.0",
         "livewire/livewire": "^3.5",
         "filament/filament": "^3.2",
