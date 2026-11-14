@@ -59,10 +59,10 @@ class ContactMessageAuthorizationTest extends TestCase
             'ticket_status' => 'open',
         ]);
         $user = new User([
-            'id' => 42,
             'email' => 'new-address@example.com',
             'email_verified_at' => null,
         ]);
+        $user->setAttribute('id', 42);
 
         self::assertTrue($ticket->canBeViewedBy($user));
         self::assertTrue($ticket->canBeRepliedBy($user));
