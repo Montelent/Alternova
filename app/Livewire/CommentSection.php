@@ -46,10 +46,39 @@ class CommentSection extends Component
         }
     }
 
-    public function startReply(int $commentId, string $authorName): void
+    public function startReply(int $commentId, string $authorName = ''): void
     {
-        $this->replyToId = $commentId;
-        $this->replyToName = $authorName;
+        $comment = AlternativeComment::query()
+            ->whereKey($commentId)
+            ->where('open_source_alternative_id', $this->alternativeId)
+            ->visible()
+            ->first();
+
+        if (! $comment) {
+            $this->cancelReply();
+            $this->message = 'That comment is no longer available.';
+
+            return;
+        }
+
+        if ($comment->parent_id) {
+            $root = AlternativeComment::query()
+                ->whereKey($comment->parent_id)
+                ->where('open_source_alternative_id', $this->alternativeId)
+                ->visible()
+                ->exists();
+
+            if (! $root) {
+                $this->cancelReply();
+                $this->message = 'That comment is no longer available.';
+
+                return;
+            }
+        }
+
+        // Resolve display text from the stored comment, never from client input.
+        $this->replyToId = $comment->id;
+        $this->replyToName = (string) $comment->author_name;
         $this->message = '';
         $this->dispatch('focus-comment-form');
     }
@@ -95,11 +124,19 @@ class CommentSection extends Component
         $parentId = null;
         if ($this->replyToId) {
             $parent = AlternativeComment::query()
-                ->where('id', $this->replyToId)
+                ->whereKey($this->replyToId)
                 ->where('open_source_alternative_id', $this->alternativeId)
+                ->visible()
                 ->first();
 
-            if (! $parent) {
+            $rootIsVisible = ! $parent || ! $parent->parent_id
+                || AlternativeComment::query()
+                    ->whereKey($parent->parent_id)
+                    ->where('open_source_alternative_id', $this->alternativeId)
+                    ->visible()
+                    ->exists();
+
+            if (! $parent || ! $rootIsVisible) {
                 $this->message = 'Parent comment not found.';
                 $this->cancelReply();
 
