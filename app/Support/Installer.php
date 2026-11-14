@@ -344,20 +344,23 @@ class Installer
             return $host;
         };
 
-        $serverHost = $parseHost($_SERVER['SERVER_NAME'] ?? null);
+        // SERVER_NAME is not a trust boundary: Apache can derive it from the
+        // client Host header. Only APP_URL and the explicit host allow-list
+        // may authorize a request host for generated installer URLs.
+        $configuredHost = $parseHost(parse_url((string) config('app.url'), PHP_URL_HOST) ?: null);
         $requestHost = $parseHost($_SERVER['HTTP_HOST'] ?? null);
         $allowedHosts = array_values(array_filter(array_map(
             $parseHost,
             (array) config('alternova.allowed_hosts', [])
         )));
 
-        if ($serverHost !== null) {
-            $allowedHosts[] = $serverHost;
+        if ($configuredHost !== null) {
+            $allowedHosts[] = $configuredHost;
         }
 
         $host = $requestHost !== null && in_array($requestHost, $allowedHosts, true)
             ? $requestHost
-            : $serverHost;
+            : $configuredHost;
 
         if ($host === null) {
             return 'http://localhost';
