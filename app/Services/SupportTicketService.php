@@ -104,11 +104,21 @@ class SupportTicketService
 
     public function replyAsStaff(ContactMessage $ticket, string $body, ?User $staff = null, bool $internal = false): ?ContactMessageReply
     {
+        $authenticatedStaff = Auth::user();
+
+        // Never trust a caller-supplied staff model as proof of authorization.
+        abort_unless(
+            $authenticatedStaff?->canManageSystem()
+                && $staff?->isAdmin()
+                && (int) $staff->id === (int) $authenticatedStaff->id,
+            403
+        );
+
+        $staff = $authenticatedStaff;
+
         if (! $this->repliesReady()) {
             return null;
         }
-
-        $staff = $staff ?: Auth::user();
         $body = trim($body);
         if ($body === '') {
             return null;
@@ -184,6 +194,8 @@ class SupportTicketService
 
     public function close(ContactMessage $ticket): void
     {
+        abort_unless(Auth::user()?->canManageSystem() ?? false, 403);
+
         $updates = ['status' => 'archived'];
         if (Schema::hasColumn('contact_messages', 'ticket_status')) {
             $updates['ticket_status'] = 'closed';
