@@ -23,6 +23,27 @@ use Illuminate\Support\Str;
 
 class AlternativeSubmissionResource extends Resource
 {
+    /**
+     * Submission records contain private submitter data and approving them
+     * publishes catalog content. Editors must not access this resource.
+     */
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->canManageSystem() ?? false;
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        if (! (auth()->user()?->canManageSystem() ?? false)) {
+            return false;
+        }
+
+        try {
+            return Schema::hasTable('alternative_submissions');
+        } catch (\\Throwable) {
+            return false;
+        }
+    }
     protected static ?string $model = AlternativeSubmission::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-inbox-arrow-down';
