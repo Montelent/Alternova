@@ -7,6 +7,7 @@ use App\Models\OpenSourceAlternative;
 use App\Services\ProsConsService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class ProsConsSection extends Component
@@ -26,6 +27,11 @@ class ProsConsSection extends Component
     public function mount(int $alternativeId): void
     {
         $this->alternativeId = $alternativeId;
+        abort_unless(
+            OpenSourceAlternative::query()->whereKey($alternativeId)->where('is_published', true)->exists(),
+            404
+        );
+
         if (Auth::check()) {
             $this->authorName = (string) (Auth::user()->name ?? '');
         }
