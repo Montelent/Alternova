@@ -57,11 +57,11 @@ class ProductionHardeningSmokeTest extends TestCase
 
     public function test_forwarded_https_is_accepted_from_an_explicitly_trusted_proxy(): void
     {
-        config(['alternova.trusted_proxies' => ['192.0.2.10']]);
+        config(['alternova.trusted_proxies' => ['127.0.0.1']]);
 
         $response = $this->call('GET', '/robots.txt', [], [], [], [
             'HTTP_HOST' => 'localhost',
-            'REMOTE_ADDR' => '192.0.2.10',
+            'REMOTE_ADDR' => '127.0.0.1',
             'HTTP_X_FORWARDED_PROTO' => 'https',
         ]);
 
