@@ -120,6 +120,8 @@ class CollectionSubmissionResource extends Resource
                     ->visible(fn (CollectionSubmission $record) => $record->status === 'pending')
                     ->requiresConfirmation()
                     ->action(function (CollectionSubmission $record) {
+                        abort_unless(auth()->user()?->canManageSystem() ?? false, 403);
+
                         $record->update([
                             'status' => 'rejected',
                             'reviewed_by' => Auth::id(),
