@@ -126,6 +126,9 @@ jobs:
           extensions: mbstring, dom, xml, curl, fileinfo, pdo_mysql, pdo_pgsql, gd, zip, intl
           coverage: none
 
+      - name: Prepare the Laravel test environment
+        run: cp .env.example .env
+
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
 
