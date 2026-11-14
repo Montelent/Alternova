@@ -75,15 +75,21 @@ class SecurityHeaders
             );
         }
 
-        // Pragmatic CSP: allow self + TinyMCE CDN + data/blob images used by admin uploads
+        // The standalone installer and embed currently use Tailwind's runtime
+        // CDN build and do not load the Vite application bundle.
+        $standaloneTailwind = $request->is('install', 'install/*', 'embed/tool/*');
         $frameAncestors = $isEmbed ? '*' : "'self'";
+        $scriptSources = "'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net";
+        if ($standaloneTailwind) {
+            $scriptSources .= ' https://cdn.tailwindcss.com';
+        }
         $csp = [
             "default-src 'self'",
             "base-uri 'self'",
             "form-action 'self'",
             "object-src 'none'",
             "frame-ancestors {$frameAncestors}",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net",
+            "script-src {$scriptSources}",
             "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com https://cdn.tailwindcss.com",
             "img-src 'self' data: blob: https:",
             "font-src 'self' data: https://cdn.jsdelivr.net https://fonts.gstatic.com",
