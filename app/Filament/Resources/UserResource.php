@@ -10,6 +10,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 
@@ -44,12 +45,12 @@ class UserResource extends Resource
         return static::canAccess();
     }
 
-    public static function canEdit(\\Illuminate\\Database\\Eloquent\\Model $record): bool
+    public static function canEdit(Model $record): bool
     {
         return static::canAccess();
     }
 
-    public static function canDelete(\\Illuminate\\Database\\Eloquent\\Model $record): bool
+    public static function canDelete(Model $record): bool
     {
         return static::canAccess() && (int) $record->getKey() !== (int) auth()->id();
     }
@@ -165,7 +166,11 @@ class UserResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->before(function ($records) {
+                            abort_unless(auth()->user()?->canManageUsers() ?? false, 403);
+                            abort_if($records->contains(fn (User $record) => (int) $record->id === (int) auth()->id()), 403);
+                        }),
                 ]),
             ]);
     }
