@@ -243,13 +243,16 @@ class AccountPage extends Component
                 return collect();
             }
 
-            $email = Auth::user()->email;
+            $user = Auth::user();
 
             return ContactMessage::query()
-                ->where(function ($q) use ($email) {
-                    $q->where('user_id', Auth::id());
-                    if ($email) {
-                        $q->orWhere('email', $email);
+                ->where(function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
+
+                    // Guest tickets may be associated by email only after the
+                    // account has proved control of that mailbox.
+                    if ($user->email_verified_at !== null && $user->email) {
+                        $q->orWhere('email', $user->email);
                     }
                 })
                 ->orderByDesc('updated_at')
