@@ -16,10 +16,12 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class AlternativeDetail extends Component
 {
+    #[Locked]
     public OpenSourceAlternative $alternative;
 
     public bool $hasVoted = false;
