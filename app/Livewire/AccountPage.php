@@ -171,7 +171,9 @@ class AccountPage extends Component
 
     public function removeFavorite(int $alternativeId): void
     {
-        $alt = OpenSourceAlternative::query()->find($alternativeId);
+        $alt = OpenSourceAlternative::query()
+            ->where('is_published', true)
+            ->find($alternativeId);
         if ($alt) {
             app(FavoriteService::class)->toggle($alt);
         }
