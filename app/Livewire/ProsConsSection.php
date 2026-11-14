@@ -11,7 +11,7 @@ use Livewire\Component;
 
 class ProsConsSection extends Component
 {
-    public int $alternativeId;
+    #[Locked]\n    public int $alternativeId;
 
     public string $type = 'pro';
 
@@ -53,7 +53,7 @@ class ProsConsSection extends Component
             'authorName' => 'nullable|string|max:80',
         ]);
 
-        $alt = OpenSourceAlternative::query()->find($this->alternativeId);
+        $alt = OpenSourceAlternative::query()->whereKey($this->alternativeId)->where('is_published', true)->first();
         if (! $alt) {
             $this->message = 'Alternative not found.';
 
@@ -101,7 +101,7 @@ class ProsConsSection extends Component
     public function render()
     {
         $service = app(ProsConsService::class);
-        $alt = OpenSourceAlternative::query()->find($this->alternativeId);
+        $alt = OpenSourceAlternative::query()->whereKey($this->alternativeId)->where('is_published', true)->first();
         $lists = $alt ? $service->listsFor($alt) : ['pros' => collect(), 'cons' => collect()];
 
         $voterKey = $service->voterKey(session()->getId(), request()->ip());
