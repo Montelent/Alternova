@@ -41,7 +41,7 @@ class PublishedContentBoundaryTest extends TestCase
 
     public function test_unpublished_alternative_cannot_be_added_to_watchlist(): void
     {
-        $alternative = new OpenSourceAlternative(['is_published' => false]);
+        $alternative = $this->makeAlternative(false);
 
         self::assertFalse((new WatchlistService())->toggle($alternative));
         self::assertFalse((new WatchlistService())->isWatching($alternative));
