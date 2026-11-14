@@ -29,7 +29,7 @@ class ForgotPassword extends Component
 
         RateLimiter::hit($key, 600);
 
-        $status = Password::sendResetLink(['email' => $this->email]);
+        Password::sendResetLink(['email' => $this->email]);
 
         // Keep the response identical whether the account exists, avoiding
         // a password-reset endpoint that can be used to enumerate users.
