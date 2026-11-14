@@ -59,7 +59,7 @@ class PublicHttpUrlTest extends TestCase
         $options = PublicHttpUrl::safeRedirectOptions();
         self::assertSame(0, $options['max']);
 
-        $this->expectException(\\RuntimeException::class);
+        $this->expectException(\RuntimeException::class);
         ($options['on_redirect'])();
     }
 
@@ -68,7 +68,7 @@ class PublicHttpUrlTest extends TestCase
         $options = PublicHttpUrl::safeRedirectOptions();
         self::assertSame(0, $options['max']);
 
-        $this->expectException(\\RuntimeException::class);
+        $this->expectException(\RuntimeException::class);
         ($options['on_redirect'])();
     }
 
