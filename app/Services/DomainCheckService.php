@@ -51,10 +51,19 @@ class DomainCheckService
                 ];
             }
 
+            if ($rdap === false) {
+                return [
+                    'domain' => $domain,
+                    'available' => true,
+                    'status' => 'available',
+                    'checked_at' => now()->toIso8601String(),
+                ];
+            }
+
             return [
                 'domain' => $domain,
-                'available' => true,
-                'status' => 'available',
+                'available' => null,
+                'status' => 'unknown',
                 'checked_at' => now()->toIso8601String(),
             ];
         });
@@ -156,10 +165,13 @@ class DomainCheckService
             $url = rtrim($base, '/').'/domain/'.rawurlencode($domain);
             $response = Http::timeout(1.8)
                 ->connectTimeout(1.2)
-                ->withOptions([
-                    'allow_redirects' => PublicHttpUrl::safeRedirectOptions(),
-                    'stream' => true,
-                ])
+                ->withOptions(array_merge(
+                    // RDAP endpoints are fixed, trusted providers. Do not follow
+                    // redirects: each hop would need its own DNS validation and
+                    // CURLOPT_RESOLVE pin before any connection is attempted.
+                    ['allow_redirects' => false, 'stream' => true],
+                    PublicHttpUrl::safeRequestOptions($url)
+                ))
                 ->withHeaders(['Accept' => 'application/rdap+json, application/json'])
                 ->get($url);
 
