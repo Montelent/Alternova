@@ -25,8 +25,12 @@ class WatchlistService
 
     public function isWatching(OpenSourceAlternative $alt, ?User $user = null): bool
     {
+        if (! $alt->is_published) {
+            return false;
+        }
+
         $user = $user ?: Auth::user();
-        if (! $user || ! $this->ready() || ! $alt->is_published) {
+        if (! $user || ! $this->ready()) {
             return false;
         }
 
@@ -38,8 +42,12 @@ class WatchlistService
 
     public function toggle(OpenSourceAlternative $alt, ?User $user = null): bool
     {
+        if (! $alt->is_published) {
+            return false;
+        }
+
         $user = $user ?: Auth::user();
-        if (! $user || ! $this->ready() || ! $alt->is_published) {
+        if (! $user || ! $this->ready()) {
             return false;
         }
 
