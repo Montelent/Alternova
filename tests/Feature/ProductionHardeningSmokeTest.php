@@ -43,6 +43,18 @@ class ProductionHardeningSmokeTest extends TestCase
             ->assertSee('sitemap-static.xml', false);
     }
 
+    public function test_forwarded_https_header_is_ignored_from_an_untrusted_proxy(): void
+    {
+        $response = $this->call('GET', '/robots.txt', [], [], [], [
+            'HTTP_HOST' => 'localhost',
+            'REMOTE_ADDR' => '192.0.2.10',
+            'HTTP_X_FORWARDED_PROTO' => 'https',
+        ]);
+
+        $response->assertOk();
+        self::assertFalse($response->headers->has('Strict-Transport-Security'));
+    }
+
     public function test_authenticated_account_routes_remain_protected_from_guests(): void
     {
         $this->get('/account')->assertRedirect('/login');
