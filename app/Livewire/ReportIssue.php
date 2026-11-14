@@ -5,11 +5,13 @@ namespace App\Livewire;
 use App\Models\IssueReport;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class ReportIssue extends Component
 {
-    #[Locked]\n    public ?int $alternativeId = null;
+    #[Locked]
+    public ?int $alternativeId = null;
 
     public string $type = 'wrong_info';
 
