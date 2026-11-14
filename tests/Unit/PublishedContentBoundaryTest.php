@@ -12,8 +12,7 @@ class PublishedContentBoundaryTest extends TestCase
 {
     public function test_unpublished_alternative_cannot_be_added_to_favorites(): void
     {
-        $alternative = new OpenSourceAlternative();
-        $alternative->setAttribute('is_published', false);
+        $alternative = $this->makeAlternative(false);
 
         $this->expectException(HttpException::class);
 
@@ -22,9 +21,22 @@ class PublishedContentBoundaryTest extends TestCase
 
     public function test_unpublished_alternative_is_never_reported_as_favorited(): void
     {
-        $alternative = new OpenSourceAlternative(['is_published' => false]);
+        $alternative = $this->makeAlternative(false);
 
         self::assertFalse((new FavoriteService())->has($alternative));
+    }
+
+    private function makeAlternative(bool $published): OpenSourceAlternative
+    {
+        // Avoid booting Scout's model observer in this isolated service test;
+        // the test has no Laravel application container or search driver.
+        $alternative = new class extends OpenSourceAlternative
+        {
+            protected static function boot(): void {}
+        };
+        $alternative->setAttribute('is_published', $published);
+
+        return $alternative;
     }
 
     public function test_unpublished_alternative_cannot_be_added_to_watchlist(): void
