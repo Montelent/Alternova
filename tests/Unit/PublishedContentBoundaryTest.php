@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\Models\OpenSourceAlternative;
 use App\Services\FavoriteService;
 use App\Services\WatchlistService;
+use Illuminate\Foundation\Application;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
