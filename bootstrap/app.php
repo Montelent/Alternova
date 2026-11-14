@@ -29,12 +29,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'api.throttle' => ThrottleApi::class,
         ]);
 
-        // Only trust forwarded headers from explicitly configured reverse proxies.
-        // Set TRUSTED_PROXIES to a comma-separated list of proxy IPs/CIDRs per host.
-        $proxies = config('alternova.trusted_proxies', []);
-        if (is_array($proxies) && $proxies !== []) {
-            $middleware->trustProxies(at: $proxies);
-        }
+        // Read the proxy allowlist in request middleware after config is loaded;
+        // bootstrap closures also run during Composer's artisan package discovery.
+        $middleware->prepend(TrustConfiguredProxies::class);
 
         // Keep Laravel's normal CSRF protection enabled for every state-changing
         // endpoint, including Livewire. Livewire component checksums are not a
