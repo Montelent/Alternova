@@ -2,8 +2,8 @@
 
 namespace Tests;
 
-use Illuminate\\Contracts\\Console\\Kernel;
-use Illuminate\\Foundation\\Testing\\TestCase as BaseTestCase;
+use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
 {
