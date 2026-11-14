@@ -167,6 +167,8 @@ class MailSettingsPage extends Page implements HasForms
 
     public function save(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $state = $this->form->getState();
 
         SiteSetting::setMany([
@@ -204,6 +206,8 @@ class MailSettingsPage extends Page implements HasForms
 
     public function sendTest(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $this->save();
 
         $to = trim((string) ($this->form->getState()['test_to'] ?? ''));
@@ -242,6 +246,8 @@ class MailSettingsPage extends Page implements HasForms
 
     public function sendDigestNow(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $this->save();
 
         try {
@@ -262,6 +268,8 @@ class MailSettingsPage extends Page implements HasForms
 
     public function sendNotificationDigestNow(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $this->save();
 
         try {
