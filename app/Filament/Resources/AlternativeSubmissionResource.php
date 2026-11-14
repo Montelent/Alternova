@@ -144,6 +144,7 @@ class AlternativeSubmissionResource extends Resource
                     ->visible(fn (AlternativeSubmission $record) => $record->status === 'pending')
                     ->requiresConfirmation()
                     ->action(function (AlternativeSubmission $record) {
+                        abort_unless(auth()->user()?->canManageSystem() ?? false, 403);
                         $record->update([
                             'status' => 'rejected',
                             'reviewed_by' => auth()->id(),
@@ -186,6 +187,7 @@ class AlternativeSubmissionResource extends Resource
                         ->color('danger')
                         ->requiresConfirmation()
                         ->action(function (Collection $records) {
+                            abort_unless(auth()->user()?->canManageSystem() ?? false, 403);
                             foreach ($records as $record) {
                                 if ($record->status !== 'pending') {
                                     continue;
@@ -200,7 +202,8 @@ class AlternativeSubmissionResource extends Resource
                             Notification::make()->title('Selected submissions rejected')->success()->send();
                         })
                         ->deselectRecordsAfterCompletion(),
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->before(fn () => abort_unless(auth()->user()?->canManageSystem() ?? false, 403)),
                 ]),
             ]);
     }
