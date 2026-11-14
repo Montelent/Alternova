@@ -207,6 +207,8 @@ class AlternativeSubmissionResource extends Resource
 
     public static function approveSubmission(AlternativeSubmission $record, bool $quiet = false): void
     {
+        abort_unless(auth()->user()?->canManageSystem() ?? false, 403);
+
         $prop = ProprietaryTool::query()->firstOrCreate(
             ['slug' => Str::slug($record->proprietary_name)],
             [
