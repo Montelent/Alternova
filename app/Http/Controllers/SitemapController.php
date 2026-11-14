@@ -17,9 +17,9 @@ use Illuminate\Support\Str;
 class SitemapController extends Controller
 {
     /** Sitemap index listing all child sitemaps. */
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $base = rtrim(CanonicalUrl::base(), '/');
+        $base = rtrim(CanonicalUrl::base($request), '/');
         $now = now()->toAtomString();
 
         $sitemaps = [
@@ -36,9 +36,9 @@ class SitemapController extends Controller
         return response($xml, 200)->header('Content-Type', 'application/xml; charset=UTF-8');
     }
 
-    public function staticPages(): Response
+    public function staticPages(Request $request): Response
     {
-        $base = rtrim(CanonicalUrl::base(), '/');
+        $base = rtrim(CanonicalUrl::base($request), '/');
         $includeDomains = SiteSetting::getBool('seo_sitemap_domains', true);
         $includeCompare = SiteSetting::getBool('seo_sitemap_compare', false);
 
@@ -67,7 +67,7 @@ class SitemapController extends Controller
         return $this->urlset($urls);
     }
 
-    public function pages(): Response
+    public function pages(Request $request): Response
     {
         $urls = [];
 
@@ -87,7 +87,7 @@ class SitemapController extends Controller
                 }
             }
         } catch (\Throwable) {
-            $base = rtrim(CanonicalUrl::base(), '/');
+            $base = rtrim(CanonicalUrl::base($request), '/');
             foreach (['about', 'privacy', 'terms', 'disclosure'] as $slug) {
                 $urls[] = ['loc' => $base.'/'.$slug, 'changefreq' => 'yearly', 'priority' => '0.4'];
             }
@@ -96,9 +96,9 @@ class SitemapController extends Controller
         return $this->urlset($urls);
     }
 
-    public function tools(): Response
+    public function tools(Request $request): Response
     {
-        $base = rtrim(CanonicalUrl::base(), '/');
+        $base = rtrim(CanonicalUrl::base($request), '/');
         $urls = [];
 
         ProprietaryTool::query()
@@ -120,9 +120,9 @@ class SitemapController extends Controller
         return $this->urlset($urls);
     }
 
-    public function alternatives(): Response
+    public function alternatives(Request $request): Response
     {
-        $base = rtrim(CanonicalUrl::base(), '/');
+        $base = rtrim(CanonicalUrl::base($request), '/');
         $urls = [];
 
         OpenSourceAlternative::query()
@@ -144,9 +144,9 @@ class SitemapController extends Controller
         return $this->urlset($urls);
     }
 
-    public function categories(): Response
+    public function categories(Request $request): Response
     {
-        $base = rtrim(CanonicalUrl::base(), '/');
+        $base = rtrim(CanonicalUrl::base($request), '/');
         $urls = [];
 
         // Category hubs
@@ -204,9 +204,9 @@ class SitemapController extends Controller
         return $this->urlset($urls);
     }
 
-    public function collections(): Response
+    public function collections(Request $request): Response
     {
-        $base = rtrim(CanonicalUrl::base(), '/');
+        $base = rtrim(CanonicalUrl::base($request), '/');
         $urls = [];
 
         try {
