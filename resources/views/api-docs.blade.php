@@ -39,8 +39,8 @@
 # or
 X-Api-Key: alt_your_key_here
 
-# or query (less preferred)
-?api_key=alt_your_key_here</pre>
+# or
+X-Api-Key: alt_your_key_here</pre>
         <p class="text-sm text-slate-600 dark:text-slate-300">
             Rate limits (per minute): anonymous <strong>{{ $rateAnon }}</strong>, with API key <strong>{{ $rateKey }}</strong>.
             Responses include <code class="text-xs bg-slate-100 dark:bg-slate-800 px-1 rounded">X-RateLimit-Limit</code> and <code class="text-xs bg-slate-100 dark:bg-slate-800 px-1 rounded">X-RateLimit-Remaining</code>.
