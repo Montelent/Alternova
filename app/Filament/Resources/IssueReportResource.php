@@ -105,7 +105,10 @@ class IssueReportResource extends Resource
                     ->label('Resolve')
                     ->icon('heroicon-o-check')
                     ->visible(fn (IssueReport $r) => $r->status === 'open')
-                    ->action(fn (IssueReport $r) => $r->update(['status' => 'resolved'])),
+                    ->action(function (IssueReport $record) {
+                        abort_unless(auth()->user()?->canManageSystem() ?? false, 403);
+                        $record->update(['status' => 'resolved']);
+                    }),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ]);
