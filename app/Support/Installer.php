@@ -587,6 +587,11 @@ class Installer
                     ? 'pdo_mysql'
                     : (extension_loaded('pdo_pgsql') ? 'pdo_pgsql' : 'missing'),
             ],
+            'curl' => [
+                'label' => 'PHP cURL (required for DNS-pinned outbound requests)',
+                'ok' => extension_loaded('curl'),
+                'value' => extension_loaded('curl') ? 'enabled' : 'missing',
+            ],
             'openssl' => [
                 'label' => 'OpenSSL',
                 'ok' => extension_loaded('openssl'),
