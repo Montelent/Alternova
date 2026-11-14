@@ -81,6 +81,7 @@ class NewsletterSubscriberResource extends Resource
                     ->label('Export CSV')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->action(function (): StreamedResponse {
+                        abort_unless(auth()->user()?->canManageSystem() ?? false, 403);
                         $rows = NewsletterSubscriber::query()->orderBy('email')->get();
 
                         return response()->streamDownload(function () use ($rows) {
@@ -100,7 +101,8 @@ class NewsletterSubscriberResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->before(fn () => abort_unless(auth()->user()?->canManageSystem() ?? false, 403)),
                 ]),
             ]);
     }
