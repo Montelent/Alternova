@@ -55,6 +55,20 @@ class ProductionHardeningSmokeTest extends TestCase
         self::assertFalse($response->headers->has('Strict-Transport-Security'));
     }
 
+    public function test_forwarded_https_is_accepted_from_an_explicitly_trusted_proxy(): void
+    {
+        config(['alternova.trusted_proxies' => ['192.0.2.10']]);
+
+        $response = $this->call('GET', '/robots.txt', [], [], [], [
+            'HTTP_HOST' => 'localhost',
+            'REMOTE_ADDR' => '192.0.2.10',
+            'HTTP_X_FORWARDED_PROTO' => 'https',
+        ]);
+
+        $response->assertOk();
+        $response->assertHeader('Strict-Transport-Security', 'max-age=31536000');
+    }
+
     public function test_authenticated_account_routes_remain_protected_from_guests(): void
     {
         $this->get('/account')->assertRedirect('/login');
