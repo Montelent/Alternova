@@ -69,6 +69,22 @@ class ProductionHardeningSmokeTest extends TestCase
         $response->assertHeader('Strict-Transport-Security', 'max-age=31536000');
     }
 
+    public function test_robots_uses_the_current_allowlisted_domain_for_its_sitemap(): void
+    {
+        config([
+            'app.url' => 'https://primary.example.test',
+            'alternova.allowed_hosts' => ['secondary.example.test'],
+        ]);
+
+        $this->call('GET', '/robots.txt', [], [], [], [
+            'HTTP_HOST' => 'secondary.example.test',
+            'HTTPS' => 'on',
+            'REMOTE_ADDR' => '127.0.0.1',
+        ])
+            ->assertOk()
+            ->assertSee('Sitemap: https://secondary.example.test/sitemap.xml');
+    }
+
     public function test_authenticated_account_routes_remain_protected_from_guests(): void
     {
         $this->get('/account')->assertRedirect('/login');
