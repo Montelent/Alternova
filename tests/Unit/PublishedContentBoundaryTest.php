@@ -37,7 +37,7 @@ class PublishedContentBoundaryTest extends TestCase
     {
         // Construct without Eloquent boot so this unit test does not register
         // Scout observers or require a configured search driver.
-        $alternative = (new \\ReflectionClass(OpenSourceAlternative::class))
+        $alternative = (new \ReflectionClass(OpenSourceAlternative::class))
             ->newInstanceWithoutConstructor();
         $alternative->setAttribute('is_published', $published);
 
