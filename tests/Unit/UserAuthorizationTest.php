@@ -9,12 +9,7 @@ class UserAuthorizationTest extends TestCase
 {
     public function test_legacy_null_role_never_grants_system_access(): void
     {
-        $user = new User();
-        $user->forceFill([
-            'role' => null,
-            'is_active' => true,
-            'email_verified_at' => now(),
-        ]);
+        $user = $this->makeUser(null, true, true);
 
         self::assertFalse($user->isAdmin());
         self::assertFalse($user->canManageSystem());
@@ -23,12 +18,7 @@ class UserAuthorizationTest extends TestCase
 
     public function test_member_role_never_grants_system_access(): void
     {
-        $user = new User();
-        $user->forceFill([
-            'role' => User::ROLE_MEMBER,
-            'is_active' => true,
-            'email_verified_at' => now(),
-        ]);
+        $user = $this->makeUser(User::ROLE_MEMBER, true, true);
 
         self::assertFalse($user->canManageSystem());
         self::assertFalse($user->canManageUsers());
@@ -36,32 +26,36 @@ class UserAuthorizationTest extends TestCase
 
     public function test_only_active_verified_admin_can_manage_system(): void
     {
-        $admin = new User();
-        $admin->forceFill([
-            'role' => User::ROLE_ADMIN,
-            'is_active' => true,
-            'email_verified_at' => now(),
-        ]);
-
+        $admin = $this->makeUser(User::ROLE_ADMIN, true, true);
         self::assertTrue($admin->canManageSystem());
         self::assertTrue($admin->canManageUsers());
 
-        $unverified = new User();
-        $unverified->forceFill([
-            'role' => User::ROLE_ADMIN,
-            'is_active' => true,
-            'email_verified_at' => null,
-        ]);
-
+        $unverified = $this->makeUser(User::ROLE_ADMIN, true, false);
         self::assertFalse($unverified->canManageSystem());
 
-        $disabled = new User();
-        $disabled->forceFill([
-            'role' => User::ROLE_ADMIN,
-            'is_active' => false,
-            'email_verified_at' => now(),
-        ]);
-
+        $disabled = $this->makeUser(User::ROLE_ADMIN, false, true);
         self::assertFalse($disabled->canManageSystem());
+    }
+
+    private function makeUser(?string $role, bool $active, bool $verified): User
+    {
+        return new class($role, $active, $verified) extends User
+        {
+            public function __construct(
+                private ?string $testRole,
+                private bool $testActive,
+                private bool $testVerified,
+            ) {}
+
+            public function getAttribute($key)
+            {
+                return match ($key) {
+                    'role' => $this->testRole,
+                    'is_active' => $this->testActive,
+                    'email_verified_at' => $this->testVerified ? 'verified' : null,
+                    default => parent::getAttribute($key),
+                };
+            }
+        };
     }
 }
