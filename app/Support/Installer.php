@@ -427,7 +427,15 @@ class Installer
         $rawHost = trim((string) ($_SERVER['HTTP_HOST'] ?? ''));
 
         if ($requestHost === $host && $rawHost !== '') {
-            $port = parse_url('http://'.$rawHost, PHP_URL_PORT);
+            $candidatePort = parse_url('http://'.$rawHost, PHP_URL_PORT);
+            $serverPort = filter_var($_SERVER['SERVER_PORT'] ?? null, FILTER_VALIDATE_INT);
+
+            // A port supplied only through Host is attacker-controlled too.
+            // Preserve it only when it matches the port the web server actually
+            // received the request on (direct local/dev installs included).
+            if (is_int($candidatePort) && is_int($serverPort) && $candidatePort === $serverPort) {
+                $port = $candidatePort;
+            }
         }
 
         $defaultPort = $secure ? 443 : 80;
