@@ -155,7 +155,7 @@ class CommentSection extends Component
             'open_source_alternative_id' => $this->alternativeId,
             'user_id' => Auth::id(),
             'parent_id' => $parentId,
-            'author_name' => $data['author_name'],
+            'author_name' => Auth::check() ? (string) Auth::user()->name : $data['author_name'],
             'author_email' => Auth::check() ? Auth::user()->email : ($data['author_email'] ?? null),
             'body' => strip_tags($data['body']),
             'is_approved' => $approved,
