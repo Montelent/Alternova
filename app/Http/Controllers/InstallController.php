@@ -122,7 +122,22 @@ class InstallController extends Controller
             'app_name' => ['required', 'string', 'max:255'],
             'app_url' => ['required', 'url', 'regex:/\\Ahttps?:\\/\\//i', 'max:2048'],
             'db_connection' => ['required', 'in:pgsql,mysql'],
-            'db_host' => ['required', 'string', 'max:253', 'regex:/\\A(?:localhost|[A-Za-z0-9.-]+|\\[[0-9A-Fa-f:]+\\]|[0-9A-Fa-f:]+)\\z/'],
+            'db_host' => [
+                'required',
+                'string',
+                'max:253',
+                function (string $attribute, mixed $value, \Closure $fail) use ($request): void {
+                    $host = (string) $value;
+                    $validHost = preg_match('/\\A(?:localhost|[A-Za-z0-9.-]+|\\[[0-9A-Fa-f:]+\\]|[0-9A-Fa-f:]+)\\z/', $host) === 1;
+                    $validPostgresSocket = $request->input('db_connection') === 'pgsql'
+                        && preg_match('#\\A/(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9._/-]+\\z#', $host) === 1
+                        && ! str_contains($host, '//');
+
+                    if (! $validHost && ! $validPostgresSocket) {
+                        $fail('The database host must be a valid hostname, IP address, or PostgreSQL socket directory.');
+                    }
+                },
+            ],
             'db_port' => ['required', 'integer', 'min:1', 'max:65535'],
             'db_database' => ['required', 'string', 'max:128', 'regex:/\\A[A-Za-z0-9_.-]+\\z/'],
             'db_username' => ['required', 'string', 'max:128'],
