@@ -34,6 +34,31 @@ class UserResource extends Resource
         return auth()->user()?->canManageUsers() ?? false;
     }
 
+    public static function canViewAny(): bool
+    {
+        return static::canAccess();
+    }
+
+    public static function canCreate(): bool
+    {
+        return static::canAccess();
+    }
+
+    public static function canEdit(\\Illuminate\\Database\\Eloquent\\Model $record): bool
+    {
+        return static::canAccess();
+    }
+
+    public static function canDelete(\\Illuminate\\Database\\Eloquent\\Model $record): bool
+    {
+        return static::canAccess() && (int) $record->getKey() !== (int) auth()->id();
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return static::canAccess();
+    }
+
     public static function form(Form $form): Form
     {
         $schema = [
@@ -120,6 +145,7 @@ class UserResource extends Resource
                     ->visible(fn (User $record) => Schema::hasColumn('users', 'api_enabled')
                         && ! ($record->api_enabled ?? true))
                     ->action(function (User $record) {
+                        abort_unless(auth()->user()?->canManageUsers() ?? false, 403);
                         $record->forceFill(['api_enabled' => true])->save();
                         Notification::make()->title('API enabled for '.$record->name)->success()->send();
                     }),
@@ -130,6 +156,7 @@ class UserResource extends Resource
                     ->visible(fn (User $record) => Schema::hasColumn('users', 'api_enabled')
                         && ($record->api_enabled ?? true))
                     ->action(function (User $record) {
+                        abort_unless(auth()->user()?->canManageUsers() ?? false, 403);
                         $record->forceFill(['api_enabled' => false])->save();
                         Notification::make()->title('API disabled for '.$record->name)->success()->send();
                     }),
