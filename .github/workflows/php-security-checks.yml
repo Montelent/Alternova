@@ -189,6 +189,7 @@ jobs:
           http {
             server {
               listen 127.0.0.1:8080;
+              access_log /tmp/alternova-nginx-access.log;
               root $root;
               include $GITHUB_WORKSPACE/docs/nginx-upload-security.conf;
               location ~ \.php$ { return 418; }
