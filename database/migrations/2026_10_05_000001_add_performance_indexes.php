@@ -112,7 +112,7 @@ return new class extends Migration
                     return true;
                 }
             }
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             // If schema metadata cannot be read, let the migration attempt the
             // index creation and surface a real database error if it fails.
         }
