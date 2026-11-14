@@ -105,6 +105,7 @@ class CatalogImportExportPage extends Page implements HasForms
 
     public function exportCsv(): StreamedResponse
     {
+        abort_unless(static::canAccess(), 403);
         $filename = 'alternatives-'.now()->format('Y-m-d-His').'.csv';
 
         return response()->streamDownload(function () {
@@ -142,6 +143,7 @@ class CatalogImportExportPage extends Page implements HasForms
 
     public function exportToolsCsv(): StreamedResponse
     {
+        abort_unless(static::canAccess(), 403);
         $filename = 'proprietary-tools-'.now()->format('Y-m-d-His').'.csv';
 
         return response()->streamDownload(function () {
@@ -176,16 +178,19 @@ class CatalogImportExportPage extends Page implements HasForms
 
     public function importCsv(): void
     {
+        abort_unless(static::canAccess(), 403);
         $this->runImport('csv_file', 'alternatives');
     }
 
     public function importToolsCsv(): void
     {
+        abort_unless(static::canAccess(), 403);
         $this->runImport('tools_csv_file', 'tools');
     }
 
     protected function runImport(string $field, string $type): void
     {
+        abort_unless(static::canAccess(), 403);
         $this->importReport = '';
         $state = $this->form->getState();
         $path = $state[$field] ?? null;
