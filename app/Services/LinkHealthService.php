@@ -52,9 +52,11 @@ class LinkHealthService
             return $response->successful() || ($status >= 300 && $status < 400)
                 || in_array($status, [401, 403, 405], true);
         } catch (\Throwable $e) {
+            // Client exceptions may contain query-string credentials.
+            // Log only the host and exception class, never the full URL/message.
             Log::debug('Link check failed.', [
                 'host' => parse_url($url, PHP_URL_HOST),
-                'error' => $e->getMessage(),
+                'exception' => get_class($e),
             ]);
 
             return false;
