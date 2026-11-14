@@ -7,11 +7,13 @@ use App\Services\CommentNotificationService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class CommentSection extends Component
 {
-    #[Locked]\n    public int $alternativeId;
+    #[Locked]
+    public int $alternativeId;
 
     public string $author_name = '';
 
