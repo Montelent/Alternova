@@ -14,6 +14,11 @@ use Illuminate\Support\Facades\Schema;
 
 class StatsOverview extends BaseWidget
 {
+    public static function canView(): bool
+    {
+        return auth()->user()?->canManageSystem() ?? false;
+    }
+
     protected static ?int $sort = 1;
 
     protected function getStats(): array
