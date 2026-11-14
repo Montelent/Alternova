@@ -40,16 +40,17 @@ class LinkHealthService
             $response = Http::timeout(4)
                 ->connectTimeout(3)
                 ->withHeaders(['User-Agent' => 'Alternova-LinkChecker/1.0'])
-                ->withOptions([
-                    'allow_redirects' => PublicHttpUrl::safeRedirectOptions(),
-                    'stream' => true,
-                ])
+                ->withOptions(array_merge(
+                    ['allow_redirects' => false, 'stream' => true],
+                    PublicHttpUrl::safeRequestOptions($url)
+                ))
                 ->head($url);
 
             $status = $response->status();
             $response->toPsrResponse()->getBody()->close();
 
-            return $response->successful() || in_array($status, [401, 403, 405], true);
+            return $response->successful() || ($status >= 300 && $status < 400)
+                || in_array($status, [401, 403, 405], true);
         } catch (\Throwable $e) {
             Log::debug('Link check failed.', [
                 'host' => parse_url($url, PHP_URL_HOST),
