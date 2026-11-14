@@ -139,7 +139,10 @@ class ContactMessageResource extends Resource
                 Tables\Actions\Action::make('markRead')
                     ->icon('heroicon-o-check')
                     ->visible(fn (ContactMessage $r) => $r->status === 'unread')
-                    ->action(fn (ContactMessage $r) => $r->markRead()),
+                    ->action(function (ContactMessage $record) {
+                        abort_unless(auth()->user()?->canManageSystem() ?? false, 403);
+                        $record->markRead();
+                    }),
                 Tables\Actions\Action::make('reply')
                     ->icon('heroicon-o-chat-bubble-left-right')
                     ->form([
@@ -174,6 +177,7 @@ class ContactMessageResource extends Resource
                     }),
                 Tables\Actions\ViewAction::make()
                     ->after(function (ContactMessage $record) {
+                        abort_unless(auth()->user()?->canManageSystem() ?? false, 403);
                         if ($record->status === 'unread') {
                             $record->markRead();
                         }
@@ -184,8 +188,12 @@ class ContactMessageResource extends Resource
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\BulkAction::make('markRead')
-                        ->action(fn ($records) => $records->each->markRead()),
-                    Tables\Actions\DeleteBulkAction::make(),
+                        ->action(function ($records) {
+                            abort_unless(auth()->user()?->canManageSystem() ?? false, 403);
+                            $records->each->markRead();
+                        }),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->before(fn () => abort_unless(auth()->user()?->canManageSystem() ?? false, 403)),
                 ]),
             ]);
     }
