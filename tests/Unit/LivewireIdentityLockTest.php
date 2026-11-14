@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Livewire\AlternativeDetail;
 use App\Livewire\CommentSection;
 use App\Livewire\InstallWizard;
 use App\Livewire\ProsConsSection;
@@ -16,11 +17,13 @@ class LivewireIdentityLockTest extends TestCase
     public function test_public_livewire_components_lock_server_resolved_record_identity(): void
     {
         foreach ([
+            [AlternativeDetail::class, 'alternative'],
             [CommentSection::class, 'alternativeId'],
             [ProsConsSection::class, 'alternativeId'],
             [ReportIssue::class, 'alternativeId'],
             [SupportTicketShow::class, 'ticket'],
             [InstallWizard::class, 'step'],
+            [InstallWizard::class, 'validatedConfigurationFingerprint'],
         ] as [$component, $property]) {
             $reflection = new ReflectionProperty($component, $property);
 
