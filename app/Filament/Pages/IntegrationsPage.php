@@ -75,6 +75,8 @@ class IntegrationsPage extends Page implements HasForms
 
     public function save(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $token = trim((string) ($this->form->getState()['github_token'] ?? ''));
         if ($token !== '') {
             SiteSetting::set('github_token', $token);
@@ -89,6 +91,8 @@ class IntegrationsPage extends Page implements HasForms
 
     public function testGithub(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $this->save();
         IntegrationsSettings::apply();
 
