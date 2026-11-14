@@ -66,8 +66,8 @@ return new class extends Migration
                 }
             });
 
-        Schema::table('webhooks', function (Blueprint $table) {
-            $table->string('secret', 120)->nullable()->change();
-        });
+        // Keep the widened text column on rollback. A secret may have been
+        // rotated to a value longer than the legacy 120-character limit; shrinking
+        // here would silently truncate decrypted credentials and lose data.
     }
 };
