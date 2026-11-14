@@ -26,14 +26,18 @@ class PublishedContentBoundaryTest extends TestCase
         self::assertFalse((new FavoriteService())->has($alternative));
     }
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Application::setInstance(new Application(dirname(__DIR__, 2)));
+    }
+
     private function makeAlternative(bool $published): OpenSourceAlternative
     {
-        // Avoid booting Scout's model observer in this isolated service test;
-        // the test has no Laravel application container or search driver.
-        $alternative = new class extends OpenSourceAlternative
-        {
-            protected static function boot(): void {}
-        };
+        // Construct without Eloquent boot so this unit test does not register
+        // Scout observers or require a configured search driver.
+        $alternative = (new \\ReflectionClass(OpenSourceAlternative::class))
+            ->newInstanceWithoutConstructor();
         $alternative->setAttribute('is_published', $published);
 
         return $alternative;
