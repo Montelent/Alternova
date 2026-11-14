@@ -95,8 +95,10 @@ class ProsConsService
             'votes_count' => 0,
             'is_approved' => $autoApprove,
             'is_featured' => false,
-            'author_name' => $authorName ?: ($user?->name),
-            'author_email' => $authorEmail ?: ($user?->email),
+            // Authenticated contributors must not be able to impersonate
+            // another display name or email through public component/API input.
+            'author_name' => $user?->name ?: $authorName,
+            'author_email' => $user?->email ?: $authorEmail,
             'user_id' => $user?->id,
             'ip_address' => $ip ? Str::limit($ip, 45, '') : null,
         ]);
