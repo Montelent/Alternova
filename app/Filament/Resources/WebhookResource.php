@@ -11,6 +11,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -29,6 +30,36 @@ class WebhookResource extends Resource
     public static function canAccess(): bool
     {
         return auth()->user()?->canManageSystem() ?? false;
+    }
+
+    public static function canViewAny(): bool
+    {
+        return static::canAccess();
+    }
+
+    public static function canView(Model $record): bool
+    {
+        return static::canAccess();
+    }
+
+    public static function canCreate(): bool
+    {
+        return static::canAccess();
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return static::canAccess();
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return static::canAccess();
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return static::canAccess();
     }
 
     public static function shouldRegisterNavigation(): bool
@@ -87,6 +118,8 @@ class WebhookResource extends Resource
                     ->label('Send test')
                     ->icon('heroicon-o-paper-airplane')
                     ->action(function (Webhook $record) {
+                        abort_unless(static::canAccess(), 403);
+
                         // Send directly to this record. Do not temporarily mutate
                         // active/events state: queued dispatch would run after the
                         // state had already been restored and silently skip the test.
