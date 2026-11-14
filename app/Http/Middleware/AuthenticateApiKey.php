@@ -81,22 +81,6 @@ class AuthenticateApiKey
                 ], 403);
             }
 
-            /*
-                if (! $user->isActive()) {
-                    return response()->json([
-                        'error' => 'This user account is deactivated.',
-                        'code' => 'user_inactive',
-                    ], 403);
-                }
-
-                if (! $user->hasApiAccess()) {
-                    return response()->json([
-                        'error' => 'API access is disabled for this user.',
-                        'code' => 'api_user_disabled',
-                    ], 403);
-                }
-            */
-
             $key->markUsed();
             $request->attributes->set('api_key', $key);
             $request->attributes->set('api_key_user_id', $key->user_id);
