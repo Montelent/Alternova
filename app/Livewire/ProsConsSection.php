@@ -93,8 +93,16 @@ class ProsConsSection extends Component
         }
         RateLimiter::hit($key, 3600);
 
+        $alternativeIsPublished = OpenSourceAlternative::query()
+            ->whereKey($this->alternativeId)
+            ->where('is_published', true)
+            ->exists();
+
         $item = AlternativeProsCon::query()->find($id);
-        if (! $item || (int) $item->open_source_alternative_id !== $this->alternativeId) {
+        if (! $alternativeIsPublished
+            || ! $item
+            || (int) $item->open_source_alternative_id !== $this->alternativeId
+        ) {
             return;
         }
 
