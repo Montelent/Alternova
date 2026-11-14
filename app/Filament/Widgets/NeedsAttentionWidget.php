@@ -7,6 +7,11 @@ use Filament\Widgets\Widget;
 
 class NeedsAttentionWidget extends Widget
 {
+    public static function canView(): bool
+    {
+        return auth()->user()?->canManageSystem() ?? false;
+    }
+
     protected static string $view = 'filament.widgets.needs-attention';
 
     protected int | string | array $columnSpan = 'full';
