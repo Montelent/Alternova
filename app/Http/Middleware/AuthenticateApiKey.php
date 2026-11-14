@@ -62,7 +62,10 @@ class AuthenticateApiKey
                 ], 403);
             }
 
-            if ($user instanceof User) {
+            // Make the API-key owner the authenticated request principal so
+            // downstream controllers and services cannot accidentally fall
+            // back to a different browser-session user (or treat this as a guest).
+            $request->setUserResolver(static fn () => $user);\n\n            if ($user instanceof User) {
                 if (! $user->isActive()) {
                     return response()->json([
                         'error' => 'This user account is deactivated.',
