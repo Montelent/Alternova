@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Models\User;
+use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\Facades\Schema;
 use PHPUnit\Framework\TestCase;
 
@@ -54,7 +55,7 @@ class UserAuthorizationTest extends TestCase
 
     public function test_api_access_fails_closed_when_schema_column_is_missing(): void
     {
-        $schema = \\Mockery::mock();
+        $schema = \Mockery::mock();
         $schema->shouldReceive('hasColumn')
             ->once()
             ->with('users', 'api_enabled')
