@@ -7,6 +7,7 @@ use App\Models\OpenSourceAlternative;
 use App\Services\ProsConsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class ProsConsApiController extends Controller
 {
@@ -57,11 +58,20 @@ class ProsConsApiController extends Controller
             ->where('is_published', true)
             ->firstOrFail();
 
-        $validated = $request->validate([
+        $validator = Validator::make($request->all(), [
             'type' => 'required|in:pro,con',
             'body' => 'required|string|min:8|max:280',
             'author_name' => 'nullable|string|max:80',
         ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'The given data was invalid.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $validated = $validator->validated();
 
         $result = app(ProsConsService::class)->submit(
             $alt,
