@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Livewire\Concerns\NormalizesInstallUrl;
 use App\Models\User;
 use App\Support\Installer;
+use App\Support\InstallerConfigurationFingerprint;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
@@ -20,6 +21,9 @@ class InstallWizard extends Component
 
     #[Locked]
     public int $step = 1;
+
+    #[Locked]
+    public ?string $validatedConfigurationFingerprint = null;
 
     public array $requirements = [];
 
@@ -67,7 +71,7 @@ class InstallWizard extends Component
         Installer::ensureStorageDirectories();
         Installer::ensureEnvFile();
         Installer::ensureInstallSafeDrivers();
-        Installer::ensureAppKey();
+        $this->ensureApplicationKey();
         $this->refreshRequirements();
     }
 
@@ -131,7 +135,7 @@ class InstallWizard extends Component
                 return;
             }
 
-            Installer::ensureAppKey();
+            $this->ensureApplicationKey();
             $this->step = 2;
 
             return;
@@ -200,7 +204,7 @@ class InstallWizard extends Component
 
         try {
             Installer::ensureEnvFile();
-            Installer::ensureAppKey();
+            $this->ensureApplicationKey();
 
             Installer::writeEnv([
                 'APP_NAME' => $this->app_name,
@@ -246,6 +250,7 @@ class InstallWizard extends Component
                 "database.connections.{$this->db_connection}.password" => $this->db_password,
             ]);
 
+            $this->validatedConfigurationFingerprint = $this->configurationFingerprint();
             $this->dbTestSuccess = true;
             $this->dbTestMessage = 'Connection successful. Environment saved.';
             $this->step = 3;
@@ -258,6 +263,10 @@ class InstallWizard extends Component
     protected function runMigrationsAndContinue(): void
     {
         $this->ensureInstallerOpen();
+
+        if (! $this->ensureValidatedConfiguration()) {
+            return;
+        }
 
         $this->app_url = $this->normalizeAppUrl($this->app_url);
 
@@ -314,6 +323,10 @@ class InstallWizard extends Component
     protected function createAdminAndFinish(): void
     {
         $this->ensureInstallerOpen();
+
+        if (! $this->ensureValidatedConfiguration()) {
+            return;
+        }
 
         $this->app_url = $this->normalizeAppUrl($this->app_url);
 
@@ -374,6 +387,43 @@ class InstallWizard extends Component
             Log::error('Livewire installer failed to create the initial administrator.', ['error' => $e->getMessage()]);
             $this->errorMessage = 'Failed to create the administrator account. Check the server logs.';
         }
+    }
+
+    protected function ensureApplicationKey(): void
+    {
+        $key = Installer::ensureAppKey();
+        config(['app.key' => $key]);
+    }
+
+    protected function configurationFingerprint(): string
+    {
+        return InstallerConfigurationFingerprint::make([
+            'app_name' => $this->app_name,
+            'app_url' => $this->app_url,
+            'db_connection' => $this->db_connection,
+            'db_host' => $this->db_host,
+            'db_port' => $this->db_port,
+            'db_database' => $this->db_database,
+            'db_username' => $this->db_username,
+            'db_password' => $this->db_password,
+        ], (string) config('app.key'));
+    }
+
+    protected function ensureValidatedConfiguration(): bool
+    {
+        $current = $this->configurationFingerprint();
+
+        if (! is_string($this->validatedConfigurationFingerprint)
+            || ! hash_equals($this->validatedConfigurationFingerprint, $current)
+        ) {
+            $this->errorMessage = 'The site or database configuration changed after validation. Return to step 2 and test and save it again.';
+            $this->dbTestSuccess = false;
+            $this->step = 2;
+
+            return false;
+        }
+
+        return true;
     }
 
     protected function ensureInstallerOpen(): void
