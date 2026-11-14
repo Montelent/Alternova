@@ -1,14 +1,14 @@
 <?php
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use App\\Models\\SiteSetting;
-use App\\Models\\User;
-use App\\Models\\Webhook;
-use App\\Support\\CanonicalUrl;
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Illuminate\\Http\\Request;
-use Tests\\TestCase;
+use App\Models\SiteSetting;
+use App\Models\User;
+use App\Models\Webhook;
+use App\Support\CanonicalUrl;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
+use Tests\TestCase;
 
 class ProductionHardeningSmokeTest extends TestCase
 {
