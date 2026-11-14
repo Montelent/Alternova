@@ -43,7 +43,7 @@ class PublicHttpUrl
             }
 
             return true;
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             return false;
         }
     }
@@ -58,12 +58,12 @@ class PublicHttpUrl
     {
         $parts = parse_url(trim($url));
         if (! is_array($parts)) {
-            throw new \\RuntimeException('Invalid outbound URL.');
+            throw new \RuntimeException('Invalid outbound URL.');
         }
 
         $host = strtolower(trim(rtrim((string) ($parts['host'] ?? ''), '[]')));
         if ($host === '' || ! self::isSafe($url)) {
-            throw new \\RuntimeException('Outbound URL is not a public HTTP or HTTPS destination.');
+            throw new \RuntimeException('Outbound URL is not a public HTTP or HTTPS destination.');
         }
 
         if (filter_var($host, FILTER_VALIDATE_IP) || @inet_pton($host) !== false) {
@@ -71,16 +71,16 @@ class PublicHttpUrl
         }
 
         if (! extension_loaded('curl') || ! defined('CURLOPT_RESOLVE')) {
-            throw new \\RuntimeException('Safe outbound requests require the PHP cURL extension for DNS pinning.');
+            throw new \RuntimeException('Safe outbound requests require the PHP cURL extension for DNS pinning.');
         }
 
         $addresses = self::resolveAddresses($host);
         if ($addresses === []) {
-            throw new \\RuntimeException('Outbound hostname did not resolve to a public address.');
+            throw new \RuntimeException('Outbound hostname did not resolve to a public address.');
         }
         foreach ($addresses as $address) {
             if (! self::isPublicAddress($address)) {
-                throw new \\RuntimeException('Outbound hostname resolved to a non-public address.');
+                throw new \RuntimeException('Outbound hostname resolved to a non-public address.');
             }
         }
 
