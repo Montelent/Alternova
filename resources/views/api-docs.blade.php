@@ -37,9 +37,6 @@
         <pre class="rounded-xl bg-slate-900 text-emerald-300 text-xs sm:text-sm p-4 overflow-x-auto">Authorization: Bearer alt_your_key_here
 
 # or
-X-Api-Key: alt_your_key_here
-
-# or
 X-Api-Key: alt_your_key_here</pre>
         <p class="text-sm text-slate-600 dark:text-slate-300">
             Rate limits (per minute): anonymous <strong>{{ $rateAnon }}</strong>, with API key <strong>{{ $rateKey }}</strong>.
