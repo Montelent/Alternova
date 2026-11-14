@@ -9,17 +9,22 @@ Production-ready Laravel 11 product: Open Source Alternative Finder + Domain Nam
 - PHP 8.2+
 - MySQL or PostgreSQL
 - Composer
+- Node.js 20+ and npm (for the production asset build)
 - Writable `storage/` and `bootstrap/cache/`
 
 ## Install (any domain / host)
 
 1. Upload or clone the project into the web root your host assigns (often `public_html` or `httpdocs`).
 2. Point the domain document root at that folder (this package is designed so `index.php` lives at the app root).
-3. Run:
+3. Install PHP dependencies and build the production frontend assets before serving the application:
 
 ```bash
 composer install --no-dev --optimize-autoloader
+npm ci
+npm run build
 ```
+
+   The build creates `public/build/manifest.json`, which Laravel requires for pages using the main application layout. Keep the generated `public/build/` directory when uploading the application; it is intentionally not committed to source control. If your hosting plan has no Node.js, run the npm commands locally or in CI and upload the resulting `public/build/` directory with the application.
 
 4. Open `https://YOUR-DOMAIN/install` and complete the wizard (creates `.env`, APP_KEY, migrations, admin user, locks the installer).
 
