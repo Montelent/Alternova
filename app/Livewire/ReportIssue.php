@@ -9,7 +9,7 @@ use Livewire\Component;
 
 class ReportIssue extends Component
 {
-    public ?int $alternativeId = null;
+    #[Locked]\n    public ?int $alternativeId = null;
 
     public string $type = 'wrong_info';
 
