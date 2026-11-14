@@ -6,7 +6,7 @@ Production-ready Laravel 11 product: Open Source Alternative Finder + Domain Nam
 
 ## Requirements
 
-- PHP 8.2+
+- PHP 8.2+ with the cURL extension enabled
 - MySQL or PostgreSQL
 - Composer
 - Node.js 20+ and npm (for the production asset build)
