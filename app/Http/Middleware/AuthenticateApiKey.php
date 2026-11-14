@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Support\ApiSettings;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -30,6 +31,24 @@ class AuthenticateApiKey
                     'error' => 'API key required. Send Authorization: Bearer YOUR_KEY or X-Api-Key.',
                     'code' => 'api_key_required',
                 ], 401);
+            }
+
+            // The global API switch may permit anonymous access, but an
+            // authenticated account that is disabled or has lost API access
+            // must not bypass those controls merely by omitting its key.
+            $sessionUser = $request->user();
+            if ($sessionUser instanceof User && ! $sessionUser->isActive()) {
+                return response()->json([
+                    'error' => 'This user account is deactivated.',
+                    'code' => 'user_inactive',
+                ], 403);
+            }
+
+            if ($sessionUser instanceof User && ! $sessionUser->hasApiAccess()) {
+                return response()->json([
+                    'error' => 'API access is disabled for this user.',
+                    'code' => 'api_user_disabled',
+                ], 403);
             }
 
             return $next($request);
@@ -66,6 +85,7 @@ class AuthenticateApiKey
             // downstream controllers and services cannot accidentally fall
             // back to a different browser-session user (or treat this as a guest).
             $request->setUserResolver(static fn () => $user);
+            Auth::setUser($user);
 
             if (! $user->isActive()) {
                 return response()->json([
