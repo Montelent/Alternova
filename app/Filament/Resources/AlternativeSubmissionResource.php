@@ -40,7 +40,7 @@ class AlternativeSubmissionResource extends Resource
 
         try {
             return Schema::hasTable('alternative_submissions');
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             return false;
         }
     }
