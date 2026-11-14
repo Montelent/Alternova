@@ -8,6 +8,14 @@ use PHPUnit\Framework\TestCase;
 
 class UserAuthorizationTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $app = new Application(dirname(__DIR__, 2));
+        Application::setInstance($app);
+        Facade::setFacadeApplication($app);
+    }
+
     public function test_legacy_null_role_never_grants_system_access(): void
     {
         $user = $this->makeUser(null, true, true);
