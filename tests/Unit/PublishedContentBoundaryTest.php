@@ -12,7 +12,8 @@ class PublishedContentBoundaryTest extends TestCase
 {
     public function test_unpublished_alternative_cannot_be_added_to_favorites(): void
     {
-        $alternative = new OpenSourceAlternative(['is_published' => false]);
+        $alternative = new OpenSourceAlternative();
+        $alternative->setAttribute('is_published', false);
 
         $this->expectException(HttpException::class);
 
