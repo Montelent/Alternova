@@ -60,14 +60,7 @@ class SupportTicketService
         $this->notifyUser($ticket, 'created', $data['message'], config('app.name', 'Support'));
 
         try {
-            $admins = User::query()
-                ->when(Schema::hasColumn('users', 'role'), fn ($q) => $q->whereIn('role', ['admin', 'editor']))
-                ->limit(20)
-                ->get();
-
-            if ($admins->isEmpty()) {
-                $admins = User::query()->orderBy('id')->limit(3)->get();
-            }
+            $admins = $this->adminRecipients(20);
 
             foreach ($admins as $admin) {
                 if (! $admin->email || strcasecmp((string) $admin->email, $ticket->email) === 0) {
@@ -218,7 +211,12 @@ class SupportTicketService
 
         $user = $ticket->user;
         if (! $user && $ticket->email) {
-            $user = User::query()->where('email', $ticket->email)->first();
+            // Do not attach a guest ticket or its bearer URL to an account
+            // unless that account has verified control of the matching mailbox.
+            $user = User::query()
+                ->where('email', $ticket->email)
+                ->whereNotNull('email_verified_at')
+                ->first();
         }
 
         if ($user) {
@@ -244,17 +242,29 @@ class SupportTicketService
         }
     }
 
+    /**
+     * Only active, verified administrators may receive support-ticket content.
+     * Editors and arbitrary fallback users do not have access to ticket records.
+     */
+    protected function adminRecipients(int $limit)
+    {
+        if (! Schema::hasColumn('users', 'role') || ! Schema::hasColumn('users', 'email_verified_at')) {
+            return collect();
+        }
+
+        return User::query()
+            ->where('role', User::ROLE_ADMIN)
+            ->whereNotNull('email_verified_at')
+            ->limit($limit)
+            ->get()
+            ->filter(fn (User $admin) => $admin->isActive())
+            ->values();
+    }
+
     protected function notifyAdminsOfUserReply(ContactMessage $ticket, string $body, User $user): void
     {
         try {
-            $admins = User::query()
-                ->when(Schema::hasColumn('users', 'role'), fn ($q) => $q->whereIn('role', ['admin', 'editor']))
-                ->limit(15)
-                ->get();
-
-            if ($admins->isEmpty()) {
-                $admins = User::query()->orderBy('id')->limit(3)->get();
-            }
+            $admins = $this->adminRecipients(15);
 
             foreach ($admins as $admin) {
                 if ((int) $admin->id === (int) $user->id) {
