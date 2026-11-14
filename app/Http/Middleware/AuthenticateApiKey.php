@@ -65,7 +65,23 @@ class AuthenticateApiKey
             // Make the API-key owner the authenticated request principal so
             // downstream controllers and services cannot accidentally fall
             // back to a different browser-session user (or treat this as a guest).
-            $request->setUserResolver(static fn () => $user);\n\n            if ($user instanceof User) {
+            $request->setUserResolver(static fn () => $user);
+
+            if (! $user->isActive()) {
+                return response()->json([
+                    'error' => 'This user account is deactivated.',
+                    'code' => 'user_inactive',
+                ], 403);
+            }
+
+            if (! $user->hasApiAccess()) {
+                return response()->json([
+                    'error' => 'API access is disabled for this user.',
+                    'code' => 'api_user_disabled',
+                ], 403);
+            }
+
+            /*
                 if (! $user->isActive()) {
                     return response()->json([
                         'error' => 'This user account is deactivated.',
@@ -79,7 +95,7 @@ class AuthenticateApiKey
                         'code' => 'api_user_disabled',
                     ], 403);
                 }
-            }
+            */
 
             $key->markUsed();
             $request->attributes->set('api_key', $key);
