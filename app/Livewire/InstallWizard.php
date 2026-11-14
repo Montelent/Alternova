@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules\Password;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 #[Layout('layouts.install')]
@@ -17,6 +18,7 @@ class InstallWizard extends Component
 {
     use NormalizesInstallUrl;
 
+    #[Locked]
     public int $step = 1;
 
     public array $requirements = [];
@@ -59,9 +61,7 @@ class InstallWizard extends Component
 
     public function mount(): void
     {
-        if (Installer::isInstalled()) {
-            abort(403, 'Application is already installed.');
-        }
+        $this->ensureInstallerOpen();
 
         $this->app_url = $this->normalizeAppUrl(Installer::detectAppUrl());
         Installer::ensureStorageDirectories();
@@ -73,6 +73,7 @@ class InstallWizard extends Component
 
     public function refreshRequirements(): void
     {
+        $this->ensureInstallerOpen();
         Installer::ensureStorageDirectories();
         $this->requirements = Installer::requirements();
         $this->requirementsMet = Installer::allRequirementsMet();
@@ -80,11 +81,13 @@ class InstallWizard extends Component
 
     public function updatedDbConnection(string $value): void
     {
+        $this->ensureInstallerOpen();
         $this->db_port = $value === 'mysql' ? '3306' : '5432';
     }
 
     public function testDatabase(): void
     {
+        $this->ensureInstallerOpen();
         $this->validate([
             'db_connection' => ['required', 'in:pgsql,mysql'],
             'db_host' => ['required', 'string', 'max:253', 'regex:/\\A(?:localhost|[A-Za-z0-9.-]+|\\[[0-9A-Fa-f:]+\\]|[0-9A-Fa-f:]+)\\z/'],
@@ -109,6 +112,7 @@ class InstallWizard extends Component
 
     public function nextStep(): void
     {
+        $this->ensureInstallerOpen();
         $this->errorMessage = null;
 
         if ($this->step === 1) {
@@ -152,6 +156,7 @@ class InstallWizard extends Component
 
     public function previousStep(): void
     {
+        $this->ensureInstallerOpen();
         if ($this->step > 1 && $this->step < 5) {
             $this->step--;
             $this->errorMessage = null;
@@ -161,6 +166,8 @@ class InstallWizard extends Component
 
     protected function saveEnvironmentAndContinue(): void
     {
+        $this->ensureInstallerOpen();
+
         $this->app_url = $this->normalizeAppUrl($this->app_url);
 
         $this->validate([
@@ -250,6 +257,8 @@ class InstallWizard extends Component
 
     protected function runMigrationsAndContinue(): void
     {
+        $this->ensureInstallerOpen();
+
         $this->app_url = $this->normalizeAppUrl($this->app_url);
 
         try {
@@ -304,6 +313,8 @@ class InstallWizard extends Component
 
     protected function createAdminAndFinish(): void
     {
+        $this->ensureInstallerOpen();
+
         $this->app_url = $this->normalizeAppUrl($this->app_url);
 
         $this->validate([
@@ -362,6 +373,13 @@ class InstallWizard extends Component
         } catch (\Throwable $e) {
             Log::error('Livewire installer failed to create the initial administrator.', ['error' => $e->getMessage()]);
             $this->errorMessage = 'Failed to create the administrator account. Check the server logs.';
+        }
+    }
+
+    protected function ensureInstallerOpen(): void
+    {
+        if (Installer::isInstalled()) {
+            abort(403, 'Application is already installed.');
         }
     }
 
