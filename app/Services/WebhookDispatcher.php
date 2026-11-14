@@ -145,7 +145,15 @@ class WebhookDispatcher
                 }
             }
         } catch (\Throwable $e) {
-            $error = $e->getMessage();
+            // HTTP-client exceptions can include the full endpoint URL,
+            // including query-string credentials. Persist only the exception
+            // class and a safe host identifier, never the raw message.
+            $error = 'Outbound request failed ('.get_class($e).').';
+            Log::warning('Webhook delivery failed.', [
+                'webhook_id' => $hook->id,
+                'host' => parse_url((string) $hook->url, PHP_URL_HOST),
+                'exception' => get_class($e),
+            ]);
         }
 
         try {
