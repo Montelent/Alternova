@@ -25,6 +25,8 @@ class PublicHttpUrlTest extends TestCase
             'http://10.0.0.1',
             'http://172.16.0.1',
             'http://192.168.1.1',
+            'http://100.64.0.1',
+            'http://100.127.255.254',
             'http://169.254.169.254',
             'http://[::1]',
             'http://[fe80::1]',
@@ -45,6 +47,11 @@ class PublicHttpUrlTest extends TestCase
         self::assertTrue(PublicHttpUrl::isSafe('https://8.8.8.8'));
         self::assertTrue(PublicHttpUrl::isSafe('https://[2001:4860:4860::8888]'), 'public IPv6');
         self::assertTrue(PublicHttpUrl::isSafe('https://[::ffff:8.8.8.8]'), 'public mapped IPv4');
+    }
+
+    public function test_safe_request_options_do_not_re_resolve_literal_ip_addresses(): void
+    {
+        self::assertSame([], PublicHttpUrl::safeRequestOptions('https://8.8.8.8'));
     }
 
     public function test_https_redirects_cannot_downgrade_to_http(): void
