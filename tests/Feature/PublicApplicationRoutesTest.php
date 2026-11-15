@@ -71,6 +71,7 @@ class PublicApplicationRoutesTest extends TestCase
         OpenSourceAlternative::factory()->create([
             'proprietary_tool_id' => $toolWithPublishedAlternative->id,
             'is_published' => true,
+            'description' => null,
         ]);
 
         $toolWithDraftOnly = ProprietaryTool::factory()->create([
