@@ -75,4 +75,32 @@ class QueueWorkerIntegrationTest extends TestCase
 
         Http::assertSentCount(2);
     }
+    public function test_transient_github_api_failures_are_thrown_so_the_worker_can_retry(): void
+    {
+        $tool = ProprietaryTool::factory()->create(['description' => null]);
+
+        $alternative = OpenSourceAlternative::factory()->create([
+            'proprietary_tool_id' => $tool->id,
+            'repo_url' => 'https://github.com/example/retry-project',
+            'is_published' => true,
+        ]);
+
+        Http::fake([
+            'https://api.github.com/repos/example/retry-project' => Http::response([
+                'message' => 'Upstream unavailable',
+            ], 503),
+        ]);
+        Http::preventStrayRequests();
+
+        $job = new SyncGitHubMetricsJob($alternative);
+
+        $this->assertSame(3, $job->tries);
+        $this->assertSame(60, $job->backoff);
+
+        $this->expectException(\\RuntimeException::class);
+        $this->expectExceptionMessage('HTTP 503');
+
+        $job->handle();
+    }
+
 }
