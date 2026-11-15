@@ -68,7 +68,14 @@ class OpenSourceAlternativeResource extends Resource
         if ($hasPivot) {
             $toolFields[] = Forms\Components\Select::make('proprietaryTools')
                 ->label('Proprietary tools (up to 5)')
-                ->relationship('proprietaryTools', 'name')
+                ->relationship(
+                    'proprietaryTools',
+                    'name',
+                    modifyQueryUsing: fn (Builder $query) => $query->select([
+                        'proprietary_tools.id',
+                        'proprietary_tools.name',
+                    ]),
+                )
                 ->multiple()
                 ->maxItems(5)
                 ->searchable()
