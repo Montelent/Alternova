@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Filament\Pages\AdminPathSettings;
 use App\Filament\Pages\SiteSeoSettings;
 use App\Models\SiteSetting;
+use App\Support\AdminPanel;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -132,4 +133,12 @@ class AdminCrudAndSettingsTest extends TestCase
 
         $this->assertSame('admin', SiteSetting::get('admin_path'));
     }
+    public function test_admin_can_open_catalog_management_pages(): void
+    {
+        $this->actingAs($this->makeAdmin());
+
+        $this->get(AdminPanel::url('oss-categories'))->assertOk();
+        $this->get(AdminPanel::url('license-types'))->assertOk();
+    }
+
 }
