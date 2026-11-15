@@ -102,3 +102,31 @@ test('newsletter subscription confirms success and clears the email field', asyn
     await expect(page.getByText(/Subscribed — occasional product updates only/)).toBeVisible();
     await expect(email).toHaveValue('');
 });
+
+test('finder filters and compare selectors work with published alternatives', async ({ page }) => {
+    await page.goto(new URL('/alternatives', baseUrl).toString());
+
+    await expect(page.getByText('Browser Alpha Alternative')).toBeVisible();
+    await expect(page.getByText('Browser Beta Alternative')).toBeVisible();
+
+    const mitFilter = page.getByRole('button', { name: 'MIT', exact: true });
+    await mitFilter.click();
+    await expect(page.getByText('Browser Alpha Alternative')).toBeVisible();
+    await expect(page.getByText('Browser Beta Alternative')).toBeHidden();
+    await mitFilter.click();
+    await expect(page.getByText('Browser Beta Alternative')).toBeVisible();
+
+    await page.goto(new URL('/alternatives/compare', baseUrl).toString());
+    const selectors = page.locator('select');
+    await selectors.nth(0).selectOption('browser-alpha-alternative');
+    await selectors.nth(1).selectOption('browser-beta-alternative');
+
+    await expect(page.getByRole('heading', { name: 'Browser Alpha Alternative' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Browser Beta Alternative' })).toBeVisible();
+    await expect(page.getByText('Health score')).toBeVisible();
+    await expect(page.getByText('Share this comparison')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Swap A ↔ B' }).click();
+    await expect(selectors.nth(0)).toHaveValue('browser-beta-alternative');
+    await expect(selectors.nth(1)).toHaveValue('browser-alpha-alternative');
+});
