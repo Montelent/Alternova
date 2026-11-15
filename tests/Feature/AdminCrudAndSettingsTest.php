@@ -4,11 +4,13 @@ namespace Tests\Feature;
 
 use App\Filament\Pages\AdminPathSettings;
 use App\Filament\Resources\LicenseTypeResource\Pages\ManageLicenseTypes;
+use App\Filament\Resources\CollectionResource\Pages\ListCollections;
 use App\Filament\Resources\OssCategoryResource\Pages\ManageOssCategories;
 use App\Filament\Resources\ProprietaryToolResource\Pages\ListProprietaryTools;
 use App\Filament\Pages\SiteSeoSettings;
 use App\Models\SiteSetting;
 use App\Models\LicenseType;
+use App\Models\Collection;
 use App\Models\OssCategory;
 use App\Models\ProprietaryTool;
 use App\Support\AdminPanel;
@@ -266,6 +268,43 @@ class AdminCrudAndSettingsTest extends TestCase
             ->assertHasNoTableActionErrors();
 
         $this->assertSoftDeleted('proprietary_tools', ['id' => $tool->id]);
+    }
+
+    public function test_admin_can_create_and_edit_collections_through_filament_actions(): void
+    {
+        $this->actingAs($this->makeAdmin());
+
+        Livewire::test(ListCollections::class)
+            ->callAction('create', data: [
+                'name' => 'Developer Toolkit',
+                'slug' => 'developer-toolkit',
+                'description' => 'A curated developer collection',
+                'intro_html' => '<p>Useful tools</p>',
+                'is_published' => false,
+                'is_featured' => false,
+            ])
+            ->assertHasNoActionErrors();
+
+        $collection = Collection::query()->where('slug', 'developer-toolkit')->firstOrFail();
+        $this->assertSame('Developer Toolkit', $collection->name);
+
+        Livewire::test(ListCollections::class)
+            ->callTableAction('edit', $collection, data: [
+                'name' => 'Developer Essentials',
+                'slug' => 'developer-toolkit',
+                'description' => 'Updated curated collection',
+                'intro_html' => '<p>Updated introduction</p>',
+                'is_published' => true,
+                'is_featured' => true,
+            ])
+            ->assertHasNoTableActionErrors();
+
+        $collection->refresh();
+        $this->assertSame('Developer Essentials', $collection->name);
+        $this->assertSame('developer-toolkit', $collection->slug);
+        $this->assertSame('Updated curated collection', $collection->description);
+        $this->assertTrue($collection->is_published);
+        $this->assertTrue($collection->is_featured);
     }
 
 }
