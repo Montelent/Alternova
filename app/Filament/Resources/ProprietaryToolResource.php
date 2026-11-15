@@ -110,7 +110,7 @@ class ProprietaryToolResource extends Resource
             ->columns([
                 Tables\Columns\ImageColumn::make('logo_url')
                     ->label('Logo')
-                    ->getStateUsing(fn ($record) => $record->logo_url ?? MediaUrl::to($record->logo_path))
+                    ->getStateUsing(fn ($record) => $record->logo_url ?? MediaUrl::make($record->logo_path))
                     ->circular()
                     ->height(40)
                     ->width(40)
