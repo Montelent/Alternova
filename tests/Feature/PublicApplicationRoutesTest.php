@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\OpenSourceAlternative;
+use App\Models\ProprietaryTool;
 use App\Support\Installer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
