@@ -59,6 +59,40 @@ class PublicApplicationRoutesTest extends TestCase
         $this->get($uri)->assertOk();
     }
 
+    public function test_homepage_lists_only_tools_with_published_alternatives_and_exposes_the_count(): void
+    {
+        $toolWithPublishedAlternative = ProprietaryTool::factory()->create([
+            'name' => 'Published Tool',
+            'is_published' => true,
+        ]);
+        OpenSourceAlternative::factory()->create([
+            'proprietary_tool_id' => $toolWithPublishedAlternative->id,
+            'is_published' => true,
+        ]);
+
+        $toolWithDraftOnly = ProprietaryTool::factory()->create([
+            'name' => 'Draft Only Tool',
+            'is_published' => true,
+        ]);
+        OpenSourceAlternative::factory()->create([
+            'proprietary_tool_id' => $toolWithDraftOnly->id,
+            'is_published' => false,
+        ]);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertViewHas('tools', function ($tools) use ($toolWithPublishedAlternative, $toolWithDraftOnly) {
+                $this->assertTrue($tools->contains(
+                    fn ($tool) => $tool->is($toolWithPublishedAlternative) && $tool->alternatives_count === 1
+                ));
+                $this->assertFalse($tools->contains(
+                    fn ($tool) => $tool->is($toolWithDraftOnly)
+                ));
+
+                return true;
+            });
+    }
+
     public function test_guest_authentication_pages_render_successfully(): void
     {
         $this->get('/login')->assertOk();
