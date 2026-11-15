@@ -18,6 +18,12 @@ class AdminCrudAndSettingsTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Filament::setCurrentPanel(Filament::getPanel('admin'));
+    }
+
     private function makeAdmin(): User
     {
         return User::query()->create([
@@ -106,7 +112,7 @@ class AdminCrudAndSettingsTest extends TestCase
                 'seo_site_noindex' => true,
                 'seo_sitemap_domains' => false,
                 'seo_sitemap_compare' => true,
-            ], statePath: 'data')
+            ])
             ->call('save')
             ->assertHasNoFormErrors();
 
