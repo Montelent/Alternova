@@ -20,6 +20,8 @@ class NewsletterSubscribe extends Component
 
     public function subscribe(): void
     {
+        $this->email = trim($this->email);
+
         $this->validate([
             'email' => 'required|email|max:190',
         ]);
