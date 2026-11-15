@@ -3,8 +3,12 @@
 namespace Tests\Feature;
 
 use App\Filament\Pages\AdminPathSettings;
+use App\Filament\Resources\LicenseTypeResource\Pages\ManageLicenseTypes;
+use App\Filament\Resources\OssCategoryResource\Pages\ManageOssCategories;
 use App\Filament\Pages\SiteSeoSettings;
 use App\Models\SiteSetting;
+use App\Models\LicenseType;
+use App\Models\OssCategory;
 use App\Support\AdminPanel;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -139,6 +143,86 @@ class AdminCrudAndSettingsTest extends TestCase
 
         $this->get(AdminPanel::url('oss-categories'))->assertOk();
         $this->get(AdminPanel::url('license-types'))->assertOk();
+    }
+
+    public function test_admin_can_create_edit_and_delete_categories_through_filament_actions(): void
+    {
+        $this->actingAs($this->makeAdmin());
+
+        Livewire::test(ManageOssCategories::class)
+            ->callAction('create', data: [
+                'name' => 'Network & WiFi',
+                'slug' => 'net-wifi',
+                'description' => 'Networking tools',
+                'is_active' => true,
+            ])
+            ->assertHasNoActionErrors();
+
+        $category = OssCategory::query()->where('slug', 'net-wifi')->firstOrFail();
+        $this->assertSame('Network & WiFi', $category->name);
+
+        Livewire::test(ManageOssCategories::class)
+            ->callTableAction('edit', $category, data: [
+                'name' => 'Network and Wireless',
+                'slug' => 'net-wifi',
+                'description' => 'Updated networking tools',
+                'is_active' => false,
+            ])
+            ->assertHasNoTableActionErrors();
+
+        $category->refresh();
+        $this->assertSame('Network and Wireless', $category->name);
+        $this->assertSame('net-wifi', $category->slug);
+        $this->assertFalse($category->is_active);
+
+        Livewire::test(ManageOssCategories::class)
+            ->callTableAction('delete', $category)
+            ->assertHasNoTableActionErrors();
+
+        $this->assertDatabaseMissing('oss_categories', ['id' => $category->id]);
+    }
+
+    public function test_admin_can_create_edit_and_delete_license_types_through_filament_actions(): void
+    {
+        $this->actingAs($this->makeAdmin());
+
+        Livewire::test(ManageLicenseTypes::class)
+            ->callAction('create', data: [
+                'name' => 'Example License',
+                'slug' => 'example-license',
+                'spdx_id' => 'EXAMPLE',
+                'description' => 'A test license',
+                'is_osi_approved' => false,
+                'is_active' => true,
+            ])
+            ->assertHasNoActionErrors();
+
+        $license = LicenseType::query()->where('slug', 'example-license')->firstOrFail();
+        $this->assertSame('EXAMPLE', $license->spdx_id);
+
+        Livewire::test(ManageLicenseTypes::class)
+            ->callTableAction('edit', $license, data: [
+                'name' => 'Renamed Example License',
+                'slug' => 'example-license',
+                'spdx_id' => 'EXAMPLE-2',
+                'description' => 'Updated license description',
+                'is_osi_approved' => true,
+                'is_active' => false,
+            ])
+            ->assertHasNoTableActionErrors();
+
+        $license->refresh();
+        $this->assertSame('Renamed Example License', $license->name);
+        $this->assertSame('example-license', $license->slug);
+        $this->assertSame('EXAMPLE-2', $license->spdx_id);
+        $this->assertTrue($license->is_osi_approved);
+        $this->assertFalse($license->is_active);
+
+        Livewire::test(ManageLicenseTypes::class)
+            ->callTableAction('delete', $license)
+            ->assertHasNoTableActionErrors();
+
+        $this->assertDatabaseMissing('license_types', ['id' => $license->id]);
     }
 
 }
