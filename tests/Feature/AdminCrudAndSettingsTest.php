@@ -10,6 +10,7 @@ use App\Models\LicenseType;
 use App\Models\OssCategory;
 use App\Models\SiteSetting;
 use App\Models\User;
+use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
