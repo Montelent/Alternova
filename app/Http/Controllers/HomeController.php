@@ -83,7 +83,7 @@ class HomeController extends Controller
         $tools = ProprietaryTool::query()
             ->where('is_published', true)
             ->withCount(['publishedAlternatives as alternatives_count'])
-            ->having('alternatives_count', '>', 0)
+            ->whereHas('publishedAlternatives')
             ->orderBy('name')
             ->limit(12)
             ->get();
