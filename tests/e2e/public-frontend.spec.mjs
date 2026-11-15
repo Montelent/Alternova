@@ -58,7 +58,7 @@ test('mobile navigation opens and closes with Escape', async ({ page }) => {
     await expect(menuButton).toBeVisible();
     await menuButton.click();
     await expect(page.locator('#mobile-nav')).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Contact', exact: true })).toBeVisible();
+    await expect(page.locator('#mobile-nav').getByRole('link', { name: 'Contact', exact: true })).toBeVisible();
 
     await page.keyboard.press('Escape');
     await expect(page.locator('#mobile-nav')).toBeHidden();
@@ -68,12 +68,13 @@ test('mobile navigation opens and closes with Escape', async ({ page }) => {
 test('contact form submits through Livewire and displays the created ticket state', async ({ page }) => {
     await page.goto(new URL('/contact', baseUrl).toString());
 
-    await page.locator('input[wire\\:model="name"]').fill('Browser Test');
-    await page.locator('input[wire\\:model="email"]').fill('browser-contact@example.test');
-    await page.locator('input[wire\\:model="subject"]').fill('Browser smoke test');
-    await page.locator('textarea[wire\\:model="message"]').fill('Testing the public contact form in Chromium.');
+    const form = page.locator('form').filter({ has: page.locator('textarea[wire\\:model="message"]') });
+    await form.locator('input[wire\\:model="name"]').fill('Browser Test');
+    await form.locator('input[wire\\:model="email"]').fill('browser-contact@example.test');
+    await form.locator('input[wire\\:model="subject"]').fill('Browser smoke test');
+    await form.locator('textarea[wire\\:model="message"]').fill('Testing the public contact form in Chromium.');
 
-    await page.getByRole('button', { name: 'Open support ticket' }).click();
+    await form.getByRole('button', { name: 'Open support ticket' }).click();
     await expect(page.getByText('Ticket created')).toBeVisible();
     await expect(page.getByRole('link', { name: 'View ticket & replies' })).toBeVisible();
 });
