@@ -33,7 +33,7 @@ class HtmlSanitizer
         $config->set('Core.Encoding', 'UTF-8');
         $config->set(
             'HTML.Allowed',
-            'p,br,strong,b,em,i,u,s,del,ins,small,sub,sup,ul,ol,li,dl,dt,dd,h2,h3,h4,h5,blockquote,code,pre,hr,div,span,a[href|title|target],img[src|alt|width|height],figure,figcaption,table,thead,tbody,tr,th[colspan|rowspan],td[colspan|rowspan]'
+            'p,br,strong,b,em,i,u,s,del,ins,small,sub,sup,ul,ol,li,dl,dt,dd,h2,h3,h4,h5,blockquote,code,pre,hr,div,span,a[href|title|target],img[src|alt|width|height],table,thead,tbody,tr,th[colspan|rowspan],td[colspan|rowspan]'
         );
         $config->set('URI.AllowedSchemes', ['http' => true, 'https' => true, 'mailto' => true]);
         $config->set('HTML.Nofollow', true);
