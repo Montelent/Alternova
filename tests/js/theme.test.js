@@ -7,7 +7,7 @@ import vm from 'node:vm';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const layout = readFileSync(path.join(root, 'resources/views/layouts/app.blade.php'), 'utf8');
-const match = layout.match(/<script>\s*(function themeApp\(\) \{[\s\S]*?\n\s*\})\s*<\/script>\s*@livewireScripts/);
+const match = layout.match(/<script>\s*(function themeApp\(\) \{[\s\S]*?\n {8}\})\s*<\/script>\s*@livewireScripts/);
 
 assert.ok(match, 'themeApp must be defined in a classic script before Livewire scripts');
 
