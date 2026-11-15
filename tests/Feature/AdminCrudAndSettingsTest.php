@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Pages\AdminPathSettings;
 use App\Filament\Pages\SiteSeoSettings;
 use App\Filament\Resources\LicenseTypeResource\Pages\ManageLicenseTypes;
 use App\Filament\Resources\OssCategoryResource\Pages\ManageOssCategories;
@@ -131,4 +132,27 @@ class AdminCrudAndSettingsTest extends TestCase
 
         $this->assertFalse(SiteSeoSettings::canAccess());
     }
+    public function test_editor_cannot_change_the_admin_panel_path(): void
+    {
+        $editor = User::query()->create([
+            'name' => 'Verified Editor',
+            'email' => 'path-editor@example.test',
+            'password' => 'test-password',
+            'role' => User::ROLE_EDITOR,
+            'is_active' => true,
+            'email_verified_at' => now(),
+        ]);
+
+        SiteSetting::set('admin_path', 'admin');
+
+        $this->actingAs($editor);
+
+        Livewire::test(AdminPathSettings::class)
+            ->set('data.admin_path', 'changed-admin-path')
+            ->call('save')
+            ->assertForbidden();
+
+        $this->assertSame('admin', SiteSetting::get('admin_path'));
+    }
+
 }
