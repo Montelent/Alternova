@@ -42,7 +42,7 @@ class HomeController extends Controller
 
         if ($hasSponsored) {
             $featuredQuery
-                ->orderByRaw('CASE WHEN is_sponsored = 1 AND (sponsored_until IS NULL OR sponsored_until > ?) THEN 0 ELSE 1 END', [now()])
+                ->orderByRaw('CASE WHEN is_sponsored AND (sponsored_until IS NULL OR sponsored_until > ?) THEN 0 ELSE 1 END', [now()])
                 ->orderByDesc('is_featured')
                 ->orderByDesc('overall_health_score');
         } else {
