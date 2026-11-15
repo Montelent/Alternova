@@ -132,6 +132,18 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci --no-audit
+
+      - name: Build frontend assets for rendered feature tests
+        run: npm run build
+
       - name: Run a clean migration against the database service
         run: php artisan migrate:fresh --force
 
