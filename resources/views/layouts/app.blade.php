@@ -162,7 +162,6 @@
     @include('layouts.partials.site-footer')
 
     @include('partials.cookie-consent')
-    @livewireScripts
     <script>
         function themeApp() {
             return {
@@ -181,5 +180,6 @@
             }
         }
     </script>
+    @livewireScripts
 </body>
 </html>
