@@ -89,3 +89,15 @@ test('alternative suggestion form submits and exposes its tracking link', async 
     await expect(page.getByText('Thanks — we received your suggestion.')).toBeVisible();
     await expect(page.getByText('Track this submission')).toBeVisible();
 });
+
+test('newsletter subscription confirms success and clears the email field', async ({ page }) => {
+    await page.goto(baseUrl);
+
+    const email = page.getByPlaceholder('you@example.com');
+    await expect(email).toBeVisible();
+    await email.fill('browser-newsletter@example.test');
+    await page.getByRole('button', { name: 'Subscribe' }).click();
+
+    await expect(page.getByText(/Subscribed — occasional product updates only/)).toBeVisible();
+    await expect(email).toHaveValue('');
+});
