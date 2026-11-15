@@ -97,7 +97,7 @@ class QueueWorkerIntegrationTest extends TestCase
         $this->assertSame(3, $job->tries);
         $this->assertSame(60, $job->backoff);
 
-        $this->expectException(\\RuntimeException::class);
+        $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('HTTP 503');
 
         $job->handle();
