@@ -15,6 +15,7 @@ class SyncMetricsCommand extends Command
     public function handle(): int
     {
         $query = OpenSourceAlternative::query()
+            ->where('is_published', true)
             ->whereNotNull('repo_url')
             ->where('repo_url', 'like', '%github.com%')
             ->orderBy('updated_at');
