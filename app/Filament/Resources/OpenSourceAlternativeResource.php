@@ -97,7 +97,10 @@ class OpenSourceAlternativeResource extends Resource
                     ->required()
                     ->maxLength(160)
                     ->live(onBlur: true)
-                    ->afterStateUpdated(function (?string $state, Set $set, Get $get, ?string $old) {
+                    ->afterStateUpdated(function (?string $state, Set $set, Get $get, string $operation, ?string $old): void {
+                        if ($operation !== 'create') {
+                            return;
+                        }
                         $name = trim((string) $state);
                         if ($name === '') {
                             return;
