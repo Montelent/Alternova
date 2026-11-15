@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Mail\NotificationDigestMail;
 use App\Models\OpenSourceAlternative;
+use App\Models\ProprietaryTool;
 use App\Models\SiteSetting;
 use App\Models\User;
 use App\Models\UserNotification;
