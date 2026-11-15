@@ -29,7 +29,6 @@ class PublicSubmissionFormsTest extends TestCase
             ->set('message', 'I would like to share some product feedback.')
             ->call('submit')
             ->assertHasNoErrors()
-            ->assertSet('sent', true)
             ->assertSet('sent', true);
 
         $this->assertStringStartsWith('TKT-', (string) $component->get('ticketPublicId'));
@@ -102,7 +101,6 @@ class PublicSubmissionFormsTest extends TestCase
             ->set('website_url', 'https://open-app.example')
             ->call('submit')
             ->assertHasNoErrors()
-            ->assertSet('submitted', true)
             ->assertSet('submitted', true);
 
         $this->assertSame(40, strlen((string) $component->get('trackingToken')));
