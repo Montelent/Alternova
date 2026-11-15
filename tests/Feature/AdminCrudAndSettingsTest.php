@@ -5,10 +5,12 @@ namespace Tests\Feature;
 use App\Filament\Pages\AdminPathSettings;
 use App\Filament\Resources\LicenseTypeResource\Pages\ManageLicenseTypes;
 use App\Filament\Resources\OssCategoryResource\Pages\ManageOssCategories;
+use App\Filament\Resources\ProprietaryToolResource\Pages\ListProprietaryTools;
 use App\Filament\Pages\SiteSeoSettings;
 use App\Models\SiteSetting;
 use App\Models\LicenseType;
 use App\Models\OssCategory;
+use App\Models\ProprietaryTool;
 use App\Support\AdminPanel;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -223,6 +225,47 @@ class AdminCrudAndSettingsTest extends TestCase
             ->assertHasNoTableActionErrors();
 
         $this->assertDatabaseMissing('license_types', ['id' => $license->id]);
+    }
+
+    public function test_admin_can_create_edit_and_soft_delete_proprietary_tools_through_filament_actions(): void
+    {
+        $this->actingAs($this->makeAdmin());
+
+        Livewire::test(ListProprietaryTools::class)
+            ->callAction('create', data: [
+                'name' => 'Example Proprietary Tool',
+                'slug' => 'example-proprietary-tool',
+                'website_url' => 'https://example.test',
+                'description' => 'Initial description',
+                'target_audience' => 'Developers',
+                'is_published' => false,
+            ])
+            ->assertHasNoActionErrors();
+
+        $tool = ProprietaryTool::query()->where('slug', 'example-proprietary-tool')->firstOrFail();
+
+        Livewire::test(ListProprietaryTools::class)
+            ->callTableAction('edit', $tool, data: [
+                'name' => 'Renamed Proprietary Tool',
+                'slug' => 'example-proprietary-tool',
+                'website_url' => 'https://example.test/product',
+                'description' => 'Updated description',
+                'target_audience' => 'Teams',
+                'is_published' => true,
+            ])
+            ->assertHasNoTableActionErrors();
+
+        $tool->refresh();
+        $this->assertSame('Renamed Proprietary Tool', $tool->name);
+        $this->assertSame('example-proprietary-tool', $tool->slug);
+        $this->assertSame('https://example.test/product', $tool->website_url);
+        $this->assertTrue($tool->is_published);
+
+        Livewire::test(ListProprietaryTools::class)
+            ->callTableAction('delete', $tool)
+            ->assertHasNoTableActionErrors();
+
+        $this->assertSoftDeleted('proprietary_tools', ['id' => $tool->id]);
     }
 
 }
