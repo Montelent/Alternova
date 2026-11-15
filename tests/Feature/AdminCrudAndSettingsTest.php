@@ -4,15 +4,11 @@ namespace Tests\Feature;
 
 use App\Filament\Pages\AdminPathSettings;
 use App\Filament\Pages\SiteSeoSettings;
-use App\Filament\Resources\LicenseTypeResource\Pages\ManageLicenseTypes;
-use App\Filament\Resources\OssCategoryResource\Pages\ManageOssCategories;
-use App\Models\LicenseType;
-use App\Models\OssCategory;
 use App\Models\SiteSetting;
 use App\Models\User;
-use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 class AdminCrudAndSettingsTest extends TestCase
