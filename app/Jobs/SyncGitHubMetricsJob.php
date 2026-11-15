@@ -67,6 +67,12 @@ class SyncGitHubMetricsJob implements ShouldQueue
                     'body' => substr($response->body(), 0, 500),
                 ]);
 
+                if ($response->serverError() || $response->status() === 429) {
+                    throw new \\RuntimeException(
+                        "Transient GitHub API failure (HTTP {$response->status()}) for {$owner}/{$repo}"
+                    );
+                }
+
                 return;
             }
 
