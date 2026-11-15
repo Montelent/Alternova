@@ -13,6 +13,7 @@ use App\Models\UserNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Console\Scheduling\Schedule;
 use Tests\TestCase;
 
 class ScheduledCommandsTest extends TestCase
@@ -149,6 +150,30 @@ class ScheduledCommandsTest extends TestCase
             ->assertExitCode(0);
 
         Mail::assertNothingOutgoing();
+    }
+
+    public function test_scheduler_registers_the_heartbeat_and_expected_maintenance_jobs(): void
+    {
+        $events = collect(app(Schedule::class)->events())
+            ->filter(fn ($event) => filled($event->description))
+            ->keyBy(fn ($event) => $event->description);
+
+        $this->assertArrayHasKey('alternova-cron-heartbeat', $events);
+        $this->assertSame('* * * * *', $events['alternova-cron-heartbeat']->expression);
+
+        $expected = [
+            'alternova-sync-metrics' => ['15 3 * * *', 'alternova:sync-metrics --limit=25'],
+            'alternova-check-links' => ['0 4 * * 1', 'alternova:check-links --limit=40'],
+            'alternova-send-digest' => ['0 9 * * 1', 'alternova:send-digest --days=7'],
+            'alternova-send-notification-digest' => ['30 9 * * 1', 'alternova:send-notification-digest --days=7'],
+            'alternova-expire-sponsored' => ['30 0 * * *', 'alternova:expire-sponsored'],
+        ];
+
+        foreach ($expected as $name => [$expression, $command]) {
+            $this->assertArrayHasKey($name, $events, "Missing scheduled event: {$name}");
+            $this->assertSame($expression, $events[$name]->expression, "Unexpected cron expression for {$name}");
+            $this->assertStringContainsString($command, (string) $events[$name]->command);
+        }
     }
 
 }
