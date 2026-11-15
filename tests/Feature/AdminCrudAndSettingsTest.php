@@ -31,7 +31,7 @@ class AdminCrudAndSettingsTest extends TestCase
     {
         $this->actingAs($this->makeAdmin());
 
-        $category = \App\Models\\OssCategory::query()->create([
+        $category = \App\Models\OssCategory::query()->create([
             'name' => 'Network & WiFi',
             'slug' => 'net-wifi',
             'description' => 'Networking tools',
@@ -49,7 +49,7 @@ class AdminCrudAndSettingsTest extends TestCase
             'description' => 'Updated description',
         ]);
 
-        $license = \App\Models\\LicenseType::query()->create([
+        $license = \App\Models\LicenseType::query()->create([
             'name' => 'Example License',
             'slug' => 'example-license',
             'spdx_id' => 'EXAMPLE',
@@ -107,6 +107,7 @@ class AdminCrudAndSettingsTest extends TestCase
 
         $this->assertFalse(SiteSeoSettings::canAccess());
     }
+
     public function test_editor_cannot_change_the_admin_panel_path(): void
     {
         $editor = User::query()->create([
@@ -131,5 +132,4 @@ class AdminCrudAndSettingsTest extends TestCase
 
         $this->assertSame('admin', SiteSetting::get('admin_path'));
     }
-
 }
