@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Livewire\NewsletterSubscribe;
 use App\Models\NewsletterSubscriber;
+use App\Support\Installer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -12,6 +14,19 @@ use Tests\TestCase;
 class NewsletterSubscriptionTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Installer::lock();
+    }
+
+    protected function tearDown(): void
+    {
+        File::delete(Installer::lockPath());
+        File::delete(storage_path('app/'.Installer::REOPEN_FILE));
+        parent::tearDown();
+    }
 
     public function test_newsletter_subscription_normalizes_email_and_creates_a_secure_unsubscribe_token(): void
     {
