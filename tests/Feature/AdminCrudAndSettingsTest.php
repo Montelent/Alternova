@@ -7,12 +7,14 @@ use App\Filament\Resources\LicenseTypeResource\Pages\ManageLicenseTypes;
 use App\Filament\Resources\CollectionResource\Pages\ListCollections;
 use App\Filament\Resources\OssCategoryResource\Pages\ManageOssCategories;
 use App\Filament\Resources\ProprietaryToolResource\Pages\ListProprietaryTools;
+use App\Filament\Resources\OpenSourceAlternativeResource\Pages\ListOpenSourceAlternatives;
 use App\Filament\Pages\SiteSeoSettings;
 use App\Models\SiteSetting;
 use App\Models\LicenseType;
 use App\Models\Collection;
 use App\Models\OssCategory;
 use App\Models\ProprietaryTool;
+use App\Models\OpenSourceAlternative;
 use App\Support\AdminPanel;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -305,6 +307,60 @@ class AdminCrudAndSettingsTest extends TestCase
         $this->assertSame('Updated curated collection', $collection->description);
         $this->assertTrue($collection->is_published);
         $this->assertTrue($collection->is_featured);
+    }
+
+    public function test_admin_can_create_edit_and_soft_delete_alternatives_through_filament_actions(): void
+    {
+        $this->actingAs($this->makeAdmin());
+        $tool = ProprietaryTool::factory()->create([
+            'name' => 'Parent Tool',
+            'slug' => 'parent-tool',
+        ]);
+
+        Livewire::test(ListOpenSourceAlternatives::class)
+            ->callAction('create', data: [
+                'proprietaryTools' => [$tool->id],
+                'proprietary_tool_id' => $tool->id,
+                'name' => 'Open Alternative',
+                'slug' => 'open-alternative',
+                'repo_url' => 'https://github.com/example/open-alternative',
+                'website_url' => 'https://open-alternative.example.test',
+                'is_published' => false,
+                'is_featured' => false,
+                'is_sponsored' => false,
+            ])
+            ->assertHasNoActionErrors();
+
+        $alternative = OpenSourceAlternative::query()->where('slug', 'open-alternative')->firstOrFail();
+        $this->assertSame($tool->id, $alternative->proprietary_tool_id);
+        $this->assertTrue($alternative->proprietaryTools()->whereKey($tool->id)->exists());
+
+        Livewire::test(ListOpenSourceAlternatives::class)
+            ->callTableAction('edit', $alternative, data: [
+                'proprietaryTools' => [$tool->id],
+                'proprietary_tool_id' => $tool->id,
+                'name' => 'Renamed Open Alternative',
+                'slug' => 'open-alternative',
+                'repo_url' => 'https://github.com/example/open-alternative',
+                'website_url' => 'https://open-alternative.example.test/app',
+                'is_published' => true,
+                'is_featured' => true,
+                'is_sponsored' => false,
+            ])
+            ->assertHasNoTableActionErrors();
+
+        $alternative->refresh();
+        $this->assertSame('Renamed Open Alternative', $alternative->name);
+        $this->assertSame('open-alternative', $alternative->slug);
+        $this->assertSame('https://open-alternative.example.test/app', $alternative->website_url);
+        $this->assertTrue($alternative->is_published);
+        $this->assertTrue($alternative->is_featured);
+
+        Livewire::test(ListOpenSourceAlternatives::class)
+            ->callTableAction('delete', $alternative)
+            ->assertHasNoTableActionErrors();
+
+        $this->assertSoftDeleted('open_source_alternatives', ['id' => $alternative->id]);
     }
 
 }
