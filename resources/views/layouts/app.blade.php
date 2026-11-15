@@ -171,6 +171,7 @@
                         this.dark = localStorage.getItem('alternova-theme') === 'dark'
                             || (!localStorage.getItem('alternova-theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
                     } catch (e) { this.dark = false; }
+                    document.documentElement.classList.toggle('dark', this.dark);
                 },
                 toggle() {
                     this.dark = !this.dark;
