@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Mail\NotificationDigestMail;
+use App\Mail\WeeklyDigestMail;
+use App\Models\NewsletterSubscriber;
 use App\Models\OpenSourceAlternative;
 use App\Models\ProprietaryTool;
 use App\Models\SiteSetting;
@@ -98,4 +100,55 @@ class ScheduledCommandsTest extends TestCase
                 && $mail->unreadTotal === 1;
         });
     }
+    public function test_weekly_digest_sends_to_active_subscribers_and_logs_the_delivery(): void
+    {
+        $tool = ProprietaryTool::factory()->create(['description' => null]);
+
+        OpenSourceAlternative::factory()->create([
+            'proprietary_tool_id' => $tool->id,
+            'description' => null,
+            'is_published' => true,
+            'is_featured' => false,
+            'created_at' => now()->subDay(),
+            'updated_at' => now()->subDay(),
+        ]);
+
+        $subscriber = NewsletterSubscriber::query()->create([
+            'email' => 'weekly@example.test',
+            'status' => 'active',
+            'source' => 'footer',
+            'unsubscribe_token' => str_repeat('d', 48),
+            'subscribed_at' => now()->subMonth(),
+        ]);
+
+        SiteSetting::set('mail_digest_enabled', true);
+        Mail::fake();
+
+        $this->artisan('alternova:send-digest', ['--days' => 7])
+            ->expectsOutput('Sent 1, failed 0.')
+            ->assertExitCode(0);
+
+        Mail::assertSent(WeeklyDigestMail::class, fn (WeeklyDigestMail $mail): bool => $mail->hasTo($subscriber->email));
+
+        $this->assertDatabaseHas('newsletter_digest_logs', [
+            'subscriber_count' => 1,
+            'sent_count' => 1,
+            'failed_count' => 0,
+            'dry_run' => false,
+        ]);
+        $this->assertNotNull($subscriber->fresh()->last_digest_at);
+    }
+
+    public function test_weekly_digest_respects_the_admin_disabled_setting(): void
+    {
+        SiteSetting::set('mail_digest_enabled', false);
+        Mail::fake();
+
+        $this->artisan('alternova:send-digest')
+            ->expectsOutput('Weekly digest is disabled in Email settings.')
+            ->assertExitCode(0);
+
+        Mail::assertNothingOutgoing();
+    }
+
 }
