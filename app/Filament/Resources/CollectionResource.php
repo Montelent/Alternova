@@ -53,7 +53,26 @@ class CollectionResource extends Resource
                     ->required()
                     ->maxLength(160)
                     ->live(onBlur: true)
-                    ->afterStateUpdated(fn ($state, Set $set) => $set('slug', Str::slug((string) $state))),
+                    ->afterStateUpdated(function ($state, Set $set, Forms\\Get $get, string $operation, ?string $old): void {
+                            if ($operation !== 'create') {
+                                return;
+                            }
+
+                            $name = trim((string) $state);
+                            $newSlug = Str::slug($name);
+                            if ($newSlug === '') {
+                                return;
+                            }
+
+                            $currentSlug = trim((string) ($get('slug') ?? ''));
+                            $oldSlug = Str::slug(trim((string) ($old ?? '')));
+
+                            // On create, keep following the name until the editor
+                            // manually changes the slug. Never rewrite slugs on edit.
+                            if ($currentSlug === '' || ($oldSlug !== '' && $currentSlug === $oldSlug)) {
+                                $set('slug', $newSlug);
+                            }
+                        }),
                 Forms\Components\TextInput::make('slug')
                     ->required()
                     ->maxLength(180)
