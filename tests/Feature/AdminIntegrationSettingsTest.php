@@ -3,12 +3,14 @@
 namespace Tests\Feature;
 
 use App\Filament\Pages\ApiSettingsPage;
+use App\Filament\Pages\CronSettingsPage;
 use App\Filament\Pages\IntegrationsPage;
 use App\Filament\Pages\MailSettingsPage;
 use App\Mail\TestMail;
 use App\Models\SiteSetting;
 use App\Models\User;
 use App\Support\ApiSettings;
+use App\Support\CronSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
@@ -156,6 +158,43 @@ class AdminIntegrationSettingsTest extends TestCase
         $stored = SiteSetting::query()->where('key', 'mail_resend_key')->value('value');
         $this->assertStringStartsWith('enc:v1:', (string) $stored);
         $this->assertSame('re_test_secret_key', SiteSetting::get('mail_resend_key'));
+    }
+
+    public function test_admin_can_save_cron_schedules_and_normalize_invalid_times(): void
+    {
+        $this->actingAs($this->makeAdmin());
+
+        Livewire::test(CronSettingsPage::class)
+            ->fillForm([
+                'cron_metrics_enabled' => false,
+                'cron_metrics_time' => '99:99',
+                'cron_metrics_limit' => 200,
+                'cron_links_enabled' => true,
+                'cron_links_day' => 6,
+                'cron_links_time' => '04:30',
+                'cron_links_limit' => 100,
+                'cron_digest_enabled' => false,
+                'cron_notif_digest_enabled' => true,
+                'cron_notif_digest_day' => 2,
+                'cron_notif_digest_time' => '10:15',
+                'cron_expire_sponsored_enabled' => false,
+                'cron_expire_sponsored_time' => '00:45',
+            ])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertFalse(CronSettings::get('cron_metrics_enabled'));
+        $this->assertSame('23:59', CronSettings::get('cron_metrics_time'));
+        $this->assertSame(200, CronSettings::get('cron_metrics_limit'));
+        $this->assertSame(6, CronSettings::get('cron_links_day'));
+        $this->assertSame('04:30', CronSettings::get('cron_links_time'));
+        $this->assertFalse(CronSettings::get('cron_digest_enabled'));
+        $this->assertTrue(CronSettings::get('cron_notif_digest_enabled'));
+        $this->assertSame('10:15', CronSettings::get('cron_notif_digest_time'));
+
+        $overview = collect(CronSettings::jobsOverview())->keyBy('id');
+        $this->assertFalse($overview['metrics']['enabled']);
+        $this->assertSame('Saturday at 04:30 (batch of 100)', $overview['links']['when']);
     }
 
 }
