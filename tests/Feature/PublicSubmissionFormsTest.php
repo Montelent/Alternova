@@ -22,7 +22,7 @@ class PublicSubmissionFormsTest extends TestCase
     {
         Mail::fake();
 
-        Livewire::test(ContactForm::class)
+        $component = Livewire::test(ContactForm::class)
             ->set('name', 'A Visitor')
             ->set('email', 'visitor@example.com')
             ->set('subject', 'Product feedback')
@@ -30,8 +30,9 @@ class PublicSubmissionFormsTest extends TestCase
             ->call('submit')
             ->assertHasNoErrors()
             ->assertSet('sent', true)
-            ->assertSet('ticketPublicId', fn ($id) => is_string($id) && str_starts_with($id, 'TKT-'));
+            ->assertSet('sent', true);
 
+        $this->assertStringStartsWith('TKT-', (string) $component->get('ticketPublicId'));
         $this->assertDatabaseHas('contact_messages', [
             'name' => 'A Visitor',
             'email' => 'visitor@example.com',
@@ -92,7 +93,7 @@ class PublicSubmissionFormsTest extends TestCase
 
     public function test_alternative_suggestion_validates_and_persists_a_pending_submission(): void
     {
-        Livewire::test(SuggestAlternative::class)
+        $component = Livewire::test(SuggestAlternative::class)
             ->set('submitter_name', 'A Contributor')
             ->set('submitter_email', 'contributor@example.com')
             ->set('proprietary_name', 'Commercial App')
@@ -102,8 +103,9 @@ class PublicSubmissionFormsTest extends TestCase
             ->call('submit')
             ->assertHasNoErrors()
             ->assertSet('submitted', true)
-            ->assertSet('trackingToken', fn ($token) => is_string($token) && strlen($token) === 40);
+            ->assertSet('submitted', true);
 
+        $this->assertSame(40, strlen((string) $component->get('trackingToken')));
         $this->assertDatabaseHas('alternative_submissions', [
             'proprietary_name' => 'Commercial App',
             'alternative_name' => 'Open App',
@@ -126,7 +128,7 @@ class PublicSubmissionFormsTest extends TestCase
 
     public function test_collection_suggestion_validates_and_persists_normalized_alternative_slugs(): void
     {
-        Livewire::test(SuggestCollection::class)
+        $component = Livewire::test(SuggestCollection::class)
             ->set('submitter_name', 'A Contributor')
             ->set('submitter_email', 'contributor@example.com')
             ->set('title', 'Developer Tools')
@@ -135,8 +137,9 @@ class PublicSubmissionFormsTest extends TestCase
             ->call('submit')
             ->assertHasNoErrors()
             ->assertSet('submitted', true)
-            ->assertSet('trackingUrl', fn ($url) => is_string($url) && str_contains($url, '/collection-submission-status/'));
+            ->assertSet('submitted', true);
 
+        $this->assertStringContainsString('/collection-submission-status/', (string) $component->get('trackingUrl'));
         $submission = CollectionSubmission::query()->latest('id')->first();
 
         $this->assertNotNull($submission);
