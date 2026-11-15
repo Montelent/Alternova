@@ -119,4 +119,16 @@ class PublicApplicationRoutesTest extends TestCase
             ->assertStatus(301)
             ->assertRedirect(route('alternativesto.show', ['slug' => 'example-tool']));
     }
+    public function test_theme_component_is_defined_before_livewire_initializes_alpine(): void
+    {
+        $html = $this->get('/')->assertOk()->getContent();
+
+        $themeComponentPosition = strpos($html, 'function themeApp()');
+        $livewireScriptPosition = strpos($html, 'livewire.js');
+
+        $this->assertNotFalse($themeComponentPosition);
+        $this->assertNotFalse($livewireScriptPosition);
+        $this->assertLessThan($livewireScriptPosition, $themeComponentPosition);
+    }
+
 }
