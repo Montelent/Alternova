@@ -18,7 +18,11 @@ class ScheduledCommandsTest extends TestCase
 
     public function test_github_metrics_sync_skips_unpublished_alternatives(): void
     {
+        $tool = ProprietaryTool::factory()->create(['description' => null]);
+
         OpenSourceAlternative::factory()->create([
+            'proprietary_tool_id' => $tool->id,
+            'description' => null,
             'is_published' => false,
         ]);
 
