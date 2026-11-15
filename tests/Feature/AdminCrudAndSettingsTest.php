@@ -31,7 +31,7 @@ class AdminCrudAndSettingsTest extends TestCase
     {
         $this->actingAs($this->makeAdmin());
 
-        $category = \\App\\Models\\OssCategory::query()->create([
+        $category = \App\Models\\OssCategory::query()->create([
             'name' => 'Network & WiFi',
             'slug' => 'net-wifi',
             'description' => 'Networking tools',
@@ -49,7 +49,7 @@ class AdminCrudAndSettingsTest extends TestCase
             'description' => 'Updated description',
         ]);
 
-        $license = \\App\\Models\\LicenseType::query()->create([
+        $license = \App\Models\\LicenseType::query()->create([
             'name' => 'Example License',
             'slug' => 'example-license',
             'spdx_id' => 'EXAMPLE',
