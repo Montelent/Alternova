@@ -47,8 +47,8 @@ class ProprietaryToolResource extends Resource
                     Forms\Components\TextInput::make('name')
                         ->required()
                         ->live(onBlur: true)
-                        ->afterStateUpdated(function ($state, Set $set, \\Filament\\Forms\\Get $get, string $operation, ?string $old): void {
-                    $slug = \\App\\Support\\SlugAutofill::fromName(
+                        ->afterStateUpdated(function ($state, Set $set, \Filament\Forms\Get $get, string $operation, ?string $old): void {
+                    $slug = \App\Support\SlugAutofill::fromName(
                         is_string($state) ? $state : null,
                         $get('slug'),
                         $old,
