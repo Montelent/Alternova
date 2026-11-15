@@ -114,7 +114,7 @@ class SuggestCollection extends Component
 
         $this->notifyAdmins($submission);
 
-        $this->trackingUrl = route('collection-submissions.status', $token);
+        $this->trackingUrl = route('collection.submission.status', $token);
         $this->submitted = true;
         $this->reset(['title', 'description', 'intro', 'alternative_slugs_text', 'notes', 'website']);
     }
