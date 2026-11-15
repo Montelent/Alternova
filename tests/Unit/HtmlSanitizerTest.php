@@ -23,4 +23,17 @@ class HtmlSanitizerTest extends TestCase
         self::assertStringNotContainsString('onerror', strtolower($clean));
         self::assertStringNotContainsString('tracker.example', strtolower($clean));
     }
+    public function test_unsupported_semantic_wrappers_are_removed_without_breaking_sanitization(): void
+    {
+        $clean = HtmlSanitizer::clean(
+            '<figure><figcaption>Screenshot</figcaption><p>Safe description</p></figure>'
+            .'<script>alert(1)</script>'
+        );
+
+        self::assertStringContainsString('Safe description', $clean);
+        self::assertStringNotContainsString('<figure', strtolower($clean));
+        self::assertStringNotContainsString('<figcaption', strtolower($clean));
+        self::assertStringNotContainsString('<script', strtolower($clean));
+    }
+
 }
