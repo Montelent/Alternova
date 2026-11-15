@@ -41,7 +41,7 @@ class OssCategoryResource extends Resource
                 ->required()
                 ->maxLength(120)
                 ->live(onBlur: true)
-                ->afterStateUpdated(function ($state, Set $set, Forms\\Get $get, string $operation, ?string $old): void {
+                ->afterStateUpdated(function ($state, Set $set, Forms\Get $get, string $operation, ?string $old): void {
                             if ($operation !== 'create') {
                                 return;
                             }
