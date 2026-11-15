@@ -89,7 +89,7 @@ class AdminIntegrationSettingsTest extends TestCase
 
         Livewire::test(MailSettingsPage::class)
             ->fillForm([
-                'mail_mailer' => 'array',
+                'mail_mailer' => 'smtp',
                 'mail_from_address' => 'hello@alternova.example',
                 'mail_from_name' => 'Alternova',
                 'mail_admin_email' => 'admin@alternova.example',
@@ -138,4 +138,24 @@ class AdminIntegrationSettingsTest extends TestCase
             $this->assertSame(403, $exception->getStatusCode());
         }
     }
+    public function test_admin_can_save_an_encrypted_resend_api_key(): void
+    {
+        $this->actingAs($this->makeAdmin());
+
+        Livewire::test(MailSettingsPage::class)
+            ->fillForm([
+                'mail_mailer' => 'resend',
+                'mail_from_address' => 'hello@alternova.example',
+                'mail_from_name' => 'Alternova',
+                'mail_admin_email' => 'admin@alternova.example',
+                'mail_resend_key' => 're_test_secret_key',
+            ])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $stored = SiteSetting::query()->where('key', 'mail_resend_key')->value('value');
+        $this->assertStringStartsWith('enc:v1:', (string) $stored);
+        $this->assertSame('re_test_secret_key', SiteSetting::get('mail_resend_key'));
+    }
+
 }
