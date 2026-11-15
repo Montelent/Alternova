@@ -41,7 +41,24 @@ class LicenseTypeResource extends Resource
                 ->required()
                 ->maxLength(120)
                 ->live(onBlur: true)
-                ->afterStateUpdated(fn ($state, Set $set) => $set('slug', Str::slug((string) $state))),
+                ->afterStateUpdated(function ($state, Set $set, Forms\Get $get, string $operation, ?string $old): void {
+                    if ($operation !== 'create') {
+                        return;
+                    }
+
+                    $name = trim((string) $state);
+                    $newSlug = Str::slug($name);
+                    if ($newSlug === '') {
+                        return;
+                    }
+
+                    $currentSlug = trim((string) ($get('slug') ?? ''));
+                    $oldSlug = Str::slug(trim((string) ($old ?? '')));
+
+                    if ($currentSlug === '' || ($oldSlug !== '' && $currentSlug === $oldSlug)) {
+                        $set('slug', $newSlug);
+                    }
+                }),
             Forms\Components\TextInput::make('slug')->required()->unique(ignoreRecord: true),
             Forms\Components\TextInput::make('spdx_id')->label('SPDX ID')->maxLength(64),
             Forms\Components\Textarea::make('description')->rows(2)->columnSpanFull(),
