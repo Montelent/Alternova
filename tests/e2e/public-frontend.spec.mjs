@@ -49,3 +49,43 @@ test('core public pages render in a real browser', async ({ page }) => {
         await expect(page.locator('body')).toBeVisible();
     }
 });
+
+test('mobile navigation opens and closes with Escape', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(baseUrl);
+
+    const menuButton = page.getByRole('button', { name: 'Open menu' });
+    await expect(menuButton).toBeVisible();
+    await menuButton.click();
+    await expect(page.locator('#mobile-nav')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Contact', exact: true })).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#mobile-nav')).toBeHidden();
+    await expect(page.locator('body')).not.toHaveClass(/menu-locked/);
+});
+
+test('contact form submits through Livewire and displays the created ticket state', async ({ page }) => {
+    await page.goto(new URL('/contact', baseUrl).toString());
+
+    await page.locator('input[wire\\:model="name"]').fill('Browser Test');
+    await page.locator('input[wire\\:model="email"]').fill('browser-contact@example.test');
+    await page.locator('input[wire\\:model="subject"]').fill('Browser smoke test');
+    await page.locator('textarea[wire\\:model="message"]').fill('Testing the public contact form in Chromium.');
+
+    await page.getByRole('button', { name: 'Open support ticket' }).click();
+    await expect(page.getByText('Ticket created')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'View ticket & replies' })).toBeVisible();
+});
+
+test('alternative suggestion form submits and exposes its tracking link', async ({ page }) => {
+    await page.goto(new URL('/suggest', baseUrl).toString());
+
+    await page.locator('input[wire\\:model="proprietary_name"]').fill('Example Proprietary Product');
+    await page.locator('input[wire\\:model="alternative_name"]').fill('Example Open Alternative');
+    await page.locator('input[wire\\:model="repo_url"]').fill('https://github.com/example/example-open-alternative');
+
+    await page.getByRole('button', { name: 'Submit for review' }).click();
+    await expect(page.getByText('Thanks — we received your suggestion.')).toBeVisible();
+    await expect(page.getByText('Track this submission')).toBeVisible();
+});
