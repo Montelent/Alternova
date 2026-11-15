@@ -97,27 +97,18 @@ class OpenSourceAlternativeResource extends Resource
                     ->required()
                     ->maxLength(160)
                     ->live(onBlur: true)
-                    ->afterStateUpdated(function (?string $state, Set $set, Get $get, string $operation, ?string $old): void {
-                        if ($operation !== 'create') {
-                            return;
-                        }
-                        $name = trim((string) $state);
-                        if ($name === '') {
-                            return;
-                        }
+                    ->afterStateUpdated(function ($state, Set $set, \Filament\Forms\Get $get, string $operation, ?string $old): void {
+                    $slug = \App\Support\SlugAutofill::fromName(
+                        is_string($state) ? $state : null,
+                        $get('slug'),
+                        $old,
+                        $operation,
+                    );
 
-                        $newSlug = Str::slug($name);
-                        if ($newSlug === '') {
-                            return;
-                        }
-
-                        $currentSlug = trim((string) ($get('slug') ?? ''));
-                        $oldSlug = Str::slug(trim((string) ($old ?? '')));
-
-                        if ($currentSlug === '' || ($oldSlug !== '' && $currentSlug === $oldSlug)) {
-                            $set('slug', $newSlug);
-                        }
-                    }),
+                    if ($slug !== null) {
+                        $set('slug', $slug);
+                    }
+                }),
                 Forms\Components\TextInput::make('slug')
                     ->required()
                     ->maxLength(180)
