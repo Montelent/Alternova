@@ -42,21 +42,15 @@ class LicenseTypeResource extends Resource
                 ->maxLength(120)
                 ->live(onBlur: true)
                 ->afterStateUpdated(function ($state, Set $set, Forms\Get $get, string $operation, ?string $old): void {
-                    if ($operation !== 'create') {
-                        return;
-                    }
+                    $slug = \App\Support\SlugAutofill::fromName(
+                        is_string($state) ? $state : null,
+                        $get('slug'),
+                        $old,
+                        $operation,
+                    );
 
-                    $name = trim((string) $state);
-                    $newSlug = Str::slug($name);
-                    if ($newSlug === '') {
-                        return;
-                    }
-
-                    $currentSlug = trim((string) ($get('slug') ?? ''));
-                    $oldSlug = Str::slug(trim((string) ($old ?? '')));
-
-                    if ($currentSlug === '' || ($oldSlug !== '' && $currentSlug === $oldSlug)) {
-                        $set('slug', $newSlug);
+                    if ($slug !== null) {
+                        $set('slug', $slug);
                     }
                 }),
             Forms\Components\TextInput::make('slug')->required()->unique(ignoreRecord: true),
