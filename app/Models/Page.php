@@ -7,7 +7,6 @@ use App\Support\CanonicalUrl;
 use App\Models\Concerns\HasAutoSortOrder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 class Page extends Model
@@ -68,11 +67,6 @@ class Page extends Model
         $slug = trim((string) $this->slug, '/');
         if ($slug === '') {
             return rtrim(CanonicalUrl::base(request()), '/').'/';
-        }
-
-        $reserved = ['about', 'privacy', 'terms', 'disclosure'];
-        if (in_array($slug, $reserved, true) && Route::has($slug)) {
-            return route($slug);
         }
 
         return rtrim(CanonicalUrl::base(request()), '/').'/'.$slug;
