@@ -17,8 +17,6 @@ use Illuminate\Support\Str;
 
 class SitemapController extends Controller
 {
-    private const SITEMAP_PAGE_SIZE = 45000;
-
     /** Sitemap index listing all child sitemaps. */
     public function index(Request $request): Response
     {
