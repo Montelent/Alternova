@@ -7,6 +7,8 @@ use App\Models\OpenSourceAlternative;
 use App\Models\Page;
 use App\Models\ProprietaryTool;
 use App\Models\SiteSetting;
+use App\Support\CanonicalUrl;
+use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class SeoManager
