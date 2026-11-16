@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\Collection;
 use App\Services\SeoManager;
 use App\Support\SoftwareApplicationSchema;
+use App\Support\CanonicalUrl;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Component;
 
@@ -75,7 +76,7 @@ class CollectionShow extends Component
      */
     protected function buildJsonLd(Collection $collection, $items, string $canonical, string $description, ?string $cover): array
     {
-        $site = rtrim((string) config('app.url'), '/');
+        $site = rtrim(CanonicalUrl::base(request()), '/');
         $siteName = config('app.name', 'Alternova');
         try {
             $siteName = app(SeoManager::class)->siteName();
