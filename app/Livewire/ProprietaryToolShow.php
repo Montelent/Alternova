@@ -7,6 +7,7 @@ use App\Models\SlugRedirect;
 use App\Services\ProprietaryPageCopy;
 use App\Services\SeoManager;
 use App\Support\SoftwareApplicationSchema;
+use App\Support\CanonicalUrl;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Str;
 use Livewire\Component;
@@ -142,7 +143,7 @@ class ProprietaryToolShow extends Component
                 'url' => $canonical,
                 'name' => $count.' Open Source Alternatives to '.$tool->name,
                 'description' => Str::limit(strip_tags($description), 160),
-                'isPartOf' => ['@type' => 'WebSite', 'name' => config('app.name'), 'url' => url('/')],
+                'isPartOf' => ['@type' => 'WebSite', 'name' => config('app.name'), 'url' => rtrim(CanonicalUrl::base(request()), '/').'/' ],
                 'about' => SoftwareApplicationSchema::make([
                     'name' => $tool->name,
                     'url' => $tool->website_url ?: $canonical,
@@ -163,7 +164,7 @@ class ProprietaryToolShow extends Component
             [
                 '@type' => 'BreadcrumbList',
                 'itemListElement' => [
-                    ['@type' => 'ListItem', 'position' => 1, 'name' => 'Home', 'item' => url('/')],
+                    ['@type' => 'ListItem', 'position' => 1, 'name' => 'Home', 'item' => rtrim(CanonicalUrl::base(request()), '/').'/'],
                     ['@type' => 'ListItem', 'position' => 2, 'name' => 'Alternatives', 'item' => route('finder')],
                     ['@type' => 'ListItem', 'position' => 3, 'name' => $tool->name, 'item' => $canonical],
                 ],
