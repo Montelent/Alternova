@@ -87,9 +87,9 @@ class SitemapController extends Controller
 
         try {
             if (Schema::hasTable('pages')) {
-                $pages = $this->indexablePages()->orderBy('id')->forPage($this->sitemapPage($request), $this->sitemapPageSize())->get(['slug', 'updated_at', 'noindex', 'robots_meta']);
+                $pages = $this->indexablePages()->orderBy('id')->forPage($this->sitemapPage($request), $this->sitemapPageSize())->get(['slug', 'updated_at', 'robots_meta']);
                 foreach ($pages as $p) {
-                    if (! empty($p->noindex) || $this->isNoindex($p->robots_meta ?? null)) {
+                    if ($this->isNoindex($p->robots_meta ?? null)) {
                         continue;
                     }
                     $urls[] = [
@@ -256,9 +256,6 @@ class SitemapController extends Controller
     protected function indexablePages()
     {
         return Page::query()->published()
-            ->where(function ($query) {
-                $query->whereNull('noindex')->orWhere('noindex', false);
-            })
             ->where(function ($query) {
                 $query->whereNull('robots_meta')
                     ->orWhereRaw('LOWER(robots_meta) NOT LIKE ?', ['%noindex%']);
