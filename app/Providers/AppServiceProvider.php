@@ -13,6 +13,7 @@ use App\Support\MailSettings;
 use App\View\Composers\CmsNavComposer;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
