@@ -38,6 +38,25 @@ class SeoCanonicalUrlTest extends TestCase
         );
     }
 
+
+    public function test_only_absolute_http_canonical_overrides_are_accepted(): void
+    {
+        $seo = app(SeoManager::class);
+
+        $this->assertSame(
+            'https://canonical.example/resource',
+            $seo->canonicalOverride('https://canonical.example/resource', 'https://primary.example/fallback')
+        );
+        $this->assertSame(
+            'https://primary.example/fallback',
+            $seo->canonicalOverride('javascript:alert(1)', 'https://primary.example/fallback')
+        );
+        $this->assertSame(
+            'https://primary.example/fallback',
+            $seo->canonicalOverride('/relative/path', 'https://primary.example/fallback')
+        );
+    }
+
     public function test_homepage_canonical_has_a_trailing_slash(): void
     {
         config([
