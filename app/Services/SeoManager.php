@@ -240,7 +240,7 @@ class SeoManager
             'description' => $description,
             'image' => $image,
             'type' => 'article',
-            'url' => $alt->canonical_url ?: route('alternatives.show', $alt),
+            'url' => $alt->canonical_url ?: $this->currentCanonicalUrl(),
         ];
     }
 
@@ -315,7 +315,7 @@ class SeoManager
             'description' => $description,
             'image' => $image,
             'type' => 'article',
-            'url' => $tool->canonical_url ?: route('alternativesto.show', $tool->slug),
+            'url' => $tool->canonical_url ?: $this->currentCanonicalUrl(),
         ];
     }
 
@@ -344,7 +344,7 @@ class SeoManager
             'description' => $description,
             'image' => $image,
             'type' => 'website',
-            'url' => route('collections.show', $collection->slug),
+            'url' => $this->currentCanonicalUrl(),
         ];
     }
 
