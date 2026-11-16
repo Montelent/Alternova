@@ -19,6 +19,7 @@ Do not place the snippet inside a location ^~ /uploads/ or location ^~ /storage/
 - If behind a reverse proxy, set TRUSTED_PROXIES to the exact proxy IP addresses or CIDRs. Never use *.
 - Keep .env, Composer files, source maps, logs, backups, and database exports outside the public document root.
 - Run migrations as part of deployment: php artisan migrate --force. Do not manually delete the installer lock or bypass the one-time reopen flow.
+- Build Laravel Vite assets in CI and deploy the generated `public/build/` directory to the live public web root. Hostinger PHP/shared hosting does not need Node.js on the production account; see [Hostinger frontend asset deployment](hostinger-frontend-assets.md).
 - Ensure storage/ and bootstrap/cache/ are writable by the PHP worker but not world-writable.
 - Restrict outbound network access at the host/container firewall where practical. Application SSRF validation is an additional control, not a replacement for egress policy.
 - Keep HTTPS enabled and use HSTS only after all accepted domains are served over HTTPS.
@@ -30,4 +31,4 @@ After deployment, verify:
 - /robots.txt, /sitemap.xml, and each child sitemap use the currently requested allow-listed domain, while an unrecognized Host header never controls canonical output.
 - The login, registration, account, admin, installer, support-ticket, and API-key flows work with production session and proxy settings.
 - The web server cannot execute content uploaded under either public media path.
-- Both dependency lockfiles are deployed with the matching manifests and composer install --no-dev --prefer-dist --optimize-autoloader plus npm ci && npm run build complete successfully.
+- The PHP release includes the matching Composer manifest and lockfile, and `composer install --no-dev --prefer-dist --optimize-autoloader` completes successfully. The Vite build is produced in CI with `npm ci && npm run build` and its `public/build/` output is deployed separately.
