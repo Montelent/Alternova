@@ -39,7 +39,7 @@ class SitemapController extends Controller
         ];
 
         foreach ($sitemapSources as $source) {
-            $pages = max(1, (int) ceil($source['count'] / self::SITEMAP_PAGE_SIZE));
+            $pages = max(1, (int) ceil($source['count'] / $this->sitemapPageSize()));
             for ($page = 1; $page <= $pages; $page++) {
                 $sitemaps[] = [
                     'loc' => $base.$source['path'].($page > 1 ? '?page='.$page : ''),
@@ -250,6 +250,11 @@ class SitemapController extends Controller
         return $this->urlset($urls);
     }
 
+
+    protected function sitemapPageSize(): int
+    {
+        return max(1, min(50000, (int) config('seo.sitemap_page_size', 45000)));
+    }
 
     protected function sitemapPage(Request $request): int
     {
