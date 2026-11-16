@@ -239,7 +239,7 @@ class AlternativeDetail extends Component
 
         $title = $seo->alternativeTitle($alt);
         $description = $seo->alternativeDescription($alt);
-        $canonical = $alt->canonical_url ?: $seo->currentCanonicalUrl();
+        $canonical = $seo->canonicalOverride($alt->canonical_url, $seo->currentCanonicalUrl());
 
         $related = collect();
         try {
