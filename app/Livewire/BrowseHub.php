@@ -75,7 +75,8 @@ class BrowseHub extends Component
         ])->layout('layouts.app', [
             'title' => $title.' | '.$seo->siteName(),
             'description' => $description,
-            'canonical' => url('/browse/'.$this->type),
+            'canonical' => $seo->currentCanonicalUrl(),
+            'jsonLd' => $this->buildHubSchema($title, $description, $items, $seo->currentCanonicalUrl()),
         ]);
     }
 
@@ -118,8 +119,103 @@ class BrowseHub extends Component
         ])->layout('layouts.app', [
             'title' => $heading.' | '.$seo->siteName(),
             'description' => $description,
-            'canonical' => url('/browse/'.$this->type.'/'.$this->slug),
+            'canonical' => $this->canonicalForPage($seo),
+            'robots' => $this->pageNumber() > 1 ? 'noindex,follow' : null,
+            'jsonLd' => $this->buildHubSchema($heading, $description, $alternatives->getCollection()->map(fn ($alt) => ['name' => $alt->name, 'slug' => $alt->slug])->all(), $this->canonicalForPage($seo)),
         ]);
+    }
+
+
+    protected function pageNumber(): int
+    {
+        return max(1, (int) request()->query('page', 1));
+    }
+
+    protected function canonicalForPage(SeoManager $seo): string
+    {
+        $canonical = $seo->currentCanonicalUrl();
+
+        return $this->pageNumber() > 1
+            ? $canonical.'?page='.$this->pageNumber()
+            : $canonical;
+    }
+
+    /**
+     * @param array<int, array{name?: string, slug?: string, count?: int}> $items
+     * @return list<array<string, mixed>>
+     */
+    protected function buildHubSchema(string $title, string $description, array $items, string $canonical): array
+    {
+        $base = rtrim(\App\Support\CanonicalUrl::base(request()), '/');
+        $typeName = match ($this->type) {
+            'categories' => 'Categories',
+            'languages' => 'Programming languages',
+            'licenses' => 'Open-source licenses',
+            default => 'Browse',
+        };
+
+        $elements = [];
+        foreach (array_values($items) as $index => $item) {
+            $slug = $item['slug'] ?? null;
+            if (! $slug) {
+                continue;
+            }
+            $url = $this->slug === null
+                ? $base.'/browse/'.$this->type.'/'.$slug
+                : $base.'/alternatives/'.$slug;
+
+            $elements[] = [
+                '@type' => 'ListItem',
+                'position' => $index + 1,
+                'name' => $item['name'] ?? '',
+                'url' => $url,
+            ];
+        }
+
+        $breadcrumb = [
+            '@type' => 'BreadcrumbList',
+            'itemListElement' => [
+                ['@type' => 'ListItem', 'position' => 1, 'name' => 'Home', 'item' => $base.'/'],
+                ['@type' => 'ListItem', 'position' => 2, 'name' => $typeName, 'item' => $base.'/browse/'.$this->type],
+            ],
+        ];
+
+        if ($this->slug !== null) {
+            $breadcrumb['itemListElement'][] = [
+                '@type' => 'ListItem',
+                'position' => 3,
+                'name' => $title,
+                'item' => $canonical,
+            ];
+        }
+
+        return [[
+            '@context' => 'https://schema.org',
+            '@graph' => [
+                [
+                    '@type' => $this->slug === null ? 'CollectionPage' : 'CollectionPage',
+                    '@id' => $canonical.'#webpage',
+                    'url' => $canonical,
+                    'name' => $title,
+                    'description' => $description,
+                    'isPartOf' => [
+                        '@type' => 'WebSite',
+                        'name' => app(SeoManager::class)->siteName(),
+                        'url' => $base.'/',
+                    ],
+                    'mainEntity' => ['@id' => $canonical.'#itemlist'],
+                    'breadcrumb' => ['@id' => $canonical.'#breadcrumb'],
+                ],
+                [
+                    '@type' => 'ItemList',
+                    '@id' => $canonical.'#itemlist',
+                    'name' => $this->slug === null ? $typeName : $title,
+                    'numberOfItems' => count($elements),
+                    'itemListElement' => $elements,
+                ],
+                array_merge($breadcrumb, ['@id' => $canonical.'#breadcrumb']),
+            ],
+        ]];
     }
 
     /** @return list<array{name: string, slug: string, count: int}> */

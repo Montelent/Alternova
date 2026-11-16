@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\Collection;
 use App\Services\SeoManager;
 use App\Support\SoftwareApplicationSchema;
+use App\Support\CanonicalUrl;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Component;
 
@@ -75,7 +76,7 @@ class CollectionShow extends Component
      */
     protected function buildJsonLd(Collection $collection, $items, string $canonical, string $description, ?string $cover): array
     {
-        $site = rtrim((string) config('app.url'), '/');
+        $site = rtrim(CanonicalUrl::base(request()), '/');
         $siteName = config('app.name', 'Alternova');
         try {
             $siteName = app(SeoManager::class)->siteName();
@@ -91,7 +92,7 @@ class CollectionShow extends Component
                 // Google: ListItem must not combine url/name with nested "item"
                 'item' => SoftwareApplicationSchema::make([
                     'name' => $alt->name,
-                    'url' => route('alternatives.show', $alt),
+                    'url' => rtrim(CanonicalUrl::base(request()), '/').'/alternatives/'.$alt->slug,
                     'description' => $alt->description,
                     'license' => $alt->license_type,
                     'website' => $alt->website_url,
@@ -142,7 +143,7 @@ class CollectionShow extends Component
                     '@type' => 'ListItem',
                     'position' => 2,
                     'name' => 'Collections',
-                    'item' => route('collections.index'),
+                    'item' => $site.'/collections',
                 ],
                 [
                     '@type' => 'ListItem',

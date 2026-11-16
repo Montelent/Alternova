@@ -7,6 +7,7 @@ use App\Models\SlugRedirect;
 use App\Services\ProprietaryPageCopy;
 use App\Services\SeoManager;
 use App\Support\SoftwareApplicationSchema;
+use App\Support\CanonicalUrl;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Str;
 use Livewire\Component;
@@ -82,7 +83,7 @@ class ProprietaryToolShow extends Component
             ? (string) $tool->meta_description
             : ($copy['meta_description'] ?? $seo->toolDescription($tool));
 
-        $canonical = $tool->canonical_url ?: route('alternativesto.show', $tool->slug);
+        $canonical = $seo->canonicalOverride($tool->canonical_url, $seo->currentCanonicalUrl());
 
         $social = $seo->toolSocial($tool, $count, $copy['heading'] ?? null);
         if (! filled($tool->og_description) && ! empty($copy['meta_description'])) {
@@ -123,7 +124,7 @@ class ProprietaryToolShow extends Component
                 // Google carousels: ListItem must not combine url/name with nested "item"
                 'item' => SoftwareApplicationSchema::make([
                     'name' => $alt->name,
-                    'url' => route('alternatives.show', $alt->slug),
+                    'url' => rtrim(CanonicalUrl::base(request()), '/').'/alternatives/'.$alt->slug,
                     'description' => $alt->description,
                     'license' => $alt->license_type ?? null,
                     'website' => $alt->website_url ?? null,
@@ -142,7 +143,7 @@ class ProprietaryToolShow extends Component
                 'url' => $canonical,
                 'name' => $count.' Open Source Alternatives to '.$tool->name,
                 'description' => Str::limit(strip_tags($description), 160),
-                'isPartOf' => ['@type' => 'WebSite', 'name' => config('app.name'), 'url' => url('/')],
+                'isPartOf' => ['@type' => 'WebSite', 'name' => config('app.name'), 'url' => rtrim(CanonicalUrl::base(request()), '/').'/' ],
                 'about' => SoftwareApplicationSchema::make([
                     'name' => $tool->name,
                     'url' => $tool->website_url ?: $canonical,
@@ -163,8 +164,8 @@ class ProprietaryToolShow extends Component
             [
                 '@type' => 'BreadcrumbList',
                 'itemListElement' => [
-                    ['@type' => 'ListItem', 'position' => 1, 'name' => 'Home', 'item' => url('/')],
-                    ['@type' => 'ListItem', 'position' => 2, 'name' => 'Alternatives', 'item' => route('finder')],
+                    ['@type' => 'ListItem', 'position' => 1, 'name' => 'Home', 'item' => rtrim(CanonicalUrl::base(request()), '/').'/'],
+                    ['@type' => 'ListItem', 'position' => 2, 'name' => 'Alternatives', 'item' => rtrim(CanonicalUrl::base(request()), '/').'/alternatives'],
                     ['@type' => 'ListItem', 'position' => 3, 'name' => $tool->name, 'item' => $canonical],
                 ],
             ],

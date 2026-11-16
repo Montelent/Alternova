@@ -7,6 +7,8 @@ use App\Models\OpenSourceAlternative;
 use App\Models\Page;
 use App\Models\ProprietaryTool;
 use App\Models\SiteSetting;
+use App\Support\CanonicalUrl;
+use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class SeoManager
@@ -238,7 +240,7 @@ class SeoManager
             'description' => $description,
             'image' => $image,
             'type' => 'article',
-            'url' => $alt->canonical_url ?: route('alternatives.show', $alt),
+            'url' => $this->canonicalOverride($alt->canonical_url, $this->currentCanonicalUrl()),
         ];
     }
 
@@ -313,7 +315,7 @@ class SeoManager
             'description' => $description,
             'image' => $image,
             'type' => 'article',
-            'url' => $tool->canonical_url ?: route('alternativesto.show', $tool->slug),
+            'url' => $this->canonicalOverride($tool->canonical_url, $this->currentCanonicalUrl()),
         ];
     }
 
@@ -342,7 +344,7 @@ class SeoManager
             'description' => $description,
             'image' => $image,
             'type' => 'website',
-            'url' => route('collections.show', $collection->slug),
+            'url' => $this->canonicalOverride($collection->canonical_url, $this->currentCanonicalUrl()),
         ];
     }
 
@@ -454,7 +456,7 @@ class SeoManager
         $org = [
             '@type' => 'Organization',
             'name' => SiteSetting::get('seo_org_name', $this->siteName()) ?: $this->siteName(),
-            'url' => url('/'),
+            'url' => CanonicalUrl::base(request()),
         ];
 
         if ($logo !== '') {
@@ -468,11 +470,47 @@ class SeoManager
         return $org;
     }
 
+
+    /**
+     * Resolve the current page canonical from the trusted active request host.
+     * Query strings are deliberately excluded to prevent duplicate index URLs.
+     */
+    public function currentCanonicalUrl(?Request $request = null): string
+    {
+        $request ??= request();
+        $base = rtrim(CanonicalUrl::base($request), '/');
+        $path = trim((string) $request->path(), '/');
+
+        return $path === '' ? $base.'/' : $base.'/'.$path;
+    }
+
+
+    /**
+     * Accept only absolute HTTP(S) canonical overrides; invalid values fall
+     * back to the trusted request-derived canonical URL.
+     */
+    public function canonicalOverride(?string $candidate, string $fallback): string
+    {
+        $candidate = trim((string) $candidate);
+        if ($candidate === '' || filter_var($candidate, FILTER_VALIDATE_URL) === false) {
+            return $fallback;
+        }
+
+        $parts = parse_url($candidate);
+        if (! is_array($parts)
+            || ! in_array(strtolower((string) ($parts['scheme'] ?? '')), ['http', 'https'], true)
+            || empty($parts['host'])) {
+            return $fallback;
+        }
+
+        return $candidate;
+    }
+
     public function head(array $page = []): array
     {
         $title = $page['title'] ?? $this->homepageTitle();
         $description = $page['description'] ?? $this->defaultDescription();
-        $canonical = $page['canonical'] ?? url()->current();
+        $canonical = $page['canonical'] ?? $this->currentCanonicalUrl();
         $robots = $this->robotsMeta($page['robots'] ?? null);
 
         $ogTitle = filled($page['ogTitle'] ?? null) ? $page['ogTitle'] : $title;

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Page;
 use App\Services\SeoManager;
+use App\Support\CanonicalUrl;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -100,7 +101,7 @@ class PageController extends Controller
      */
     protected function pageJsonLd(Page $page, string $title, string $description, string $canonical): array
     {
-        $site = rtrim((string) config('app.url'), '/');
+        $site = rtrim(CanonicalUrl::base(request()), '/');
         $siteName = config('app.name', 'Alternova');
         try {
             $siteName = app(SeoManager::class)->siteName();

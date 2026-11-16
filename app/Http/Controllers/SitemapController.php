@@ -9,6 +9,7 @@ use App\Models\Page;
 use App\Models\ProprietaryTool;
 use App\Models\SiteSetting;
 use App\Support\CategoryCatalog;
+use App\Services\SeoManager;
 use App\Support\CanonicalUrl;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -25,12 +26,26 @@ class SitemapController extends Controller
 
         $sitemaps = [
             ['loc' => $base.'/sitemap-static.xml', 'lastmod' => $now],
-            ['loc' => $base.'/sitemap-pages.xml', 'lastmod' => $now],
-            ['loc' => $base.'/sitemap-tools.xml', 'lastmod' => $now],
-            ['loc' => $base.'/sitemap-alternatives.xml', 'lastmod' => $now],
             ['loc' => $base.'/sitemap-categories.xml', 'lastmod' => $now],
-            ['loc' => $base.'/sitemap-collections.xml', 'lastmod' => $now],
         ];
+
+        // Keep every child sitemap below the protocol's 50,000 URL limit.
+        $sitemapSources = [
+            ['path' => '/sitemap-pages.xml', 'count' => $this->indexablePages()->count()],
+            ['path' => '/sitemap-tools.xml', 'count' => $this->indexableTools()->count()],
+            ['path' => '/sitemap-alternatives.xml', 'count' => $this->indexableAlternatives()->count()],
+            ['path' => '/sitemap-collections.xml', 'count' => $this->indexableCollections()->count()],
+        ];
+
+        foreach ($sitemapSources as $source) {
+            $pages = max(1, (int) ceil($source['count'] / $this->sitemapPageSize()));
+            for ($page = 1; $page <= $pages; $page++) {
+                $sitemaps[] = [
+                    'loc' => $base.$source['path'].($page > 1 ? '?page='.$page : ''),
+                    'lastmod' => $now,
+                ];
+            }
+        }
 
         $xml = view('sitemap-index', ['sitemaps' => $sitemaps])->render();
 
@@ -53,8 +68,6 @@ class SitemapController extends Controller
             ['loc' => $base.'/trending', 'changefreq' => 'daily', 'priority' => '0.8'],
             ['loc' => $base.'/collections', 'changefreq' => 'weekly', 'priority' => '0.8'],
             ['loc' => $base.'/whats-new', 'changefreq' => 'daily', 'priority' => '0.7'],
-            ['loc' => $base.'/suggest', 'changefreq' => 'monthly', 'priority' => '0.4'],
-            ['loc' => $base.'/contact', 'changefreq' => 'monthly', 'priority' => '0.3'],
         ];
 
         if ($includeDomains) {
@@ -74,9 +87,9 @@ class SitemapController extends Controller
 
         try {
             if (Schema::hasTable('pages')) {
-                $pages = Page::query()->published()->orderBy('sort_order')->get(['slug', 'updated_at', 'noindex', 'robots_meta']);
+                $pages = $this->indexablePages()->orderBy('id')->forPage($this->sitemapPage($request), $this->sitemapPageSize())->get(['slug', 'updated_at', 'robots_meta']);
                 foreach ($pages as $p) {
-                    if (! empty($p->noindex) || $this->isNoindex($p->robots_meta ?? null)) {
+                    if ($this->isNoindex($p->robots_meta ?? null)) {
                         continue;
                     }
                     $urls[] = [
@@ -102,16 +115,16 @@ class SitemapController extends Controller
         $base = rtrim(CanonicalUrl::base($request), '/');
         $urls = [];
 
-        ProprietaryTool::query()
-            ->where('is_published', true)
-            ->orderByDesc('updated_at')
-            ->get(['slug', 'updated_at', 'robots_meta'])
+        $this->indexableTools()
+            ->orderBy('id')
+            ->forPage($this->sitemapPage($request), $this->sitemapPageSize())
+            ->get(['slug', 'updated_at', 'robots_meta', 'canonical_url'])
             ->each(function ($tool) use (&$urls, $base) {
                 if ($this->isNoindex($tool->robots_meta ?? null)) {
                     return;
                 }
                 $urls[] = [
-                    'loc' => $base.'/alternativesto/'.$tool->slug,
+                    'loc' => app(SeoManager::class)->canonicalOverride($tool->canonical_url ?? null, $base.'/alternativesto/'.$tool->slug),
                     'lastmod' => optional($tool->updated_at)->toAtomString(),
                     'changefreq' => 'weekly',
                     'priority' => '0.85',
@@ -126,16 +139,16 @@ class SitemapController extends Controller
         $base = rtrim(CanonicalUrl::base($request), '/');
         $urls = [];
 
-        OpenSourceAlternative::query()
-            ->where('is_published', true)
-            ->orderByDesc('updated_at')
-            ->get(['slug', 'updated_at', 'robots_meta'])
+        $this->indexableAlternatives()
+            ->orderBy('id')
+            ->forPage($this->sitemapPage($request), $this->sitemapPageSize())
+            ->get(['slug', 'updated_at', 'robots_meta', 'canonical_url'])
             ->each(function ($alt) use (&$urls, $base) {
                 if ($this->isNoindex($alt->robots_meta ?? null)) {
                     return;
                 }
                 $urls[] = [
-                    'loc' => $base.'/alternatives/'.$alt->slug,
+                    'loc' => app(SeoManager::class)->canonicalOverride($alt->canonical_url ?? null, $base.'/alternatives/'.$alt->slug),
                     'lastmod' => optional($alt->updated_at)->toAtomString(),
                     'changefreq' => 'weekly',
                     'priority' => '0.8',
@@ -157,6 +170,12 @@ class SitemapController extends Controller
                 $names = CategoryCatalog::names();
             }
             foreach ($names as $name) {
+                $hasIndexableAlternatives = $this->indexableAlternatives()
+                    ->withAnyTags([$name], 'category')
+                    ->exists();
+                if (! $hasIndexableAlternatives) {
+                    continue;
+                }
                 $urls[] = [
                     'loc' => $base.'/browse/categories/'.Str::slug($name),
                     'changefreq' => 'weekly',
@@ -168,8 +187,7 @@ class SitemapController extends Controller
 
         // Language hubs
         try {
-            $langs = OpenSourceAlternative::query()
-                ->where('is_published', true)
+            $langs = $this->indexableAlternatives()
                 ->whereNotNull('primary_language')
                 ->where('primary_language', '!=', '')
                 ->distinct()
@@ -186,8 +204,7 @@ class SitemapController extends Controller
 
         // License hubs
         try {
-            $lics = OpenSourceAlternative::query()
-                ->where('is_published', true)
+            $lics = $this->indexableAlternatives()
                 ->whereNotNull('license_type')
                 ->where('license_type', '!=', '')
                 ->distinct()
@@ -212,13 +229,16 @@ class SitemapController extends Controller
 
         try {
             if (Schema::hasTable('collections')) {
-                Collection::query()
-                    ->where('is_published', true)
-                    ->orderByDesc('updated_at')
-                    ->get(['slug', 'updated_at'])
+                $this->indexableCollections()
+                    ->orderBy('id')
+                    ->forPage($this->sitemapPage($request), $this->sitemapPageSize())
+                    ->get(['slug', 'updated_at', 'robots_meta', 'canonical_url'])
                     ->each(function ($c) use (&$urls, $base) {
+                        if ($this->isNoindex($c->robots_meta ?? null)) {
+                            return;
+                        }
                         $urls[] = [
-                            'loc' => $base.'/collections/'.$c->slug,
+                            'loc' => app(SeoManager::class)->canonicalOverride($c->canonical_url ?? null, $base.'/collections/'.$c->slug),
                             'lastmod' => optional($c->updated_at)->toAtomString(),
                             'changefreq' => 'weekly',
                             'priority' => '0.75',
@@ -229,6 +249,54 @@ class SitemapController extends Controller
         }
 
         return $this->urlset($urls);
+    }
+
+
+
+    protected function indexablePages()
+    {
+        return Page::query()->published()
+            ->where(function ($query) {
+                $query->whereNull('robots_meta')
+                    ->orWhereRaw('LOWER(robots_meta) NOT LIKE ?', ['%noindex%']);
+            });
+    }
+
+    protected function indexableTools()
+    {
+        return ProprietaryTool::query()->where('is_published', true)
+            ->where(function ($query) {
+                $query->whereNull('robots_meta')
+                    ->orWhereRaw('LOWER(robots_meta) NOT LIKE ?', ['%noindex%']);
+            });
+    }
+
+    protected function indexableAlternatives()
+    {
+        return OpenSourceAlternative::query()->where('is_published', true)
+            ->where(function ($query) {
+                $query->whereNull('robots_meta')
+                    ->orWhereRaw('LOWER(robots_meta) NOT LIKE ?', ['%noindex%']);
+            });
+    }
+
+    protected function indexableCollections()
+    {
+        return Collection::query()->where('is_published', true)
+            ->where(function ($query) {
+                $query->whereNull('robots_meta')
+                    ->orWhereRaw('LOWER(robots_meta) NOT LIKE ?', ['%noindex%']);
+            });
+    }
+
+    protected function sitemapPageSize(): int
+    {
+        return max(1, min(50000, (int) config('seo.sitemap_page_size', 45000)));
+    }
+
+    protected function sitemapPage(Request $request): int
+    {
+        return max(1, min(1000000, $request->integer('page', 1)));
     }
 
     protected function urlset(array $urls): Response

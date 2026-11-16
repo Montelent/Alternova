@@ -147,15 +147,39 @@ Route::get('/ads.txt', function () {
 });
 
 Route::get('/robots.txt', function (Request $request) {
-    $path = public_path('robots.txt');
-    $base = CanonicalUrl::base($request);
-    $body = is_file($path) ? file_get_contents($path) : "User-agent: *\nAllow: /\n";
-    $body = preg_replace('/^Sitemap:.*$/m', 'Sitemap: '.$base.'/sitemap.xml', $body);
-    if (! str_contains($body, 'Sitemap:')) {
-        $body = rtrim($body)."\n\nSitemap: {$base}/sitemap.xml\n";
-    }
+    $base = rtrim(CanonicalUrl::base($request), '/');
+    $body = implode("\n", [
+        'User-agent: *',
+        'Allow: /',
+        '',
+        '# Private and utility routes',
+        'Disallow: /admin',
+        'Disallow: /admin/',
+        'Disallow: /install',
+        'Disallow: /install/',
+        'Disallow: /livewire',
+        'Disallow: /livewire/',
+        'Disallow: /account',
+        'Disallow: /account/',
+        'Disallow: /notifications',
+        'Disallow: /favorites',
+        'Disallow: /login',
+        'Disallow: /register',
+        'Disallow: /forgot-password',
+        'Disallow: /reset-password',
+        'Disallow: /api/',
+        'Disallow: /embed/',
+        'Disallow: /tools/',
+        'Disallow: /submission-status/',
+        'Disallow: /collection-submission-status/',
+        'Disallow: /support/',
+        '',
+        '# The active trusted domain is resolved for each request.',
+        'Sitemap: '.$base.'/sitemap.xml',
+        '',
+    ]);
 
-    return response($body, 200)->header('Content-Type', 'text/plain');
+    return response($body, 200)->header('Content-Type', 'text/plain; charset=UTF-8');
 });
 
 /*
