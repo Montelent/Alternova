@@ -68,7 +68,7 @@ class AlternativeJsonLd
             '@id' => $canonical.'#breadcrumb',
             'itemListElement' => [
                 ['@type' => 'ListItem', 'position' => 1, 'name' => 'Home', 'item' => $site],
-                ['@type' => 'ListItem', 'position' => 2, 'name' => 'Alternatives', 'item' => route('finder')],
+                ['@type' => 'ListItem', 'position' => 2, 'name' => 'Alternatives', 'item' => rtrim(CanonicalUrl::base(request()), '/').'/alternatives'],
                 ['@type' => 'ListItem', 'position' => 3, 'name' => $alt->name, 'item' => $canonical],
             ],
         ];
