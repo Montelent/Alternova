@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Support\HtmlSanitizer;
+use App\Support\CanonicalUrl;
 use App\Models\Concerns\HasAutoSortOrder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -66,7 +67,7 @@ class Page extends Model
     {
         $slug = trim((string) $this->slug, '/');
         if ($slug === '') {
-            return url('/');
+            return rtrim(CanonicalUrl::base(request()), '/').'/';
         }
 
         $reserved = ['about', 'privacy', 'terms', 'disclosure'];
@@ -74,7 +75,7 @@ class Page extends Model
             return route($slug);
         }
 
-        return url('/'.$slug);
+        return rtrim(CanonicalUrl::base(request()), '/').'/'.$slug;
     }
 
     public function seoTitle(): string
