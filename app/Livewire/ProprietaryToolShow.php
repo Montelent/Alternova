@@ -83,7 +83,7 @@ class ProprietaryToolShow extends Component
             ? (string) $tool->meta_description
             : ($copy['meta_description'] ?? $seo->toolDescription($tool));
 
-        $canonical = $tool->canonical_url ?: route('alternativesto.show', $tool->slug);
+        $canonical = $tool->canonical_url ?: $seo->currentCanonicalUrl();
 
         $social = $seo->toolSocial($tool, $count, $copy['heading'] ?? null);
         if (! filled($tool->og_description) && ! empty($copy['meta_description'])) {
@@ -124,7 +124,7 @@ class ProprietaryToolShow extends Component
                 // Google carousels: ListItem must not combine url/name with nested "item"
                 'item' => SoftwareApplicationSchema::make([
                     'name' => $alt->name,
-                    'url' => route('alternatives.show', $alt->slug),
+                    'url' => rtrim(CanonicalUrl::base(request()), '/').'/alternatives/'.$alt->slug,
                     'description' => $alt->description,
                     'license' => $alt->license_type ?? null,
                     'website' => $alt->website_url ?? null,
@@ -165,7 +165,7 @@ class ProprietaryToolShow extends Component
                 '@type' => 'BreadcrumbList',
                 'itemListElement' => [
                     ['@type' => 'ListItem', 'position' => 1, 'name' => 'Home', 'item' => rtrim(CanonicalUrl::base(request()), '/').'/'],
-                    ['@type' => 'ListItem', 'position' => 2, 'name' => 'Alternatives', 'item' => route('finder')],
+                    ['@type' => 'ListItem', 'position' => 2, 'name' => 'Alternatives', 'item' => rtrim(CanonicalUrl::base(request()), '/').'/alternatives'],
                     ['@type' => 'ListItem', 'position' => 3, 'name' => $tool->name, 'item' => $canonical],
                 ],
             ],
