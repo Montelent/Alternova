@@ -47,7 +47,18 @@ class ProprietaryToolResource extends Resource
                     Forms\Components\TextInput::make('name')
                         ->required()
                         ->live(onBlur: true)
-                        ->afterStateUpdated(fn ($state, Set $set) => $set('slug', Str::slug($state))),
+                        ->afterStateUpdated(function ($state, Set $set, \Filament\Forms\Get $get, string $operation, ?string $old): void {
+                    $slug = \App\Support\SlugAutofill::fromName(
+                        is_string($state) ? $state : null,
+                        $get('slug'),
+                        $old,
+                        $operation,
+                    );
+
+                    if ($slug !== null) {
+                        $set('slug', $slug);
+                    }
+                }),
                     Forms\Components\TextInput::make('slug')
                         ->required()
                         ->unique(ignoreRecord: true),
@@ -99,7 +110,7 @@ class ProprietaryToolResource extends Resource
             ->columns([
                 Tables\Columns\ImageColumn::make('logo_url')
                     ->label('Logo')
-                    ->getStateUsing(fn ($record) => $record->logo_url ?? MediaUrl::to($record->logo_path))
+                    ->getStateUsing(fn ($record) => $record->logo_url ?? MediaUrl::make($record->logo_path))
                     ->circular()
                     ->height(40)
                     ->width(40)

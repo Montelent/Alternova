@@ -159,7 +159,7 @@ class OpenSourceFinder extends Component
         $hasSponsored = SchemaCache::hasColumn('open_source_alternatives', 'is_sponsored');
         if ($hasSponsored && in_array($this->sort, ['health', 'votes'], true)) {
             $query->orderByRaw(
-                'CASE WHEN is_sponsored = 1 AND (sponsored_until IS NULL OR sponsored_until > ?) THEN 0 ELSE 1 END',
+                'CASE WHEN is_sponsored AND (sponsored_until IS NULL OR sponsored_until > ?) THEN 0 ELSE 1 END',
                 [now()]
             );
         }

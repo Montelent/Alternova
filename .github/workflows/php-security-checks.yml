@@ -59,6 +59,9 @@ jobs:
       - name: Install npm dependencies
         run: npm ci --no-audit
 
+      - name: Run frontend behavior tests
+        run: npm run test:js
+
       - name: Build production frontend assets
         run: npm run build
 
@@ -132,6 +135,18 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci --no-audit
+
+      - name: Build frontend assets for rendered feature tests
+        run: npm run build
+
       - name: Run a clean migration against the database service
         run: php artisan migrate:fresh --force
 
@@ -143,6 +158,94 @@ jobs:
 
       - name: Run Laravel feature tests
         run: php artisan test --testsuite=Feature
+
+  browser-smoke:
+    name: Browser frontend smoke tests
+    runs-on: ubuntu-24.04
+    services:
+      database:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: alternova_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      APP_ENV: testing
+      APP_DEBUG: true
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      APP_URL: http://127.0.0.1:8000
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: alternova_test
+      DB_USERNAME: root
+      DB_PASSWORD: root
+      CACHE_STORE: array
+      MAIL_MAILER: array
+      QUEUE_CONNECTION: sync
+      SESSION_DRIVER: file
+      SCOUT_DRIVER: collection
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, dom, xml, curl, fileinfo, pdo_mysql, gd, zip, intl
+          coverage: none
+
+      - name: Prepare the Laravel test environment
+        run: cp .env.example .env
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install frontend dependencies and build assets
+        run: |
+          npm ci --no-audit
+          npm run build
+
+      - name: Install Playwright and Chromium
+        run: |
+          npm install --no-save --package-lock=false @playwright/test@1.56.1
+          npx playwright install --with-deps chromium
+
+      - name: Prepare database and lock the installer
+        run: |
+          php artisan migrate:fresh --force
+          php artisan db:seed --class=BrowserSmokeSeeder --force
+          php -r 'require "vendor/autoload.php"; $app = require "bootstrap/app.php"; $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap(); \App\Support\Installer::lock();'
+
+      - name: Start the application server
+        run: |
+          php artisan serve --host=127.0.0.1 --port=8000 > /tmp/alternova-server.log 2>&1 &
+          for attempt in {1..30}; do
+            if curl --silent --fail http://127.0.0.1:8000/ >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/alternova-server.log
+          exit 1
+
+      - name: Run real-browser frontend tests
+        env:
+          ALTERNOVA_E2E_URL: http://127.0.0.1:8000
+        run: npx playwright test tests/e2e/public-frontend.spec.mjs --reporter=line
 
   unit-tests:
     name: Security helper unit tests

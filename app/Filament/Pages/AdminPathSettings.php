@@ -82,6 +82,8 @@ class AdminPathSettings extends Page implements HasForms
 
     public function save(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $data = $this->form->getState();
         $path = strtolower(trim((string) ($data['admin_path'] ?? 'admin'), " \t\n\r\0\x0B/"));
         $path = preg_replace('/[^a-z0-9\-_]/', '', $path) ?? '';

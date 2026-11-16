@@ -41,7 +41,18 @@ class OssCategoryResource extends Resource
                 ->required()
                 ->maxLength(120)
                 ->live(onBlur: true)
-                ->afterStateUpdated(fn ($state, Set $set) => $set('slug', Str::slug((string) $state))),
+                ->afterStateUpdated(function ($state, Set $set, Forms\Get $get, string $operation, ?string $old): void {
+                    $slug = \App\Support\SlugAutofill::fromName(
+                        is_string($state) ? $state : null,
+                        $get('slug'),
+                        $old,
+                        $operation,
+                    );
+
+                    if ($slug !== null) {
+                        $set('slug', $slug);
+                    }
+                }),
             Forms\Components\TextInput::make('slug')->required()->unique(ignoreRecord: true),
             Forms\Components\Textarea::make('description')->rows(3)->columnSpanFull(),
             Forms\Components\TextInput::make('sort_order')

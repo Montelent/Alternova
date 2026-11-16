@@ -98,7 +98,7 @@ class SuggestAlternative extends Component
         $this->notifyAdmins($submission);
 
         $this->trackingToken = $token;
-        $this->trackingUrl = route('submissions.status', $token);
+        $this->trackingUrl = route('submission.status', $token);
 
         $this->reset([
             'submitter_name',
@@ -124,7 +124,7 @@ class SuggestAlternative extends Component
             // Prefer first admin user email
             $adminEmail = User::query()
                 ->where(function ($q) {
-                    $q->where('role', 'admin')->orWhere('is_admin', true);
+                    $q->where('role', User::ROLE_ADMIN);
                 })
                 ->value('email');
 

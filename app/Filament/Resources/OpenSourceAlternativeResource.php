@@ -68,7 +68,14 @@ class OpenSourceAlternativeResource extends Resource
         if ($hasPivot) {
             $toolFields[] = Forms\Components\Select::make('proprietaryTools')
                 ->label('Proprietary tools (up to 5)')
-                ->relationship('proprietaryTools', 'name')
+                ->relationship(
+                    'proprietaryTools',
+                    'name',
+                    modifyQueryUsing: fn (Builder $query) => $query->select([
+                        'proprietary_tools.id',
+                        'proprietary_tools.name',
+                    ]),
+                )
                 ->multiple()
                 ->maxItems(5)
                 ->searchable()
@@ -97,24 +104,18 @@ class OpenSourceAlternativeResource extends Resource
                     ->required()
                     ->maxLength(160)
                     ->live(onBlur: true)
-                    ->afterStateUpdated(function (?string $state, Set $set, Get $get, ?string $old) {
-                        $name = trim((string) $state);
-                        if ($name === '') {
-                            return;
-                        }
+                    ->afterStateUpdated(function ($state, Set $set, \Filament\Forms\Get $get, string $operation, ?string $old): void {
+                    $slug = \App\Support\SlugAutofill::fromName(
+                        is_string($state) ? $state : null,
+                        $get('slug'),
+                        $old,
+                        $operation,
+                    );
 
-                        $newSlug = Str::slug($name);
-                        if ($newSlug === '') {
-                            return;
-                        }
-
-                        $currentSlug = trim((string) ($get('slug') ?? ''));
-                        $oldSlug = Str::slug(trim((string) ($old ?? '')));
-
-                        if ($currentSlug === '' || ($oldSlug !== '' && $currentSlug === $oldSlug)) {
-                            $set('slug', $newSlug);
-                        }
-                    }),
+                    if ($slug !== null) {
+                        $set('slug', $slug);
+                    }
+                }),
                 Forms\Components\TextInput::make('slug')
                     ->required()
                     ->maxLength(180)
