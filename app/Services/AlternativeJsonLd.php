@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\OpenSourceAlternative;
 use App\Support\SoftwareApplicationSchema;
+use App\Support\CanonicalUrl;
 use Illuminate\Support\Str;
 
 class AlternativeJsonLd
@@ -13,7 +14,7 @@ class AlternativeJsonLd
      */
     public function build(OpenSourceAlternative $alt, $prop, string $canonical): array
     {
-        $site = rtrim((string) config('app.url'), '/');
+        $site = rtrim(CanonicalUrl::base(request()), '/');
         $siteName = config('app.name', 'Alternova');
         try {
             $siteName = app(SeoManager::class)->siteName();
