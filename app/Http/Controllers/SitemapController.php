@@ -67,8 +67,6 @@ class SitemapController extends Controller
             ['loc' => $base.'/trending', 'changefreq' => 'daily', 'priority' => '0.8'],
             ['loc' => $base.'/collections', 'changefreq' => 'weekly', 'priority' => '0.8'],
             ['loc' => $base.'/whats-new', 'changefreq' => 'daily', 'priority' => '0.7'],
-            ['loc' => $base.'/suggest', 'changefreq' => 'monthly', 'priority' => '0.4'],
-            ['loc' => $base.'/contact', 'changefreq' => 'monthly', 'priority' => '0.3'],
         ];
 
         if ($includeDomains) {
@@ -171,6 +169,12 @@ class SitemapController extends Controller
                 $names = CategoryCatalog::names();
             }
             foreach ($names as $name) {
+                $hasIndexableAlternatives = $this->indexableAlternatives()
+                    ->withAnyTags([$name], 'category')
+                    ->exists();
+                if (! $hasIndexableAlternatives) {
+                    continue;
+                }
                 $urls[] = [
                     'loc' => $base.'/browse/categories/'.Str::slug($name),
                     'changefreq' => 'weekly',
@@ -182,8 +186,7 @@ class SitemapController extends Controller
 
         // Language hubs
         try {
-            $langs = OpenSourceAlternative::query()
-                ->where('is_published', true)
+            $langs = $this->indexableAlternatives()
                 ->whereNotNull('primary_language')
                 ->where('primary_language', '!=', '')
                 ->distinct()
@@ -200,8 +203,7 @@ class SitemapController extends Controller
 
         // License hubs
         try {
-            $lics = OpenSourceAlternative::query()
-                ->where('is_published', true)
+            $lics = $this->indexableAlternatives()
                 ->whereNotNull('license_type')
                 ->where('license_type', '!=', '')
                 ->distinct()
