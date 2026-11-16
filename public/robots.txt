@@ -18,6 +18,9 @@ Disallow: /forgot-password
 Disallow: /reset-password
 Disallow: /api/
 Disallow: /embed/
+Disallow: /submission-status/
+Disallow: /collection-submission-status/
+Disallow: /support/
 
 # Prefer canonical /alternativesto/ URLs
 Disallow: /tools/
