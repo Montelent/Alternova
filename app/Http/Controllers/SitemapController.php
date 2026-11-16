@@ -9,6 +9,7 @@ use App\Models\Page;
 use App\Models\ProprietaryTool;
 use App\Models\SiteSetting;
 use App\Support\CategoryCatalog;
+use App\Services\SeoManager;
 use App\Support\CanonicalUrl;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -117,13 +118,13 @@ class SitemapController extends Controller
         $this->indexableTools()
             ->orderBy('id')
             ->forPage($this->sitemapPage($request), $this->sitemapPageSize())
-            ->get(['slug', 'updated_at', 'robots_meta'])
+            ->get(['slug', 'updated_at', 'robots_meta', 'canonical_url'])
             ->each(function ($tool) use (&$urls, $base) {
                 if ($this->isNoindex($tool->robots_meta ?? null)) {
                     return;
                 }
                 $urls[] = [
-                    'loc' => $base.'/alternativesto/'.$tool->slug,
+                    'loc' => app(SeoManager::class)->canonicalOverride($tool->canonical_url ?? null, $base.'/alternativesto/'.$tool->slug),
                     'lastmod' => optional($tool->updated_at)->toAtomString(),
                     'changefreq' => 'weekly',
                     'priority' => '0.85',
@@ -141,13 +142,13 @@ class SitemapController extends Controller
         $this->indexableAlternatives()
             ->orderBy('id')
             ->forPage($this->sitemapPage($request), $this->sitemapPageSize())
-            ->get(['slug', 'updated_at', 'robots_meta'])
+            ->get(['slug', 'updated_at', 'robots_meta', 'canonical_url'])
             ->each(function ($alt) use (&$urls, $base) {
                 if ($this->isNoindex($alt->robots_meta ?? null)) {
                     return;
                 }
                 $urls[] = [
-                    'loc' => $base.'/alternatives/'.$alt->slug,
+                    'loc' => app(SeoManager::class)->canonicalOverride($alt->canonical_url ?? null, $base.'/alternatives/'.$alt->slug),
                     'lastmod' => optional($alt->updated_at)->toAtomString(),
                     'changefreq' => 'weekly',
                     'priority' => '0.8',
@@ -231,13 +232,13 @@ class SitemapController extends Controller
                 $this->indexableCollections()
                     ->orderBy('id')
                     ->forPage($this->sitemapPage($request), $this->sitemapPageSize())
-                    ->get(['slug', 'updated_at', 'robots_meta'])
+                    ->get(['slug', 'updated_at', 'robots_meta', 'canonical_url'])
                     ->each(function ($c) use (&$urls, $base) {
                         if ($this->isNoindex($c->robots_meta ?? null)) {
                             return;
                         }
                         $urls[] = [
-                            'loc' => $base.'/collections/'.$c->slug,
+                            'loc' => app(SeoManager::class)->canonicalOverride($c->canonical_url ?? null, $base.'/collections/'.$c->slug),
                             'lastmod' => optional($c->updated_at)->toAtomString(),
                             'changefreq' => 'weekly',
                             'priority' => '0.75',
