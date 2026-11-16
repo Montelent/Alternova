@@ -90,7 +90,7 @@ class SitemapController extends Controller
 
         try {
             if (Schema::hasTable('pages')) {
-                $pages = Page::query()->published()->orderBy('id')->forPage($this->sitemapPage($request), self::SITEMAP_PAGE_SIZE)->get(['slug', 'updated_at', 'noindex', 'robots_meta']);
+                $pages = Page::query()->published()->orderBy('id')->forPage($this->sitemapPage($request), $this->sitemapPageSize())->get(['slug', 'updated_at', 'noindex', 'robots_meta']);
                 foreach ($pages as $p) {
                     if (! empty($p->noindex) || $this->isNoindex($p->robots_meta ?? null)) {
                         continue;
@@ -121,7 +121,7 @@ class SitemapController extends Controller
         ProprietaryTool::query()
             ->where('is_published', true)
             ->orderBy('id')
-            ->forPage($this->sitemapPage($request), self::SITEMAP_PAGE_SIZE)
+            ->forPage($this->sitemapPage($request), $this->sitemapPageSize())
             ->get(['slug', 'updated_at', 'robots_meta'])
             ->each(function ($tool) use (&$urls, $base) {
                 if ($this->isNoindex($tool->robots_meta ?? null)) {
@@ -146,7 +146,7 @@ class SitemapController extends Controller
         OpenSourceAlternative::query()
             ->where('is_published', true)
             ->orderBy('id')
-            ->forPage($this->sitemapPage($request), self::SITEMAP_PAGE_SIZE)
+            ->forPage($this->sitemapPage($request), $this->sitemapPageSize())
             ->get(['slug', 'updated_at', 'robots_meta'])
             ->each(function ($alt) use (&$urls, $base) {
                 if ($this->isNoindex($alt->robots_meta ?? null)) {
@@ -233,7 +233,7 @@ class SitemapController extends Controller
                 Collection::query()
                     ->where('is_published', true)
                     ->orderBy('id')
-                    ->forPage($this->sitemapPage($request), self::SITEMAP_PAGE_SIZE)
+                    ->forPage($this->sitemapPage($request), $this->sitemapPageSize())
                     ->get(['slug', 'updated_at'])
                     ->each(function ($c) use (&$urls, $base) {
                         $urls[] = [
