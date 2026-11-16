@@ -473,10 +473,11 @@ class SeoManager
      * Resolve the current page canonical from the trusted active request host.
      * Query strings are deliberately excluded to prevent duplicate index URLs.
      */
-    public function currentCanonicalUrl(): string
+    public function currentCanonicalUrl(?Request $request = null): string
     {
-        $base = rtrim(CanonicalUrl::base(request()), '/');
-        $path = trim((string) request()->path(), '/');
+        $request ??= request();
+        $base = rtrim(CanonicalUrl::base($request), '/');
+        $path = trim((string) $request->path(), '/');
 
         return $path === '' ? $base.'/' : $base.'/'.$path;
     }
