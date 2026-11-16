@@ -30,10 +30,10 @@ class SitemapController extends Controller
 
         // Keep every child sitemap below the protocol's 50,000 URL limit.
         $sitemapSources = [
-            ['path' => '/sitemap-pages.xml', 'count' => Page::query()->published()->count()],
-            ['path' => '/sitemap-tools.xml', 'count' => ProprietaryTool::query()->where('is_published', true)->count()],
-            ['path' => '/sitemap-alternatives.xml', 'count' => OpenSourceAlternative::query()->where('is_published', true)->count()],
-            ['path' => '/sitemap-collections.xml', 'count' => Collection::query()->where('is_published', true)->count()],
+            ['path' => '/sitemap-pages.xml', 'count' => $this->indexablePages()->count()],
+            ['path' => '/sitemap-tools.xml', 'count' => $this->indexableTools()->count()],
+            ['path' => '/sitemap-alternatives.xml', 'count' => $this->indexableAlternatives()->count()],
+            ['path' => '/sitemap-collections.xml', 'count' => $this->indexableCollections()->count()],
         ];
 
         foreach ($sitemapSources as $source) {
@@ -88,7 +88,7 @@ class SitemapController extends Controller
 
         try {
             if (Schema::hasTable('pages')) {
-                $pages = Page::query()->published()->orderBy('id')->forPage($this->sitemapPage($request), $this->sitemapPageSize())->get(['slug', 'updated_at', 'noindex', 'robots_meta']);
+                $pages = $this->indexablePages()->orderBy('id')->forPage($this->sitemapPage($request), $this->sitemapPageSize())->get(['slug', 'updated_at', 'noindex', 'robots_meta']);
                 foreach ($pages as $p) {
                     if (! empty($p->noindex) || $this->isNoindex($p->robots_meta ?? null)) {
                         continue;
@@ -116,8 +116,7 @@ class SitemapController extends Controller
         $base = rtrim(CanonicalUrl::base($request), '/');
         $urls = [];
 
-        ProprietaryTool::query()
-            ->where('is_published', true)
+        $this->indexableTools()
             ->orderBy('id')
             ->forPage($this->sitemapPage($request), $this->sitemapPageSize())
             ->get(['slug', 'updated_at', 'robots_meta'])
@@ -141,8 +140,7 @@ class SitemapController extends Controller
         $base = rtrim(CanonicalUrl::base($request), '/');
         $urls = [];
 
-        OpenSourceAlternative::query()
-            ->where('is_published', true)
+        $this->indexableAlternatives()
             ->orderBy('id')
             ->forPage($this->sitemapPage($request), $this->sitemapPageSize())
             ->get(['slug', 'updated_at', 'robots_meta'])
@@ -228,12 +226,14 @@ class SitemapController extends Controller
 
         try {
             if (Schema::hasTable('collections')) {
-                Collection::query()
-                    ->where('is_published', true)
+                $this->indexableCollections()
                     ->orderBy('id')
                     ->forPage($this->sitemapPage($request), $this->sitemapPageSize())
-                    ->get(['slug', 'updated_at'])
+                    ->get(['slug', 'updated_at', 'robots_meta'])
                     ->each(function ($c) use (&$urls, $base) {
+                        if ($this->isNoindex($c->robots_meta ?? null)) {
+                            return;
+                        }
                         $urls[] = [
                             'loc' => $base.'/collections/'.$c->slug,
                             'lastmod' => optional($c->updated_at)->toAtomString(),
@@ -248,6 +248,46 @@ class SitemapController extends Controller
         return $this->urlset($urls);
     }
 
+
+
+    protected function indexablePages()
+    {
+        return Page::query()->published()
+            ->where(function ($query) {
+                $query->whereNull('noindex')->orWhere('noindex', false);
+            })
+            ->where(function ($query) {
+                $query->whereNull('robots_meta')
+                    ->orWhereRaw('LOWER(robots_meta) NOT LIKE ?', ['%noindex%']);
+            });
+    }
+
+    protected function indexableTools()
+    {
+        return ProprietaryTool::query()->where('is_published', true)
+            ->where(function ($query) {
+                $query->whereNull('robots_meta')
+                    ->orWhereRaw('LOWER(robots_meta) NOT LIKE ?', ['%noindex%']);
+            });
+    }
+
+    protected function indexableAlternatives()
+    {
+        return OpenSourceAlternative::query()->where('is_published', true)
+            ->where(function ($query) {
+                $query->whereNull('robots_meta')
+                    ->orWhereRaw('LOWER(robots_meta) NOT LIKE ?', ['%noindex%']);
+            });
+    }
+
+    protected function indexableCollections()
+    {
+        return Collection::query()->where('is_published', true)
+            ->where(function ($query) {
+                $query->whereNull('robots_meta')
+                    ->orWhereRaw('LOWER(robots_meta) NOT LIKE ?', ['%noindex%']);
+            });
+    }
 
     protected function sitemapPageSize(): int
     {
