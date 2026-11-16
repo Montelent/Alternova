@@ -92,7 +92,7 @@ class CollectionShow extends Component
                 // Google: ListItem must not combine url/name with nested "item"
                 'item' => SoftwareApplicationSchema::make([
                     'name' => $alt->name,
-                    'url' => route('alternatives.show', $alt),
+                    'url' => rtrim(CanonicalUrl::base(request()), '/').'/alternatives/'.$alt->slug,
                     'description' => $alt->description,
                     'license' => $alt->license_type,
                     'website' => $alt->website_url,
@@ -143,7 +143,7 @@ class CollectionShow extends Component
                     '@type' => 'ListItem',
                     'position' => 2,
                     'name' => 'Collections',
-                    'item' => route('collections.index'),
+                    'item' => $site.'/collections',
                 ],
                 [
                     '@type' => 'ListItem',
