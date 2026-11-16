@@ -454,7 +454,7 @@ class SeoManager
         $org = [
             '@type' => 'Organization',
             'name' => SiteSetting::get('seo_org_name', $this->siteName()) ?: $this->siteName(),
-            'url' => url('/'),
+            'url' => CanonicalUrl::base(request()),
         ];
 
         if ($logo !== '') {
@@ -468,11 +468,24 @@ class SeoManager
         return $org;
     }
 
+
+    /**
+     * Resolve the current page canonical from the trusted active request host.
+     * Query strings are deliberately excluded to prevent duplicate index URLs.
+     */
+    public function currentCanonicalUrl(): string
+    {
+        $base = rtrim(CanonicalUrl::base(request()), '/');
+        $path = trim((string) request()->path(), '/');
+
+        return $path === '' ? $base.'/' : $base.'/'.$path;
+    }
+
     public function head(array $page = []): array
     {
         $title = $page['title'] ?? $this->homepageTitle();
         $description = $page['description'] ?? $this->defaultDescription();
-        $canonical = $page['canonical'] ?? url()->current();
+        $canonical = $page['canonical'] ?? $this->currentCanonicalUrl();
         $robots = $this->robotsMeta($page['robots'] ?? null);
 
         $ogTitle = filled($page['ogTitle'] ?? null) ? $page['ogTitle'] : $title;
