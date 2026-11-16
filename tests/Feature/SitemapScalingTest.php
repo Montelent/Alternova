@@ -46,6 +46,35 @@ class SitemapScalingTest extends TestCase
         $response->assertDontSee('/alternativesto/'.$tools[0]->slug, false);
     }
 
+
+    public function test_noindex_tools_are_excluded_from_child_sitemaps(): void
+    {
+        $indexed = ProprietaryTool::factory()->create(['is_published' => true]);
+        $hidden = ProprietaryTool::factory()->create([
+            'is_published' => true,
+            'robots_meta' => 'noindex,nofollow',
+        ]);
+
+        $response = $this->get('/sitemap-tools.xml')->assertOk();
+
+        $response->assertSee('/alternativesto/'.$indexed->slug, false);
+        $response->assertDontSee('/alternativesto/'.$hidden->slug, false);
+    }
+
+    public function test_robots_txt_uses_the_trusted_active_domain_and_hides_private_token_routes(): void
+    {
+        config([
+            'app.url' => 'https://primary.example',
+            'alternova.allowed_hosts' => ['secondary.example'],
+        ]);
+
+        $response = $this->get('https://secondary.example/robots.txt')->assertOk();
+        $response->assertSee('Sitemap: https://secondary.example/sitemap.xml');
+        $response->assertSee('Disallow: /submission-status/');
+        $response->assertSee('Disallow: /collection-submission-status/');
+        $response->assertSee('Disallow: /support/');
+    }
+
     public function test_invalid_sitemap_page_numbers_are_safely_clamped_to_first_page(): void
     {
         $tool = ProprietaryTool::factory()->create(['is_published' => true]);
