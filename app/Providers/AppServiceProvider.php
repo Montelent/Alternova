@@ -69,6 +69,18 @@ class AppServiceProvider extends ServiceProvider
         } catch (\Throwable) {
         }
 
+        // Production must never read Laravel Vite's development-server marker.
+        // A public/hot file can survive a git pull because it is gitignored, causing
+        // @vite to emit localhost/dev-server URLs and leaving the live site unstyled.
+        if ($this->app->environment('production')) {
+            Vite::useHotFile(storage_path('framework/vite.hot'));
+
+            $publicHotFile = public_path('hot');
+            if (is_file($publicHotFile)) {
+                @unlink($publicHotFile);
+            }
+        }
+
         // Production session cookie defaults — never force Secure on non-HTTPS hosts
         if ($this->app->environment('production')) {
             $https = str_starts_with(strtolower((string) config('app.url')), 'https://');
