@@ -34,6 +34,11 @@ jobs:
   build:
     name: Build and package Laravel Vite assets
     runs-on: ubuntu-latest
+    env:
+      HOSTINGER_FTP_SERVER: ${{ secrets.HOSTINGER_FTP_SERVER }}
+      HOSTINGER_FTP_USERNAME: ${{ secrets.HOSTINGER_FTP_USERNAME }}
+      HOSTINGER_FTP_PASSWORD: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
+      HOSTINGER_PUBLIC_DIR: ${{ secrets.HOSTINGER_PUBLIC_DIR }}
     steps:
       - name: Check out source
         uses: actions/checkout@v5
