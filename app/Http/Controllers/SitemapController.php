@@ -17,6 +17,8 @@ use Illuminate\Support\Str;
 
 class SitemapController extends Controller
 {
+    private const SITEMAP_PAGE_SIZE = 45000;
+
     /** Sitemap index listing all child sitemaps. */
     public function index(Request $request): Response
     {
@@ -25,12 +27,26 @@ class SitemapController extends Controller
 
         $sitemaps = [
             ['loc' => $base.'/sitemap-static.xml', 'lastmod' => $now],
-            ['loc' => $base.'/sitemap-pages.xml', 'lastmod' => $now],
-            ['loc' => $base.'/sitemap-tools.xml', 'lastmod' => $now],
-            ['loc' => $base.'/sitemap-alternatives.xml', 'lastmod' => $now],
             ['loc' => $base.'/sitemap-categories.xml', 'lastmod' => $now],
-            ['loc' => $base.'/sitemap-collections.xml', 'lastmod' => $now],
         ];
+
+        // Keep every child sitemap below the protocol's 50,000 URL limit.
+        $sitemapSources = [
+            ['path' => '/sitemap-pages.xml', 'count' => Page::query()->published()->count()],
+            ['path' => '/sitemap-tools.xml', 'count' => ProprietaryTool::query()->where('is_published', true)->count()],
+            ['path' => '/sitemap-alternatives.xml', 'count' => OpenSourceAlternative::query()->where('is_published', true)->count()],
+            ['path' => '/sitemap-collections.xml', 'count' => Collection::query()->where('is_published', true)->count()],
+        ];
+
+        foreach ($sitemapSources as $source) {
+            $pages = max(1, (int) ceil($source['count'] / self::SITEMAP_PAGE_SIZE));
+            for ($page = 1; $page <= $pages; $page++) {
+                $sitemaps[] = [
+                    'loc' => $base.$source['path'].($page > 1 ? '?page='.$page : ''),
+                    'lastmod' => $now,
+                ];
+            }
+        }
 
         $xml = view('sitemap-index', ['sitemaps' => $sitemaps])->render();
 
@@ -74,7 +90,7 @@ class SitemapController extends Controller
 
         try {
             if (Schema::hasTable('pages')) {
-                $pages = Page::query()->published()->orderBy('sort_order')->get(['slug', 'updated_at', 'noindex', 'robots_meta']);
+                $pages = Page::query()->published()->orderBy('id')->forPage($this->sitemapPage($request), self::SITEMAP_PAGE_SIZE)->get(['slug', 'updated_at', 'noindex', 'robots_meta']);
                 foreach ($pages as $p) {
                     if (! empty($p->noindex) || $this->isNoindex($p->robots_meta ?? null)) {
                         continue;
@@ -104,7 +120,8 @@ class SitemapController extends Controller
 
         ProprietaryTool::query()
             ->where('is_published', true)
-            ->orderByDesc('updated_at')
+            ->orderBy('id')
+            ->forPage($this->sitemapPage($request), self::SITEMAP_PAGE_SIZE)
             ->get(['slug', 'updated_at', 'robots_meta'])
             ->each(function ($tool) use (&$urls, $base) {
                 if ($this->isNoindex($tool->robots_meta ?? null)) {
@@ -128,7 +145,8 @@ class SitemapController extends Controller
 
         OpenSourceAlternative::query()
             ->where('is_published', true)
-            ->orderByDesc('updated_at')
+            ->orderBy('id')
+            ->forPage($this->sitemapPage($request), self::SITEMAP_PAGE_SIZE)
             ->get(['slug', 'updated_at', 'robots_meta'])
             ->each(function ($alt) use (&$urls, $base) {
                 if ($this->isNoindex($alt->robots_meta ?? null)) {
@@ -214,7 +232,8 @@ class SitemapController extends Controller
             if (Schema::hasTable('collections')) {
                 Collection::query()
                     ->where('is_published', true)
-                    ->orderByDesc('updated_at')
+                    ->orderBy('id')
+                    ->forPage($this->sitemapPage($request), self::SITEMAP_PAGE_SIZE)
                     ->get(['slug', 'updated_at'])
                     ->each(function ($c) use (&$urls, $base) {
                         $urls[] = [
@@ -229,6 +248,12 @@ class SitemapController extends Controller
         }
 
         return $this->urlset($urls);
+    }
+
+
+    protected function sitemapPage(Request $request): int
+    {
+        return max(1, min(1000000, $request->integer('page', 1)));
     }
 
     protected function urlset(array $urls): Response
