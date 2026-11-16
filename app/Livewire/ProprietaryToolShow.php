@@ -83,7 +83,7 @@ class ProprietaryToolShow extends Component
             ? (string) $tool->meta_description
             : ($copy['meta_description'] ?? $seo->toolDescription($tool));
 
-        $canonical = $tool->canonical_url ?: $seo->currentCanonicalUrl();
+        $canonical = $seo->canonicalOverride($tool->canonical_url, $seo->currentCanonicalUrl());
 
         $social = $seo->toolSocial($tool, $count, $copy['heading'] ?? null);
         if (! filled($tool->og_description) && ! empty($copy['meta_description'])) {
