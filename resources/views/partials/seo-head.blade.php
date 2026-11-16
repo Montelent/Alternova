@@ -1,6 +1,10 @@
 @php
     /** @var \App\Services\SeoManager $seo */
     $seo = app(\App\Services\SeoManager::class);
+    $organization = $seo->organizationSchema();
+    $schemaBlocks = array_merge([
+        ['@context' => 'https://schema.org'] + $organization,
+    ], (array) ($jsonLd ?? []));
     $head = $seo->head([
         'title' => $title ?? null,
         'description' => $description ?? null,
@@ -59,8 +63,8 @@
 <meta name="p:domain_verify" content="{{ $head['verifications']['pinterest'] }}">
 @endif
 
-@if(!empty($jsonLd))
-    @foreach((array) $jsonLd as $block)
+@if(!empty($schemaBlocks))
+    @foreach($schemaBlocks as $block)
         <script type="application/ld+json">{!! json_encode($block, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE) !!}</script>
     @endforeach
 @endif
