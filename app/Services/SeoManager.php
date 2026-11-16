@@ -240,7 +240,7 @@ class SeoManager
             'description' => $description,
             'image' => $image,
             'type' => 'article',
-            'url' => $alt->canonical_url ?: $this->currentCanonicalUrl(),
+            'url' => $this->canonicalOverride($alt->canonical_url, $this->currentCanonicalUrl()),
         ];
     }
 
@@ -315,7 +315,7 @@ class SeoManager
             'description' => $description,
             'image' => $image,
             'type' => 'article',
-            'url' => $tool->canonical_url ?: $this->currentCanonicalUrl(),
+            'url' => $this->canonicalOverride($tool->canonical_url, $this->currentCanonicalUrl()),
         ];
     }
 
@@ -344,7 +344,7 @@ class SeoManager
             'description' => $description,
             'image' => $image,
             'type' => 'website',
-            'url' => $this->currentCanonicalUrl(),
+            'url' => $this->canonicalOverride($collection->canonical_url, $this->currentCanonicalUrl()),
         ];
     }
 
@@ -482,6 +482,28 @@ class SeoManager
         $path = trim((string) $request->path(), '/');
 
         return $path === '' ? $base.'/' : $base.'/'.$path;
+    }
+
+
+    /**
+     * Accept only absolute HTTP(S) canonical overrides; invalid values fall
+     * back to the trusted request-derived canonical URL.
+     */
+    public function canonicalOverride(?string $candidate, string $fallback): string
+    {
+        $candidate = trim((string) $candidate);
+        if ($candidate === '' || filter_var($candidate, FILTER_VALIDATE_URL) === false) {
+            return $fallback;
+        }
+
+        $parts = parse_url($candidate);
+        if (! is_array($parts)
+            || ! in_array(strtolower((string) ($parts['scheme'] ?? '')), ['http', 'https'], true)
+            || empty($parts['host'])) {
+            return $fallback;
+        }
+
+        return $candidate;
     }
 
     public function head(array $page = []): array
