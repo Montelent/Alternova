@@ -1,10 +1,10 @@
 <?php
 
-namespace Tests\\Unit;
+namespace Tests\Unit;
 
-use App\\Services\\SeoManager;
-use Illuminate\\Http\\Request;
-use Tests\\TestCase;
+use App\Services\SeoManager;
+use Illuminate\Http\Request;
+use Tests\TestCase;
 
 class SeoCanonicalUrlTest extends TestCase
 {
